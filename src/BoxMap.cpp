@@ -1,3 +1,6 @@
+/* ============================================================
+ * BoxMap.cpp - 제자리 유지(Stay)가 포함된 안전 랜덤 시뮬레이터
+ * ============================================================ */
 #include "BoxMap.h"
 
 #include <Arduino.h>
@@ -6,9 +9,9 @@ BoxInfo boxes[7];
 
 static void printZoneName(int z) {
   if (z == ZONE_IN)
-    Serial.print(F("입고"));
+    Serial.print(F("입고(5)"));
   else if (z == ZONE_OUT)
-    Serial.print(F("출고"));
+    Serial.print(F("출고(6)"));
   else {
     Serial.print(z);
     Serial.print(F("구역"));
@@ -23,11 +26,11 @@ void setupRandomLayout() {
   }
   randomSeed(analogRead(A0));
 
+  // 1. 고정 박스 배치 (5번 입고, 6번 출고)
   boxes[ZONE_IN].present = true;
-  boxes[ZONE_IN].found = true;
   boxes[ZONE_OUT].present = true;
-  boxes[ZONE_OUT].found = true;
 
+  // 2. 1~4구역 중 랜덤하게 2곳 배치 (a, b)
   int a = random(1, 5);
   int b;
   do {
@@ -37,40 +40,44 @@ void setupRandomLayout() {
   boxes[a].present = true;
   boxes[b].present = true;
 
-  int activeZones[4] = {a, b, ZONE_IN, ZONE_OUT};
+  // 3. 목적지 배열 셔플 (제자리 유지 가능)
   int dests[4];
-  bool valid = false;
+  int all[6] = {1, 2, 3, 4, 5, 6};
 
-  while (!valid) {
-    int all[6] = {1, 2, 3, 4, 5, 6};
-    for (int i = 0; i < 6; i++) {
-      int r = random(0, 6);
-      int temp = all[i];
-      all[i] = all[r];
-      all[r] = temp;
-    }
-    valid = true;
-    for (int i = 0; i < 4; i++) {
-      dests[i] = all[i];
-      if (dests[i] == activeZones[i]) {
-        valid = false;
-        break;
-      }
-    }
+  for (int i = 0; i < 6; i++) {
+    int r = random(0, 6);
+    int temp = all[i];
+    all[i] = all[r];
+    all[r] = temp;
   }
 
+  dests[0] = all[0];
+  dests[1] = all[1];
+  dests[2] = all[2];
+  dests[3] = all[3];
+
+  // 4. 목적지 확정 데이터 바인딩
   boxes[a].destination = dests[0];
   boxes[b].destination = dests[1];
   boxes[ZONE_IN].destination = dests[2];
   boxes[ZONE_OUT].destination = dests[3];
 
-  Serial.println(F("\n===== [이번 판 박스 배치 정답] ====="));
-  Serial.print(F("  랜덤: "));
+  // 5. 시리얼 모니터 정답지 출력 (★ 문법 에러 전면 수정 완료)
+  Serial.println(F("\n===== [시뮬레이션: 이번 판 정답지] ====="));
+
+  Serial.print(F("  랜덤 박스 ["));
   printZoneName(a);
-  Serial.print(F(", "));
+  Serial.print(F("] ➔ 목적지: "));
+  Serial.println(dests[0]);
+  Serial.print(F("  랜덤 박스 ["));
   printZoneName(b);
-  Serial.println();
-  Serial.println(F("  고정: 입고, 출고"));
+  Serial.print(F("] ➔ 목적지: "));
+  Serial.println(dests[1]);
+  Serial.print(F("  고정 박스 [입고(5)] ➔ 목적지: "));
+  Serial.println(dests[2]);
+  Serial.print(F("  고정 박스 [출고(6)] ➔ 목적지: "));
+  Serial.println(dests[3]);
+
   Serial.println(F("========================================"));
 }
 
@@ -79,7 +86,7 @@ bool scanZone(int zone) {
   printZoneName(zone);
   if (boxes[zone].present) {
     boxes[zone].found = true;
-    Serial.print(F(" -> 발견! (목적지 "));
+    Serial.print(F(" -> 발견! (목적지: "));
     Serial.print(boxes[zone].destination);
     Serial.println(F(")"));
     return true;
@@ -91,21 +98,21 @@ bool scanZone(int zone) {
 
 int knownBoxCount() {
   int n = 0;
-  for (int z = 1; z <= 6; z++)
+  for (int z = 1; z <= 6; z++) {
     if (boxes[z].found) n++;
+  }
   return n;
 }
 
 void printSearchResult() {
-  Serial.println(F("\n========== [탐색 완료] =========="));
+  Serial.println(F("\n========== [현재까지 확정된 QR 정보] =========="));
   for (int z = 1; z <= 6; z++) {
     if (boxes[z].found) {
-      Serial.print(F("  박스: "));
-      printZoneName(z);
-      Serial.print(F("  (목적지 "));
-      Serial.print(boxes[z].destination);
-      Serial.println(F(")"));
+      Serial.print(F("  구역 "));
+      Serial.print(z);
+      Serial.print(F(" ➔ 목적지: "));
+      Serial.println(boxes[z].destination);
     }
   }
-  Serial.println(F("================================"));
+  Serial.println(F("=============================================="));
 }

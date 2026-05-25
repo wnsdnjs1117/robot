@@ -1,13 +1,15 @@
 /* ============================================================
- * [종합 미션 완료판] 제어기: Arduino UNO + TETRIX PRIZM
+ * main.cpp - 로봇 자율주행 마스터 시스템 진입점
+ * 제어기: Arduino UNO + TETRIX PRIZM
  * ============================================================ */
 #include "BoxMap.h"
 #include "Config.h"
-#include "LiftTest.h"
+#include "LiftTest.h"  // (기존 작성하신 리프트 제어 헤더 유지)
 #include "MissionFlow.h"
 #include "Motion.h"
 #include "Navigation.h"
 
+// 하드웨어 제어 인스턴스 및 상태 변수 정의
 PRIZM prizm;
 int lastSensorState = 0;
 bool crossingArmed = true;
@@ -16,13 +18,16 @@ int crossingStable = 0;
 void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();
+
   pinMode(SENSOR_LEFT, INPUT);
   pinMode(SENSOR_CENTER, INPUT);
   pinMode(SENSOR_RIGHT, INPUT);
   prizm.resetEncoders();
 
+  // 가상 맵 데이터 셔플 생성
   setupRandomLayout();
 
+  // 시스템 준비 완료. 스타트 버튼 대기
   prizm.setGreenLED(HIGH);
   while (prizm.readStartButton() == 0) {
     delay(10);
@@ -32,10 +37,16 @@ void setup() {
 }
 
 void loop() {
+  // [1단계] 탐색: 박스 2개를 발견하면 즉시 해당 구역에서 주행 셧다운!
   executeStage1_Search();
+
+  // 기구학적 안정을 위한 2초 대기
   delay(2000);
+
+  // [2단계] 배송: 멈춘 위치(존)에서부터 다이나믹하게 최단 거리 배송 수행!
   executeStage2_Delivery();
 
+  // 모든 임무 완료 시 LED 점등 후 시스템 락다운
   prizm.setGreenLED(HIGH);
   while (true);
 }
