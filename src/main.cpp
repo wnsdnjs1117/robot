@@ -19,11 +19,7 @@ void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();
 
-  // EXPANSION 리프트 컨트롤러 초기화
-  extern EXPANSION exc;
-  extern const int EXP_ID;
-  extern const int LIFT_L;
-  extern const int LIFT_R;
+  // EXPANSION 리프트 컨트롤러 초기화 (exc, EXP_ID, LIFT_L, LIFT_R: LiftTest.h extern)
   exc.controllerEnable(EXP_ID);
   delay(10);
   exc.resetEncoder(EXP_ID, LIFT_L);

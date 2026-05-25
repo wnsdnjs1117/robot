@@ -13,12 +13,12 @@ extern int  currentNode;        // 현재 로봇이 서 있는 교차로 노드 
 extern bool lastEntryWasForward; // 마지막 구역 진입이 전진이었는가 (exitZone 탈출 방식 결정)
 
 void moveAbsoluteDirection(int targetDir);
-void goToNodeFromHub8(int node);       // 기존 유지 (호환성)
-void returnToHub8FromNode(int node, bool cameOutForward);  // 기존 유지
+void goToNodeFromHub8(int node);
+void returnToHub8FromNode(int node, bool cameOutForward);
 
-// ★ 허브 불경유 직접 라우팅
-void exitZone(int zone);               // 구역 내부 → 해당 교차로 노드로 탈출
-void goToZoneDirect(int zone);         // 현재 노드에서 목적 구역으로 최단 이동 후 enterZone()
-void moveToNode(int toNode);           // 현재 노드 → 목표 노드 최단 이동
+void turnToHeading(int target);        // 현재 헤딩 → 목표 헤딩 최소 회전
+void exitZone(int zone);
+void goToZoneDirect(int zone);
+void moveToNode(int toNode);
 
 #endif

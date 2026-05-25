@@ -64,7 +64,7 @@ static int nodeIndex(int n) {
 }
 
 // 목표 헤딩으로 최소 회전 후 갱신
-static void turnToHeading(int target) {
+void turnToHeading(int target) {
   int diff = (target - robotHeading + 4) % 4;
   if (diff == 0) return;
   if (diff == 1) { turnAngle(90, true);  }
@@ -78,15 +78,30 @@ static void turnToHeading(int target) {
 // ============================================================
 
 // 라인 없는 구간 전진 점프 (9↔10, 10↔11)
+// 양쪽 엔코더 절댓값 차이 보정으로 직진 유지
+// (좌우 모터 부호가 반전되어 있으므로 abs로 비교)
+// diff > 0: 왼쪽이 더 많이 돔 → 오른쪽 빠르게
+// diff < 0: 오른쪽이 더 많이 돔 → 왼쪽 빠르게
 void executeBlindRun() {
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < 400) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED); delay(5);
+
+  // 1단계: 최소 거리(400카운트)까지 엔코더 보정 직진
+  while (prizm.readEncoderCount(1) < 400) {
+    long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+    int correction = constrain((int)diff, -5, 5);
+    drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+    delay(5);
   }
+
+  // 2단계: 라인 찾을 때까지 계속 보정 직진
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED); delay(5);
+
+    long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+    int correction = constrain((int)diff, -5, 5);
+    drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+    delay(5);
   }
   stopAll();
 }

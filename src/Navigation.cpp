@@ -124,6 +124,7 @@ void goToMainLine() {
     liftDownTick();
     delay(5);
   }
+  // 라인을 완전히 벗어날 때까지 전진
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
@@ -132,10 +133,18 @@ void goToMainLine() {
     liftDownTick();
     delay(5);
   }
+  // 메인라인 감지까지 전진
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftDownTick();
+    delay(5);
+  }
+  // 라인 위에서 CROSS_ALIGN_COUNTS만큼 더 전진해 교차로 중심에 정렬
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftDownTick();
     delay(5);
@@ -154,19 +163,8 @@ void returnToFinish() {
   // currentNode에서 9번 노드로 이동
   moveToNode(9);
 
-  // 현재 헤딩을 동쪽으로 맞추기
-  int diff = (1 - robotHeading + 4) % 4;
-  if (diff == 1) {
-    turnAngle(90, true);
-    robotHeading = 1;
-  } else if (diff == 3) {
-    turnAngle(90, false);
-    robotHeading = 1;
-  } else if (diff == 2) {
-    turnAngle(90, true);
-    turnAngle(90, true);
-    robotHeading = 1;
-  }
+  // 동향으로 정렬 후 FINISH 방향으로 전진
+  turnToHeading(1);
 
   // 메인라인을 동쪽으로 따라가며 라인 2개 통과 (FINISH 앞까지)
   int passedLines = 0;
@@ -176,10 +174,8 @@ void returnToFinish() {
     int L, C, R;
     readSensors(L, C, R);
     bool onLine = anyLine(L, C, R);
-    if (onLine)
-      lineStable++;
-    else
-      lineStable = 0;
+    if (onLine) lineStable++;
+    else        lineStable = 0;
     if (onLine && lineArmed && lineStable >= CROSS_CONFIRM) {
       passedLines++;
       lineArmed = false;
@@ -206,8 +202,8 @@ void returnToFinish() {
   // [5] 부저 1~2초 울리기 (대회 규정: 1초~2초)
   //     PRIZM에 전용 buzzer API 없으므로 Arduino tone() 사용
   //     부저가 별도 핀에 연결된 경우 BUZZER_PIN 값 조정 필요
-  tone(BUZZER_PIN, 1000);  // 1000Hz
-  delay(1500);             // 1.5초 (규정 범위 내)
+  tone(BUZZER_PIN, 1000);   // 1000Hz
+  delay(1500);              // 1.5초 (규정 범위 내)
   noTone(BUZZER_PIN);
 
   // [6] 부저 후 로봇 완전 정지 (규정: 부저 후 움직이면 종료 불인정)
@@ -224,21 +220,15 @@ int qrSearchStage() {
   followToCrossing();
   turnAngle(90, true);
   enterZone();
+  lastEntryWasForward = true;   // 전진 진입
   if (scanZone(2)) randomFound++;
-  if (randomFound >= 2) {
-    stopAll();
-    printSearchResult();
-    return 2;
-  }  // 2구역 안에서 즉시 종료
+  if (randomFound >= 2) { stopAll(); printSearchResult(); return 2; }
 
   Serial.println(F("\n--- [4구역 탐색] ---"));
   reverseAcrossToOppositeZone();
+  lastEntryWasForward = false;  // 후진 진입
   if (scanZone(4)) randomFound++;
-  if (randomFound >= 2) {
-    stopAll();
-    printSearchResult();
-    return 4;
-  }  // 4구역 안에서 즉시 종료
+  if (randomFound >= 2) { stopAll(); printSearchResult(); return 4; }
 
   Serial.println(F("\n--- [1구역 탐색] ---"));
   forwardToCrossing();
@@ -246,17 +236,15 @@ int qrSearchStage() {
   followToCrossing();
   turnAngle(90, true);
   enterZone();
+  lastEntryWasForward = true;   // 전진 진입
   if (scanZone(1)) randomFound++;
-  if (randomFound >= 2) {
-    stopAll();
-    printSearchResult();
-    return 1;
-  }  // 1구역 안에서 즉시 종료
+  if (randomFound >= 2) { stopAll(); printSearchResult(); return 1; }
 
   Serial.println(F("\n--- [3구역 탐색] ---"));
   reverseAcrossToOppositeZone();
+  lastEntryWasForward = false;  // 후진 진입
   scanZone(3);
   stopAll();
   printSearchResult();
-  return 3;  // 3구역 안에서 최종 종료
+  return 3;
 }
