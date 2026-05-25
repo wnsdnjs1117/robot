@@ -5,6 +5,8 @@
 
 #include "BoxMap.h"
 #include "Config.h"
+#include "LiftTest.h"
+#include "MapRouter.h"
 #include "Motion.h"
 
 // 교차로 감지 시까지 라인트레이싱 후 정렬 정지
@@ -31,26 +33,25 @@ void followToCrossing() {
 void forwardToCrossing() { followToCrossing(); }
 
 // 구역 내부에서 수직 후진 기동으로 교차로를 지나 반대 구역까지 관통 주행
+// 구역 내부에서 교차로를 통과해 반대 구역까지 후진 관통 (1단계 탐색 전용)
+// 후진 중 센서 사용 불가 → 전체 엔코더 기반
+// ZONE_EXIT_REV_COUNTS: 구역→교차로, ZONE_DEPTH_COUNTS: 교차로→반대 구역
 void reverseAcrossToOppositeZone() {
-  crossingArmed = true;
-  crossingStable = 0;
   lastSensorState = 0;
 
-  while (true) {
-    int L, C, R;
-    readSensors(L, C, R);
-    if (detectCrossing(L, C, R)) break;
-    lineFollowStepReverse(L, C, R);
+  // 1단계: 구역 내부 → 교차로 통과 거리 후진
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < ZONE_EXIT_REV_COUNTS) {
+    drive(-BACK_SPEED, -BACK_SPEED);
     delay(5);
   }
   stopAll();
   delay(100);
 
+  // 2단계: 교차로 통과 후 반대 구역 안쪽까지 추가 후진
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < ZONE_DEPTH_COUNTS) {
-    int L, C, R;
-    readSensors(L, C, R);
-    lineFollowStepReverse(L, C, R);
+    drive(-BACK_SPEED, -BACK_SPEED);
     delay(5);
   }
   stopAll();
@@ -82,12 +83,14 @@ void goToMainLine() {
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftDownTick();
     delay(5);
   }
 
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < START_ESCAPE_COUNTS) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftDownTick();
     delay(5);
   }
   stopAll();
@@ -118,6 +121,7 @@ void goToMainLine() {
     }
     if (!onLine) lineArmed = true;
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftDownTick();
     delay(5);
   }
   while (true) {
@@ -125,6 +129,7 @@ void goToMainLine() {
     readSensors(L, C, R);
     if (!anyLine(L, C, R)) break;
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftDownTick();
     delay(5);
   }
   while (true) {
@@ -132,9 +137,83 @@ void goToMainLine() {
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftDownTick();
     delay(5);
   }
   stopAll();
+}
+
+// ★ FINISH 구역 복귀 및 부저 울림
+// currentNode 기반으로 어디서든 최단 경로로 FINISH 진입
+void returnToFinish() {
+  Serial.println(F("\n========================================"));
+  Serial.println(F(">> [FINISH] FINISH 구역 복귀 기동"));
+
+  // FINISH(START)는 9번 노드에서 동쪽+남쪽으로 접근
+  // 9번 → 동쪽 직진 → 라인 2개 → 남쪽으로 꺾어 진입
+  // currentNode에서 9번 노드로 이동
+  moveToNode(9);
+
+  // 현재 헤딩을 동쪽으로 맞추기
+  int diff = (1 - robotHeading + 4) % 4;
+  if (diff == 1) {
+    turnAngle(90, true);
+    robotHeading = 1;
+  } else if (diff == 3) {
+    turnAngle(90, false);
+    robotHeading = 1;
+  } else if (diff == 2) {
+    turnAngle(90, true);
+    turnAngle(90, true);
+    robotHeading = 1;
+  }
+
+  // 메인라인을 동쪽으로 따라가며 라인 2개 통과 (FINISH 앞까지)
+  int passedLines = 0;
+  bool lineArmed = true;
+  int lineStable = 0;
+  while (passedLines < 2) {
+    int L, C, R;
+    readSensors(L, C, R);
+    bool onLine = anyLine(L, C, R);
+    if (onLine)
+      lineStable++;
+    else
+      lineStable = 0;
+    if (onLine && lineArmed && lineStable >= CROSS_CONFIRM) {
+      passedLines++;
+      lineArmed = false;
+    }
+    if (!onLine) lineArmed = true;
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    delay(5);
+  }
+  stopAll();
+  delay(200);
+
+  // 남쪽으로 회전 → FINISH 진입
+  turnAngle(90, true);  // 동쪽 → 남쪽
+  robotHeading = 2;
+
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < FINISH_ENTRY_COUNTS) {
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    delay(5);
+  }
+  stopAll();
+  Serial.println(F(">> [FINISH] FINISH 구역 진입 완료!"));
+
+  // [5] 부저 1~2초 울리기 (대회 규정: 1초~2초)
+  //     PRIZM에 전용 buzzer API 없으므로 Arduino tone() 사용
+  //     부저가 별도 핀에 연결된 경우 BUZZER_PIN 값 조정 필요
+  tone(BUZZER_PIN, 1000);  // 1000Hz
+  delay(1500);             // 1.5초 (규정 범위 내)
+  noTone(BUZZER_PIN);
+
+  // [6] 부저 후 로봇 완전 정지 (규정: 부저 후 움직이면 종료 불인정)
+  prizm.setGreenLED(HIGH);
+  Serial.println(F(">> [FINISH] 부저 완료. 경기 종료."));
+  Serial.println(F("========================================\n"));
 }
 
 // ★ [리팩토링 핵심] 2개 발견 즉시 현재 구역 ID(1~4)를 반환하는 탐색 엔진

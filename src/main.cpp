@@ -19,6 +19,16 @@ void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();
 
+  // EXPANSION 리프트 컨트롤러 초기화
+  extern EXPANSION exc;
+  extern const int EXP_ID;
+  extern const int LIFT_L;
+  extern const int LIFT_R;
+  exc.controllerEnable(EXP_ID);
+  delay(10);
+  exc.resetEncoder(EXP_ID, LIFT_L);
+  exc.resetEncoder(EXP_ID, LIFT_R);
+
   pinMode(SENSOR_LEFT, INPUT);
   pinMode(SENSOR_CENTER, INPUT);
   pinMode(SENSOR_RIGHT, INPUT);
@@ -46,7 +56,7 @@ void loop() {
   // [2단계] 배송: 멈춘 위치(존)에서부터 다이나믹하게 최단 거리 배송 수행!
   executeStage2_Delivery();
 
-  // 모든 임무 완료 시 LED 점등 후 시스템 락다운
-  prizm.setGreenLED(HIGH);
+  // 모든 임무 완료 시 FINISH 구역 복귀 → 부저 → 시스템 락다운
+  returnToFinish();
   while (true);
 }

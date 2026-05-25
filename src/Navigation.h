@@ -9,6 +9,7 @@ void forwardToCrossing();
 void reverseAcrossToOppositeZone();
 void enterZone();
 void goToMainLine();
+void returnToFinish();  // ★ FINISH 복귀 및 부저 울림
 
 // ★ void에서 int로 변경! (구역 번호를 반환하기 위함)
 int qrSearchStage();
