@@ -32,12 +32,13 @@
  *   → exitZone()이 올바른 탈출 방식을 선택하는 데 사용
  * ============================================================ */
 #include "MapRouter.h"
+
 #include "Config.h"
 #include "Motion.h"
 #include "Navigation.h"
 
-int  robotHeading       = 0;  // 로봇 앞면 방향 (goToMainLine 후 북향으로 초기화)
-int  currentNode        = 8;  // 현재 서 있는 교차로 노드
+int robotHeading = 0;  // 로봇 앞면 방향 (goToMainLine 후 북향으로 초기화)
+int currentNode = 8;   // 현재 서 있는 교차로 노드
 bool lastEntryWasForward = true;  // 마지막 구역 진입이 전진이었는가
 
 // ============================================================
@@ -48,16 +49,16 @@ bool lastEntryWasForward = true;  // 마지막 구역 진입이 전진이었는�
 static int zoneToNode(int zone) {
   if (zone == 1 || zone == 3) return 7;
   if (zone == 2 || zone == 4) return 8;
-  if (zone == 5)              return 10;
-  if (zone == 6)              return 11;
+  if (zone == 5) return 10;
+  if (zone == 6) return 11;
   return 8;
 }
 
 // 노드 → 배열 인덱스 (7=0, 8=1, 9=2, 10=3, 11=4)
 static int nodeIndex(int n) {
-  if (n == 7)  return 0;
-  if (n == 8)  return 1;
-  if (n == 9)  return 2;
+  if (n == 7) return 0;
+  if (n == 8) return 1;
+  if (n == 9) return 2;
   if (n == 10) return 3;
   if (n == 11) return 4;
   return 1;
@@ -67,9 +68,16 @@ static int nodeIndex(int n) {
 void turnToHeading(int target) {
   int diff = (target - robotHeading + 4) % 4;
   if (diff == 0) return;
-  if (diff == 1) { turnAngle(90, true);  }
-  if (diff == 3) { turnAngle(90, false); }
-  if (diff == 2) { turnAngle(90, true); turnAngle(90, true); }
+  if (diff == 1) {
+    turnAngle(90, true);
+  }
+  if (diff == 3) {
+    turnAngle(90, false);
+  }
+  if (diff == 2) {
+    turnAngle(90, true);
+    turnAngle(90, true);
+  }
   robotHeading = target;
 }
 
@@ -95,7 +103,8 @@ void executeBlindRun() {
 
   // 2단계: 라인 찾을 때까지 계속 보정 직진
   while (true) {
-    int L, C, R; readSensors(L, C, R);
+    int L, C, R;
+    readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
 
     long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
@@ -111,14 +120,18 @@ static void stepNode(int from, int to) {
   int dir = (to > from) ? 1 : 3;  // to가 크면 동쪽, 작으면 서쪽
   turnToHeading(dir);
 
-  bool isBlind = (from == 9  && to == 10) || (from == 10 && to == 9)
-              || (from == 10 && to == 11) || (from == 11 && to == 10);
-  if (isBlind) executeBlindRun();
-  else         followToCrossing();
+  bool isBlind = (from == 9 && to == 10) || (from == 10 && to == 9) ||
+                 (from == 10 && to == 11) || (from == 11 && to == 10);
+  if (isBlind)
+    executeBlindRun();
+  else
+    followToCrossing();
 
   currentNode = to;
-  Serial.print(F(">> [NAV] ")); Serial.print(from);
-  Serial.print(F("->")); Serial.println(to);
+  Serial.print(F(">> [NAV] "));
+  Serial.print(from);
+  Serial.print(F("->"));
+  Serial.println(to);
 }
 
 // ============================================================
@@ -127,19 +140,42 @@ static void stepNode(int from, int to) {
 
 void moveAbsoluteDirection(int targetDir) {
   int diff = (targetDir - robotHeading + 4) % 4;
-  if      (diff == 0) { followToCrossing(); }
-  else if (diff == 2) { reverseAcrossToOppositeZone(); }
-  else if (diff == 1) { turnAngle(90, true);  robotHeading = targetDir; followToCrossing(); }
-  else if (diff == 3) { turnAngle(90, false); robotHeading = targetDir; followToCrossing(); }
+  if (diff == 0) {
+    followToCrossing();
+  } else if (diff == 2) {
+    reverseAcrossToOppositeZone();
+  } else if (diff == 1) {
+    turnAngle(90, true);
+    robotHeading = targetDir;
+    followToCrossing();
+  } else if (diff == 3) {
+    turnAngle(90, false);
+    robotHeading = targetDir;
+    followToCrossing();
+  }
 }
 
 void goToNodeFromHub8(int node) {
-  if      (node == 1) { moveAbsoluteDirection(3); moveAbsoluteDirection(0); }
-  else if (node == 2) { moveAbsoluteDirection(0); }
-  else if (node == 3) { moveAbsoluteDirection(3); moveAbsoluteDirection(2); }
-  else if (node == 4) { moveAbsoluteDirection(2); }
-  else if (node == 5) { moveAbsoluteDirection(1); executeBlindRun(); moveAbsoluteDirection(0); }
-  else if (node == 6) { moveAbsoluteDirection(1); executeBlindRun(); executeBlindRun(); moveAbsoluteDirection(0); }
+  if (node == 1) {
+    moveAbsoluteDirection(3);
+    moveAbsoluteDirection(0);
+  } else if (node == 2) {
+    moveAbsoluteDirection(0);
+  } else if (node == 3) {
+    moveAbsoluteDirection(3);
+    moveAbsoluteDirection(2);
+  } else if (node == 4) {
+    moveAbsoluteDirection(2);
+  } else if (node == 5) {
+    moveAbsoluteDirection(1);
+    executeBlindRun();
+    moveAbsoluteDirection(0);
+  } else if (node == 6) {
+    moveAbsoluteDirection(1);
+    executeBlindRun();
+    executeBlindRun();
+    moveAbsoluteDirection(0);
+  }
 }
 
 void returnToHub8FromNode(int node, bool cameOutForward) {
@@ -147,19 +183,34 @@ void returnToHub8FromNode(int node, bool cameOutForward) {
     // 전진 진입 → 후진 탈출 (엔코더 기반)
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < ZONE_EXIT_REV_COUNTS) {
-      drive(-BACK_SPEED, -BACK_SPEED); delay(5);
+      drive(-BACK_SPEED, -BACK_SPEED);
+      delay(5);
     }
-    stopAll(); delay(100);
+    stopAll();
+    delay(100);
   } else if (node == 3 || node == 4) {
     followToCrossing();
   } else if (node == 5 || node == 6) {
-    if (cameOutForward) reverseAcrossToOppositeZone();
-    else followToCrossing();
+    if (cameOutForward)
+      reverseAcrossToOppositeZone();
+    else
+      followToCrossing();
   }
-  if      (node == 1 || node == 3) { moveAbsoluteDirection(1); moveAbsoluteDirection(3); }
-  else if (node == 2 || node == 4) { moveAbsoluteDirection(3); }
-  else if (node == 5) { moveAbsoluteDirection(3); executeBlindRun(); followToCrossing(); }
-  else if (node == 6) { moveAbsoluteDirection(3); executeBlindRun(); executeBlindRun(); followToCrossing(); }
+  if (node == 1 || node == 3) {
+    moveAbsoluteDirection(1);
+    moveAbsoluteDirection(3);
+  } else if (node == 2 || node == 4) {
+    moveAbsoluteDirection(3);
+  } else if (node == 5) {
+    moveAbsoluteDirection(3);
+    executeBlindRun();
+    followToCrossing();
+  } else if (node == 6) {
+    moveAbsoluteDirection(3);
+    executeBlindRun();
+    executeBlindRun();
+    followToCrossing();
+  }
 }
 
 // ============================================================
@@ -199,18 +250,25 @@ void exitZone(int zone) {
   }
   // robotHeading 유지 — 탈출 후에도 앞면 방향은 진입 시와 동일
   currentNode = zoneToNode(zone);
-  Serial.print(F(">> [NAV] exitZone ")); Serial.print(zone);
-  Serial.print(F(" -> node ")); Serial.print(currentNode);
-  Serial.print(F(" heading=")); Serial.println(robotHeading);
+  Serial.print(F(">> [NAV] exitZone "));
+  Serial.print(zone);
+  Serial.print(F(" -> node "));
+  Serial.print(currentNode);
+  Serial.print(F(" heading="));
+  Serial.println(robotHeading);
 }
 
 // [3] 현재 노드 → 목표 구역 이동 + 진입
 //     진입 후 robotHeading = 진입 방향(zoneSide 또는 반대)
 void goToZoneDirect(int zone) {
   int targetNode = zoneToNode(zone);
-  Serial.print(F(">> [NAV] zone ")); Serial.print(zone);
-  Serial.print(F(" (node ")); Serial.print(currentNode);
-  Serial.print(F("->")); Serial.print(targetNode); Serial.println(F(")"));
+  Serial.print(F(">> [NAV] zone "));
+  Serial.print(zone);
+  Serial.print(F(" (node "));
+  Serial.print(currentNode);
+  Serial.print(F("->"));
+  Serial.print(targetNode);
+  Serial.println(F(")"));
 
   moveToNode(targetNode);
 
@@ -229,16 +287,19 @@ void goToZoneDirect(int zone) {
     enterZone();
     lastEntryWasForward = true;
     // robotHeading 유지 — 전진이므로 앞면 방향 그대로
-    Serial.print(F(">> [NAV] 전진 진입 heading=")); Serial.println(robotHeading);
+    Serial.print(F(">> [NAV] 전진 진입 heading="));
+    Serial.println(robotHeading);
   } else {
     // 후진 진입 (엔코더 기반)
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < ZONE_ENTER_COUNTS) {
-      drive(-BACK_SPEED, -BACK_SPEED); delay(5);
+      drive(-BACK_SPEED, -BACK_SPEED);
+      delay(5);
     }
     stopAll();
     lastEntryWasForward = false;
     // robotHeading 유지 — 후진이므로 앞면 방향 그대로
-    Serial.print(F(">> [NAV] 후진 진입 heading=")); Serial.println(robotHeading);
+    Serial.print(F(">> [NAV] 후진 진입 heading="));
+    Serial.println(robotHeading);
   }
 }
