@@ -1,13 +1,9 @@
-/* ============================================================
- * BoxMap.cpp - 박스 위치 관리 + QR 스캔 시뮬레이션 구현
- * ============================================================ */
 #include "BoxMap.h"
 
 #include <Arduino.h>
 
 BoxInfo boxes[7];
 
-// 구역 이름 출력 헬퍼
 static void printZoneName(int z) {
   if (z == ZONE_IN)
     Serial.print(F("입고"));
@@ -19,54 +15,62 @@ static void printZoneName(int z) {
   }
 }
 
-// QR 목적지(이동 위치) 랜덤 부여 - 자기 구역은 제외 (후속 단계용 placeholder)
-static void assignDest(int zone) {
-  int d;
-  do {
-    d = random(1, 7);
-  } while (d == zone);  // 1~6 중 자기 구역 제외
-  boxes[zone].destination = d;
-}
-
 void setupRandomLayout() {
-  // 0) 초기화
   for (int i = 0; i < 7; i++) {
     boxes[i].present = false;
     boxes[i].found = false;
     boxes[i].destination = 0;
   }
+  randomSeed(analogRead(A0));
 
-  // 1) 입고(5)/출고(6) 고정 박스 - 로봇이 이미 안다고 처리(found=true)
   boxes[ZONE_IN].present = true;
   boxes[ZONE_IN].found = true;
   boxes[ZONE_OUT].present = true;
   boxes[ZONE_OUT].found = true;
 
-  // 2) 1~4구역 중 랜덤하게 서로 다른 2곳 선택
-  randomSeed(analogRead(A0));  // 미사용 아날로그핀(A0) 노이즈로 시드
-  int a = random(1, 5);        // 1~4
+  int a = random(1, 5);
   int b;
   do {
     b = random(1, 5);
   } while (b == a);
-  boxes[3].present = true;
-  boxes[4].present = true;
 
-  // 3) 모든 박스에 QR 목적지 부여 (시뮬레이션)
-  assignDest(a);
-  assignDest(b);
-  assignDest(ZONE_IN);
-  assignDest(ZONE_OUT);
+  boxes[a].present = true;
+  boxes[b].present = true;
 
-  // 4) 정답지 출력 (디버그용 - 로봇은 1~4 위치를 모름)
-  Serial.println(F("\n===== [이번 판 박스 배치 / 정답지] ====="));
-  Serial.print(F("  랜덤 박스: "));
+  int activeZones[4] = {a, b, ZONE_IN, ZONE_OUT};
+  int dests[4];
+  bool valid = false;
+
+  while (!valid) {
+    int all[6] = {1, 2, 3, 4, 5, 6};
+    for (int i = 0; i < 6; i++) {
+      int r = random(0, 6);
+      int temp = all[i];
+      all[i] = all[r];
+      all[r] = temp;
+    }
+    valid = true;
+    for (int i = 0; i < 4; i++) {
+      dests[i] = all[i];
+      if (dests[i] == activeZones[i]) {
+        valid = false;
+        break;
+      }
+    }
+  }
+
+  boxes[a].destination = dests[0];
+  boxes[b].destination = dests[1];
+  boxes[ZONE_IN].destination = dests[2];
+  boxes[ZONE_OUT].destination = dests[3];
+
+  Serial.println(F("\n===== [이번 판 박스 배치 정답] ====="));
+  Serial.print(F("  랜덤: "));
   printZoneName(a);
   Serial.print(F(", "));
   printZoneName(b);
   Serial.println();
-  Serial.println(F("  입고/출고: 고정 (이미 알고 있음)"));
-  Serial.println(F("  >> 로봇은 1~4구역 위치를 모른 채 탐색 시작"));
+  Serial.println(F("  고정: 입고, 출고"));
   Serial.println(F("========================================"));
 }
 
@@ -75,7 +79,7 @@ bool scanZone(int zone) {
   printZoneName(zone);
   if (boxes[zone].present) {
     boxes[zone].found = true;
-    Serial.print(F(" -> 박스 발견! (QR 목적지 "));
+    Serial.print(F(" -> 발견! (목적지 "));
     Serial.print(boxes[zone].destination);
     Serial.println(F(")"));
     return true;
@@ -103,8 +107,5 @@ void printSearchResult() {
       Serial.println(F(")"));
     }
   }
-  Serial.print(F("  총 확정 박스: "));
-  Serial.print(knownBoxCount());
-  Serial.println(F(" / 4"));
   Serial.println(F("================================"));
 }
