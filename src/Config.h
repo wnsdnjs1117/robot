@@ -33,15 +33,16 @@ constexpr int FINISH_ENTRY_COUNTS  = 1500;  // FINISH 구역 진입 거리
 constexpr int SPIN_90_COUNTS       = 1200;  // 90도 회전 시 필요한 엔코더 카운트
 constexpr int CROSS_ALIGN_COUNTS   = 250;   // 교차로 감지 후 축 정렬 과전진 거리
 constexpr int ZONE_ENTER_COUNTS    = 2400;  // 노드7 전진 탈출 전용 (exitZone)
-constexpr int ZONE_ENTER_EXTRA     = 400;   // 전진 진입: 라인 끊긴 후 추가 직진
-constexpr int ZONE_DEPTH_EXTRA     = 400;   // 후진 진입: 라인 끊긴 후 추가 후진
+constexpr int ZONE_ENTER_EXTRA     = 1000;  // 전진 진입: 라인 끊긴 후 추가 직진
+constexpr int ZONE_DEPTH_EXTRA     = 1000;  // 후진 진입: 라인 끊긴 후 추가 후진
+constexpr int ZONE_FOLLOW_MAX      = 3500;  // 후진 라인 추종 최대 거리 (무한루프 방지)
 constexpr int ZONE_EXIT_REV_COUNTS = 2000;  // 구역 내부 → 교차로 후진 거리
 
 // 4. 주행 환경 설정
 constexpr bool WEST_IS_LEFT = true;       // 서쪽 방향이 왼쪽인지 여부
 constexpr int CROSS_CONFIRM = 2;          // 교차로 인식 노이즈 필터링 카운트
 constexpr int ANGULAR_GAIN = 3;           // 전/후방 이중 센서 각도 교정 배율
-constexpr int REAR_TO_AXLE_COUNTS = 150;  // 후방 센서 → 차축 거리
+constexpr int REAR_TO_AXLE_COUNTS = 0;    // 후방 센서 → 차축 거리 (차축과 동일 위치)
 
 // 전역 객체 선언
 extern PRIZM prizm;

@@ -62,11 +62,14 @@ void forwardToCrossing() { followToCrossing(); }
 void reverseEnterZone() {
   lastSensorState = 0;
 
-  // Phase 2-A: 후방 센서로 라인 추종하며 후진
+  // Phase 2-A: 후방 센서로 라인 추종하며 후진 (최대 ZONE_FOLLOW_MAX까지)
+  // 라인이 끊기거나 최대 거리 초과 시 Phase 2-B로 이행 (무한루프 방지)
+  prizm.resetEncoders();
   while (true) {
     int RL, RC, RR; readRearSensors(RL, RC, RR);
     int L, C, R;   readSensors(L, C, R);
     if (!anyRearLine(RL, RC, RR)) break;
+    if (abs(prizm.readEncoderCount(1)) >= ZONE_FOLLOW_MAX) break;  // 안전 탈출
 
     int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
     if      (RL&&!RC&&!RR) { lsp=-(BACK_SPEED-10); rsp=-(BACK_SPEED+10); }
