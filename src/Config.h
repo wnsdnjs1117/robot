@@ -25,8 +25,8 @@ constexpr int START_ESCAPE_COUNTS = 1500;  // 스타트 선 밟은 후 추가 �
 constexpr int FINISH_ENTRY_COUNTS = 1500;  // FINISH 구역 진입 거리
 constexpr int SPIN_90_COUNTS = 1200;       // 90도 회전 시 필요한 엔코더 카운트
 constexpr int CROSS_ALIGN_COUNTS = 250;    // 교차로 감지 후 축 정렬 과전진 거리
-constexpr int ZONE_ENTER_COUNTS = 2200;    // 교차로 ➔ 구역 안쪽 전진 진입 거리
-constexpr int ZONE_DEPTH_COUNTS = 1500;    // 구역 내부 수직 관통 깊이 (탐색용)
+constexpr int ZONE_ENTER_COUNTS = 2400;    // 교차로 ➔ 구역 안쪽 전진 진입 거리
+constexpr int ZONE_DEPTH_COUNTS = 1300;    // 구역 내부 수직 관통 깊이 (탐색용)
 constexpr int ZONE_EXIT_REV_COUNTS =
     2000;  // 구역 내부 → 교차로 후진 거리
            // (전진 진입 후 탈출 시. 현장 튜닝 필요)
