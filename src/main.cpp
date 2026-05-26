@@ -13,8 +13,7 @@
 PRIZM prizm;
 int lastSensorState = 0;
 bool crossingArmed = true;
-int crossingStable  = 0;
-int crossingStableT = 0;
+int crossingStable = 0;
 
 void setup() {
   Serial.begin(9600);

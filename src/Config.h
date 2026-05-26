@@ -33,14 +33,12 @@ constexpr int ZONE_EXIT_REV_COUNTS =
 
 // 4. 주행 환경 설정
 constexpr bool WEST_IS_LEFT = true;  // 서쪽 방향이 왼쪽인지 여부
-constexpr int CROSS_CONFIRM   = 2;  // +자 교차로 인식 노이즈 필터링 카운트
-constexpr int T_CROSS_CONFIRM = 5;  // T자 교차로 인식 임계값 (25ms, 오감지 방지용)
+constexpr int CROSS_CONFIRM = 2;     // 교차로 인식 노이즈 필터링 카운트
 
 // 전역 객체 선언
 extern PRIZM prizm;
 extern int lastSensorState;
 extern bool crossingArmed;
 extern int crossingStable;
-extern int crossingStableT;
 
 #endif

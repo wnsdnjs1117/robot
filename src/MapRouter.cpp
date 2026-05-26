@@ -355,8 +355,19 @@ void exitZone(int zone) {
     stopAll();
     delay(100);
   } else {
-    // 후진 진입 → 전진 탈출 (라인트레이싱)
-    followToCrossing();
+    if (zoneToNode(zone) == 7) {
+      // 노드 7은 T자 교차로라 followToCrossing 미감지 → 엔코더 기반 전진 탈출
+      prizm.resetEncoders();
+      while (abs(prizm.readEncoderCount(1)) < ZONE_ENTER_COUNTS) {
+        drive(SPEED, SPEED);
+        delay(5);
+      }
+      stopAll();
+      delay(100);
+    } else {
+      // 후진 진입 → 전진 탈출 (라인트레이싱)
+      followToCrossing();
+    }
   }
   currentNode = zoneToNode(zone);
   Serial.print(F(">> [NAV] exitZone "));

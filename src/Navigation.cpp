@@ -34,9 +34,8 @@ void followToCrossing() {
     }
   }
 
-  crossingArmed   = true;
-  crossingStable  = 0;
-  crossingStableT = 0;
+  crossingArmed = true;
+  crossingStable = 0;
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
