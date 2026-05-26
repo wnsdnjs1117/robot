@@ -94,6 +94,74 @@ void lineFollowStepReverse(int L, int C, int R) {
   drive(-BACK_SPEED, -BACK_SPEED);  // 조향 없는 일직선 후진
 }
 
+void readRearSensors(int& RL, int& RC, int& RR) {
+  RL = (analogRead(SENSOR_REAR_LEFT)   >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
+  RC = (analogRead(SENSOR_REAR_CENTER) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
+  RR = (analogRead(SENSOR_REAR_RIGHT)  >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
+}
+
+bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
+
+void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
+  bool frontHasLine   = anyLine(FL, FC, FR);
+  bool rearHasLine    = anyRearLine(RL, RC, RR);
+  bool rearIsCrossing = (RL && RC && RR);
+
+  // 전방 센서 기본 조향 (기존 lineFollowStep 동일)
+  int lsp = SPEED, rsp = SPEED;
+  if      (FL&&!FC&&!FR) { lsp=SPEED-20; rsp=SPEED+10; lastSensorState=1; }
+  else if (FL&&FC&&!FR)  { lsp=SPEED-10; rsp=SPEED+5;  lastSensorState=1; }
+  else if (!FL&&!FC&&FR) { lsp=SPEED+10; rsp=SPEED-20; lastSensorState=2; }
+  else if (!FL&&FC&&FR)  { lsp=SPEED+5;  rsp=SPEED-10; lastSensorState=2; }
+  else if (FC) {
+    if      (lastSensorState==1) { lsp=SPEED+4; rsp=SPEED-4; lastSensorState=0; }
+    else if (lastSensorState==2) { lsp=SPEED-4; rsp=SPEED+4; lastSensorState=0; }
+    else                         { lsp=SPEED;   rsp=SPEED; }
+  } else {
+    if      (lastSensorState==1) { lsp=SPEED-16; rsp=SPEED+6; }
+    else if (lastSensorState==2) { lsp=SPEED+6;  rsp=SPEED-16; }
+    else                         { lsp=SPEED;    rsp=SPEED; }
+  }
+
+  // 후방 각도 교정: 전방 라인 있음 AND 후방 라인 있음 AND 후방이 교차로(111) 아님
+  if (frontHasLine && rearHasLine && !rearIsCrossing) {
+    int angErr  = (RR - RL) - (FR - FL);
+    int angCorr = constrain(angErr * ANGULAR_GAIN, -5, 5);
+    lsp += angCorr;
+    rsp -= angCorr;
+  }
+
+  drive(constrain(lsp, -100, 100), constrain(rsp, -100, 100));
+}
+
+void alignHeadingOnLine() {
+  // CROSS_ALIGN_COUNTS 과전진 후, 후방 센서는 출발 라인 REAR_TO_AXLE_COUNTS 뒤에 있음
+  // 조금 더 전진해 후방 센서가 출발 라인을 감지하면 즉시 정지
+  prizm.resetEncoders();
+  while (true) {
+    int RL, RC, RR;
+    readRearSensors(RL, RC, RR);
+    if (anyRearLine(RL, RC, RR)) break;
+    if (abs(prizm.readEncoderCount(1)) > REAR_TO_AXLE_COUNTS + 100) break;
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    delay(5);
+  }
+  stopAll();
+  delay(50);
+
+  // 미세 회전: RL과 RR 동시 감지 = 라인과 수직 정렬 (최대 60회)
+  for (int t = 0; t < 60; t++) {
+    int RL, RC, RR;
+    readRearSensors(RL, RC, RR);
+    if (RL && RR) break;
+    if (!RL && RR) drive(4, -4);   // RR만 감지 → 우회전(CW)으로 RL 끌어당김
+    else           drive(-4, 4);   // RL만 감지 → 좌회전(CCW)으로 RR 끌어당김
+    delay(10);
+  }
+  stopAll();
+  delay(50);
+}
+
 bool detectCrossing(int L, int C, int R) {
   bool isCross = (L == 1 && C == 1 && R == 1);
   if (isCross)

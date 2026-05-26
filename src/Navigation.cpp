@@ -48,21 +48,61 @@ void followToCrossing() {
       stopAll();
       return;
     }
-    lineFollowStep(L, C, R);
+    int RL, RC, RR;
+    readRearSensors(RL, RC, RR);
+    lineFollowStepFull(L, C, R, RL, RC, RR);
     delay(5);
   }
 }
 
 void forwardToCrossing() { followToCrossing(); }
 
+// 후진으로 존 진입: 후방 센서로 라인 추종 → 끊기면 ZONE_DEPTH_EXTRA 추가 후진
+// 전방 센서를 각도 확인용으로 병행 사용 (교차로=111이면 무시)
+void reverseEnterZone() {
+  lastSensorState = 0;
+
+  // Phase 2-A: 후방 센서로 라인 추종하며 후진
+  while (true) {
+    int RL, RC, RR; readRearSensors(RL, RC, RR);
+    int L, C, R;   readSensors(L, C, R);
+    if (!anyRearLine(RL, RC, RR)) break;
+
+    int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
+    if      (RL&&!RC&&!RR) { lsp=-(BACK_SPEED-10); rsp=-(BACK_SPEED+10); }
+    else if (!RL&&!RC&&RR) { lsp=-(BACK_SPEED+10); rsp=-(BACK_SPEED-10); }
+
+    // 전방 각도 보정 (전방 라인 있고 교차로 아닐 때)
+    bool frontIsCrossing = (L && C && R);
+    if (anyLine(L, C, R) && !frontIsCrossing) {
+      int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
+      lsp -= angCorr; rsp += angCorr;
+    }
+    drive(lsp, rsp);
+    delay(5);
+  }
+
+  // Phase 2-B: 라인 끊긴 지점부터 ZONE_DEPTH_EXTRA 추가 후진
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < ZONE_DEPTH_EXTRA) {
+    int L, C, R; readSensors(L, C, R);
+    bool frontIsCrossing = (L && C && R);
+    if (anyLine(L, C, R) && !frontIsCrossing) {
+      int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
+      drive(-BACK_SPEED - angCorr, -BACK_SPEED + angCorr);
+    } else {
+      drive(-BACK_SPEED, -BACK_SPEED);
+    }
+    delay(5);
+  }
+  stopAll();
+}
+
 // 구역 내부에서 수직 후진 기동으로 교차로를 지나 반대 구역까지 관통 주행
-// 구역 내부에서 교차로를 통과해 반대 구역까지 후진 관통 (1단계 탐색 전용)
-// 후진 중 센서 사용 불가 → 전체 엔코더 기반
-// ZONE_EXIT_REV_COUNTS: 구역→교차로, ZONE_DEPTH_COUNTS: 교차로→반대 구역
 void reverseAcrossToOppositeZone() {
   lastSensorState = 0;
 
-  // 1단계: 구역 내부 → 교차로 통과 거리 후진
+  // 1단계: 구역 내부 → 교차로 통과까지 엔코더 기반 후진
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < ZONE_EXIT_REV_COUNTS) {
     drive(-BACK_SPEED, -BACK_SPEED);
@@ -71,25 +111,33 @@ void reverseAcrossToOppositeZone() {
   stopAll();
   delay(100);
 
-  // 2단계: 교차로 통과 후 반대 구역 안쪽까지 추가 후진
-  prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < ZONE_DEPTH_COUNTS) {
-    drive(-BACK_SPEED, -BACK_SPEED);
-    delay(5);
-  }
-  stopAll();
+  // 2단계: 반대 구역 라인 추종 후진 → 끊기면 ZONE_DEPTH_EXTRA 추가
+  reverseEnterZone();
 }
 
-// 구역 내부 진입용 엔코더 직진 런
+// 전진으로 존 진입: 전방 센서로 라인 추종 → 끊기면 ZONE_ENTER_EXTRA 추가 전진
+// 후방 센서를 각도 확인용으로 병행 사용 (교차로=111이면 무시)
 void enterZone() {
-  prizm.resetEncoders();
   lastSensorState = 0;
 
-  while (abs(prizm.readEncoderCount(1)) < ZONE_ENTER_COUNTS) {
-    int L, C, R;
-    readSensors(L, C, R);
-    if (anyLine(L, C, R)) {
-      lineFollowStep(L, C, R);
+  // Phase 1: 전방 라인이 끊길 때까지 라인트레이싱
+  while (true) {
+    int L, C, R;   readSensors(L, C, R);
+    int RL, RC, RR; readRearSensors(RL, RC, RR);
+    if (!anyLine(L, C, R)) break;
+    lineFollowStepFull(L, C, R, RL, RC, RR);
+    delay(5);
+  }
+
+  // Phase 2: 라인 끊긴 지점부터 ZONE_ENTER_EXTRA 추가 전진
+  // 후방 센서가 아직 라인 위라면 후방 기준으로 각도 보정
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < ZONE_ENTER_EXTRA) {
+    int RL, RC, RR; readRearSensors(RL, RC, RR);
+    bool rearIsCrossing = (RL && RC && RR);
+    if (anyRearLine(RL, RC, RR) && !rearIsCrossing) {
+      int angCorr = constrain((RR - RL) * ANGULAR_GAIN, -5, 5);
+      drive(SPEED - angCorr, SPEED + angCorr);
     } else {
       drive(SPEED, SPEED);
     }
