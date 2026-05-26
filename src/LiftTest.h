@@ -4,6 +4,9 @@
 #ifndef LIFT_TEST_H
 #define LIFT_TEST_H
 
+#include <Arduino.h>
+#include <PRIZM.h>   // EXPANSION 타입 선언을 위해 필요
+
 // 리프트 제어 메인 테스트 함수
 void runLiftStallTest();
 

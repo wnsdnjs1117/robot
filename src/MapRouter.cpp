@@ -35,7 +35,11 @@
 
 #include "Config.h"
 #include "Motion.h"
-#include "Navigation.h"
+
+// Navigation.cpp와 순환 include 방지 — 필요한 함수만 전방 선언
+void followToCrossing();
+void reverseAcrossToOppositeZone();
+void enterZone();
 
 int robotHeading = 0;  // 로봇 앞면 방향 (goToMainLine 후 북향으로 초기화)
 int currentNode = 8;   // 현재 서 있는 교차로 노드
@@ -106,26 +110,124 @@ void executeBlindRun() {
     int L, C, R;
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-
     long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
     int correction = constrain((int)diff, -5, 5);
     drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
     delay(5);
   }
-  stopAll();
+
+  // 3단계: 라인 발견 후 followToCrossing으로 교차로 위에 정확히 정렬
+  // (비스듬히 걸친 상태로 멈추지 않고 중심 정렬 후 정지)
+  followToCrossing();
 }
 
 // 노드 간 단일 구간 전진 이동 (회전 후 이동, currentNode 갱신)
 static void stepNode(int from, int to) {
-  int dir = (to > from) ? 1 : 3;  // to가 크면 동쪽, 작으면 서쪽
+  int dir = (to > from) ? 1 : 3;
   turnToHeading(dir);
 
   bool isBlind = (from == 9 && to == 10) || (from == 10 && to == 9) ||
                  (from == 10 && to == 11) || (from == 11 && to == 10);
-  if (isBlind)
-    executeBlindRun();
-  else
+
+  if (from == 8 && to == 9) {
+    // 8→9: 9번에 세로선 없음 → 엔코더로 거리 이동
+    prizm.resetEncoders();
+    while (abs(prizm.readEncoderCount(1)) < NODE_8_TO_9_COUNTS) {
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+    stopAll();
+  } else if (from == 9 && to == 8) {
+    // 9→8: 반대 방향도 동일하게 엔코더 이동 후 8번 교차로 찾기
+    // (8번은 십자라 followToCrossing 사용 가능하지만 거리가 짧아 엔코더 우선)
+    prizm.resetEncoders();
+    while (abs(prizm.readEncoderCount(1)) < NODE_8_TO_9_COUNTS) {
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+    stopAll();
+    // 8번 교차로에 정확히 올라타기 위해 followToCrossing으로 마무리
     followToCrossing();
+  } else if (from == 9 && to == 10) {
+    // 9→10: 동향 직진 중 라인 감지 즉시 좌회전 (북향으로 정렬)
+    prizm.resetEncoders();
+    while (prizm.readEncoderCount(1) < 400) {
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (anyLine(L, C, R)) {
+        stopAll();
+        turnAngle(90, false);  // 좌회전 → 북향
+        robotHeading = 0;
+        break;
+      }
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+  } else if (from == 10 && to == 9) {
+    // 10→9: 서향 직진 중 라인 감지 즉시 우회전 (북향으로 정렬)
+    prizm.resetEncoders();
+    while (prizm.readEncoderCount(1) < 400) {
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (anyLine(L, C, R)) {
+        stopAll();
+        turnAngle(90, true);  // 우회전 → 북향
+        robotHeading = 0;
+        break;
+      }
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+  } else if (isBlind) {
+    // 10↔11: 9↔10과 동일한 방식
+    prizm.resetEncoders();
+    while (prizm.readEncoderCount(1) < 400) {
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (anyLine(L, C, R)) {
+        stopAll();
+        if (to > from) {
+          turnAngle(90, false);  // 동→북 좌회전 (10→11)
+        } else {
+          turnAngle(90, true);  // 서→북 우회전 (11→10)
+        }
+        robotHeading = 0;
+        break;
+      }
+      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
+      int correction = constrain((int)diff, -5, 5);
+      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      delay(5);
+    }
+  } else {
+    followToCrossing();
+  }
 
   currentNode = to;
   Serial.print(F(">> [NAV] "));

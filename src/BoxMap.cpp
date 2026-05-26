@@ -44,8 +44,8 @@ void setupRandomLayout() {
   int dests[4];
   int all[6] = {1, 2, 3, 4, 5, 6};
 
-  for (int i = 0; i < 6; i++) {
-    int r = random(0, 6);
+  for (int i = 5; i > 0; i--) {
+    int r = random(0, i + 1);
     int temp = all[i];
     all[i] = all[r];
     all[r] = temp;

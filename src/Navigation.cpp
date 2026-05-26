@@ -11,6 +11,29 @@
 
 // 교차로 감지 시까지 라인트레이싱 후 정렬 정지
 void followToCrossing() {
+  // 이미 교차로(L=C=R=1) 위에 있으면 벗어날 때까지 직진 후 탐색 시작
+  // (exitZone 후진 탈출 직후 교차로 위에 멈춰있는 경우 대응)
+  {
+    int L, C, R;
+    readSensors(L, C, R);
+    if (L == 1 && C == 1 && R == 1) {
+      // 교차로를 완전히 벗어날 때까지 직진
+      while (true) {
+        readSensors(L, C, R);
+        if (!(L == 1 && C == 1 && R == 1)) break;
+        drive(SPEED, SPEED);
+        delay(5);
+      }
+      // 벗어난 후 한 박자 더 전진 (센서가 완전히 교차로 밖으로)
+      for (int i = 0; i < 10; i++) {
+        drive(SPEED, SPEED);
+        delay(5);
+      }
+      stopAll();
+      delay(50);
+    }
+  }
+
   crossingArmed = true;
   crossingStable = 0;
   while (true) {
@@ -174,8 +197,10 @@ void returnToFinish() {
     int L, C, R;
     readSensors(L, C, R);
     bool onLine = anyLine(L, C, R);
-    if (onLine) lineStable++;
-    else        lineStable = 0;
+    if (onLine)
+      lineStable++;
+    else
+      lineStable = 0;
     if (onLine && lineArmed && lineStable >= CROSS_CONFIRM) {
       passedLines++;
       lineArmed = false;
@@ -202,8 +227,8 @@ void returnToFinish() {
   // [5] 부저 1~2초 울리기 (대회 규정: 1초~2초)
   //     PRIZM에 전용 buzzer API 없으므로 Arduino tone() 사용
   //     부저가 별도 핀에 연결된 경우 BUZZER_PIN 값 조정 필요
-  tone(BUZZER_PIN, 1000);   // 1000Hz
-  delay(1500);              // 1.5초 (규정 범위 내)
+  tone(BUZZER_PIN, 1000);  // 1000Hz
+  delay(1500);             // 1.5초 (규정 범위 내)
   noTone(BUZZER_PIN);
 
   // [6] 부저 후 로봇 완전 정지 (규정: 부저 후 움직이면 종료 불인정)
@@ -220,15 +245,23 @@ int qrSearchStage() {
   followToCrossing();
   turnAngle(90, true);
   enterZone();
-  lastEntryWasForward = true;   // 전진 진입
+  lastEntryWasForward = true;  // 전진 진입
   if (scanZone(2)) randomFound++;
-  if (randomFound >= 2) { stopAll(); printSearchResult(); return 2; }
+  if (randomFound >= 2) {
+    stopAll();
+    printSearchResult();
+    return 2;
+  }
 
   Serial.println(F("\n--- [4구역 탐색] ---"));
   reverseAcrossToOppositeZone();
   lastEntryWasForward = false;  // 후진 진입
   if (scanZone(4)) randomFound++;
-  if (randomFound >= 2) { stopAll(); printSearchResult(); return 4; }
+  if (randomFound >= 2) {
+    stopAll();
+    printSearchResult();
+    return 4;
+  }
 
   Serial.println(F("\n--- [1구역 탐색] ---"));
   forwardToCrossing();
@@ -236,9 +269,13 @@ int qrSearchStage() {
   followToCrossing();
   turnAngle(90, true);
   enterZone();
-  lastEntryWasForward = true;   // 전진 진입
+  lastEntryWasForward = true;  // 전진 진입
   if (scanZone(1)) randomFound++;
-  if (randomFound >= 2) { stopAll(); printSearchResult(); return 1; }
+  if (randomFound >= 2) {
+    stopAll();
+    printSearchResult();
+    return 1;
+  }
 
   Serial.println(F("\n--- [3구역 탐색] ---"));
   reverseAcrossToOppositeZone();
