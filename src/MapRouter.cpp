@@ -160,6 +160,7 @@ static void stepNode(int from, int to) {
 
   } else if (from == 9 && to == 10) {
     // 동향 엔코더 직진 → 10번 수직 라인 감지 → CROSS_ALIGN_COUNTS 과전진 → 동향 유지
+    prizm.resetEncoders();
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
@@ -173,8 +174,9 @@ static void stepNode(int from, int to) {
         robotHeading = 1;  // 동향 유지 (goToZoneDirect가 필요 시 북향 전환)
         break;
       }
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
+      long d1 = abs(prizm.readEncoderCount(1));
+      long d2 = abs(prizm.readEncoderCount(2));
+      int correction = constrain((int)((d1 - d2) / 10), -5, 5);
       drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
       delay(5);
     }
@@ -189,14 +191,16 @@ static void stepNode(int from, int to) {
         stopAll();
         break;
       }
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
+      long d1 = abs(prizm.readEncoderCount(1));
+      long d2 = abs(prizm.readEncoderCount(2));
+      int correction = constrain((int)((d1 - d2) / 10), -5, 5);
       drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
       delay(5);
     }
 
   } else if (from == 10 && to == 11) {
     // 동향 엔코더 직진 → 11번 수직 라인 감지 → CROSS_ALIGN_COUNTS 과전진 → 동향 유지
+    prizm.resetEncoders();
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
@@ -210,14 +214,16 @@ static void stepNode(int from, int to) {
         robotHeading = 1;  // 동향 유지
         break;
       }
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
+      long d1 = abs(prizm.readEncoderCount(1));
+      long d2 = abs(prizm.readEncoderCount(2));
+      int correction = constrain((int)((d1 - d2) / 10), -5, 5);
       drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
       delay(5);
     }
 
   } else if (from == 11 && to == 10) {
     // 서향 엔코더 직진 → 10번 수직 라인 감지 → CROSS_ALIGN_COUNTS 과전진 → 서향 유지
+    prizm.resetEncoders();
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
@@ -231,8 +237,9 @@ static void stepNode(int from, int to) {
         robotHeading = 3;  // 서향 유지
         break;
       }
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
+      long d1 = abs(prizm.readEncoderCount(1));
+      long d2 = abs(prizm.readEncoderCount(2));
+      int correction = constrain((int)((d1 - d2) / 10), -5, 5);
       drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
       delay(5);
     }
