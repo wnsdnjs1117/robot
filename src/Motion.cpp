@@ -95,19 +95,17 @@ void lineFollowStepReverse(int L, int C, int R) {
 }
 
 bool detectCrossing(int L, int C, int R) {
-  bool isCross = (L == 1 && C == 1 && R == 1);
-  if (isCross)
-    crossingStable++;
-  else
-    crossingStable = 0;
+  bool isFull = (L == 1 && C == 1 && R == 1);
+  bool isT    = !isFull && (C == 1) && (L == 1 || R == 1);
 
-  if (!isCross) {
+  if (isFull) crossingStable++;  else crossingStable  = 0;
+  if (isT)    crossingStableT++; else crossingStableT = 0;
+
+  if (!isFull && !isT) {
     crossingArmed = true;
     return false;
   }
-  if (crossingArmed && crossingStable >= CROSS_CONFIRM) {
-    crossingArmed = false;
-    return true;
-  }
+  if (crossingArmed && crossingStable  >= CROSS_CONFIRM)   { crossingArmed = false; return true; }
+  if (crossingArmed && crossingStableT >= T_CROSS_CONFIRM) { crossingArmed = false; return true; }
   return false;
 }
