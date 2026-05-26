@@ -121,111 +121,118 @@ void executeBlindRun() {
   followToCrossing();
 }
 
-// 노드 간 단일 구간 전진 이동 (회전 후 이동, currentNode 갱신)
+// 노드 간 단일 구간 이동
+// 7↔8: 라인트레이싱 followToCrossing
+// 8→9: 라인 따라 직진 → 라인 끊김 = 9번 도착 (정지)
+// 9→8: 직진하다 라인 감지 → followToCrossing으로 8번 정렬
+// 9→10: 엔코더 보정 직진 → 10번 라인 감지 즉시 좌회전(북향)
+// 10→9: 직진하다 라인 끊김 = 9번 도착 (정지)
+// 10↔11: 엔코더 보정 직진 → 라인 감지 즉시 회전(북향)
 static void stepNode(int from, int to) {
   int dir = (to > from) ? 1 : 3;
   turnToHeading(dir);
 
-  bool isBlind = (from == 9 && to == 10) || (from == 10 && to == 9) ||
-                 (from == 10 && to == 11) || (from == 11 && to == 10);
-
   if (from == 8 && to == 9) {
-    // 8→9: 9번에 세로선 없음 → 엔코더로 거리 이동
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < NODE_8_TO_9_COUNTS) {
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
-      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+    // 라인 따라 직진하다 라인 끊김 = 9번 도착
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (!anyLine(L, C, R)) {
+        stopAll();
+        break;
+      }
+      lineFollowStep(L, C, R);
       delay(5);
     }
-    stopAll();
+
   } else if (from == 9 && to == 8) {
-    // 9→8: 반대 방향도 동일하게 엔코더 이동 후 8번 교차로 찾기
-    // (8번은 십자라 followToCrossing 사용 가능하지만 거리가 짧아 엔코더 우선)
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < NODE_8_TO_9_COUNTS) {
+    // 서향 직진 → 라인 감지 → followToCrossing으로 8번 정렬
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (anyLine(L, C, R)) break;
       long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
       int correction = constrain((int)diff, -5, 5);
       drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
       delay(5);
     }
-    stopAll();
-    // 8번 교차로에 정확히 올라타기 위해 followToCrossing으로 마무리
     followToCrossing();
+
   } else if (from == 9 && to == 10) {
-    // 9→10: 동향 직진 중 라인 감지 즉시 좌회전 (북향으로 정렬)
-    prizm.resetEncoders();
-    while (prizm.readEncoderCount(1) < 400) {
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
-      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
-      delay(5);
-    }
+    // 직진 → 10번 라인 감지 → CROSS_ALIGN_COUNTS 더 전진 → 좌회전(북향)
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
-        stopAll();
-        turnAngle(90, false);  // 좌회전 → 북향
-        robotHeading = 0;
-        break;
-      }
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
-      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
-      delay(5);
-    }
-  } else if (from == 10 && to == 9) {
-    // 10→9: 서향 직진 중 라인 감지 즉시 우회전 (북향으로 정렬)
-    prizm.resetEncoders();
-    while (prizm.readEncoderCount(1) < 400) {
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
-      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
-      delay(5);
-    }
-    while (true) {
-      int L, C, R;
-      readSensors(L, C, R);
-      if (anyLine(L, C, R)) {
-        stopAll();
-        turnAngle(90, true);  // 우회전 → 북향
-        robotHeading = 0;
-        break;
-      }
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
-      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
-      delay(5);
-    }
-  } else if (isBlind) {
-    // 10↔11: 9↔10과 동일한 방식
-    prizm.resetEncoders();
-    while (prizm.readEncoderCount(1) < 400) {
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
-      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
-      delay(5);
-    }
-    while (true) {
-      int L, C, R;
-      readSensors(L, C, R);
-      if (anyLine(L, C, R)) {
-        stopAll();
-        if (to > from) {
-          turnAngle(90, false);  // 동→북 좌회전 (10→11)
-        } else {
-          turnAngle(90, true);  // 서→북 우회전 (11→10)
+        prizm.resetEncoders();
+        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
+          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+          delay(5);
         }
+        stopAll();
+        turnAngle(90, false);  // 동→북 좌회전
         robotHeading = 0;
         break;
       }
-      long diff = prizm.readEncoderCount(1) - prizm.readEncoderCount(2);
-      int correction = constrain((int)diff, -5, 5);
-      drive(STRAIGHT_SPEED - correction, STRAIGHT_SPEED + correction);
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
       delay(5);
     }
+
+  } else if (from == 10 && to == 9) {
+    // 서향 직진하다 라인 끊김 = 9번 도착
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (!anyLine(L, C, R)) {
+        stopAll();
+        break;
+      }
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      delay(5);
+    }
+
+  } else if (from == 10 && to == 11) {
+    // 동향 직진 → 11번 라인 감지 → CROSS_ALIGN_COUNTS 더 전진 → 좌회전(북향)
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (anyLine(L, C, R)) {
+        prizm.resetEncoders();
+        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
+          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+          delay(5);
+        }
+        stopAll();
+        turnAngle(90, false);  // 동→북 좌회전
+        robotHeading = 0;
+        break;
+      }
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      delay(5);
+    }
+
+  } else if (from == 11 && to == 10) {
+    // 서향 직진 → 10번 라인 감지 → CROSS_ALIGN_COUNTS 더 전진 → 우회전(북향)
+    while (true) {
+      int L, C, R;
+      readSensors(L, C, R);
+      if (anyLine(L, C, R)) {
+        prizm.resetEncoders();
+        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
+          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+          delay(5);
+        }
+        stopAll();
+        turnAngle(90, true);  // 서→북 우회전
+        robotHeading = 0;
+        break;
+      }
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      delay(5);
+    }
+
   } else {
+    // 7↔8: 일반 라인트레이싱
     followToCrossing();
   }
 
@@ -320,6 +327,7 @@ void returnToHub8FromNode(int node, bool cameOutForward) {
 // ============================================================
 
 // [1] 현재 노드 → 목표 노드 최단 전진 이동
+// 노드 순서: 7 - 8 - 9 - 10 - 11
 void moveToNode(int toNode) {
   static const int nodes[] = {7, 8, 9, 10, 11};
   int cur = nodeIndex(currentNode);
@@ -350,7 +358,6 @@ void exitZone(int zone) {
     // 후진 진입 → 전진 탈출 (라인트레이싱)
     followToCrossing();
   }
-  // robotHeading 유지 — 탈출 후에도 앞면 방향은 진입 시와 동일
   currentNode = zoneToNode(zone);
   Serial.print(F(">> [NAV] exitZone "));
   Serial.print(zone);

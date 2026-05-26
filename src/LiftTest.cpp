@@ -23,8 +23,8 @@ const float MAX_HEIGHT_LIMIT = 24.0;  // 기준 최대 상승 제한 높이 (cm)
 const float RIGHT_OFFSET = 0.6;       // 우측 리프트 추가 상승 오차 조정값 (cm)
 
 const int DEFAULT_TARGET_SPEED = 220;  // 기본 목표 속도 (220)
-const int STALL_THRESHOLD = 120;
-const int DEFAULT_MAX_POWER = 60;  // 기본 최대 파워 제한 (60)
+const int STALL_THRESHOLD = 140;
+const int DEFAULT_MAX_POWER = 50;  // 기본 최대 파워 제한 (60)
 const float COUNTS_PER_CM = 200.0;
 
 // 비상 정지 기준 상수

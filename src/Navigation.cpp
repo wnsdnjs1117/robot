@@ -183,7 +183,7 @@ void returnToFinish() {
 
   // FINISH(START)는 9번 노드에서 동쪽+남쪽으로 접근
   // 9번 → 동쪽 직진 → 라인 2개 → 남쪽으로 꺾어 진입
-  // currentNode에서 9번 노드로 이동
+  // 9번 노드로 이동 후 동향으로 FINISH 방향 직진
   moveToNode(9);
 
   // 동향으로 정렬 후 FINISH 방향으로 전진

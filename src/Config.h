@@ -30,8 +30,6 @@ constexpr int ZONE_DEPTH_COUNTS = 1500;    // 구역 내부 수직 관통 깊이
 constexpr int ZONE_EXIT_REV_COUNTS =
     2000;  // 구역 내부 → 교차로 후진 거리
            // (전진 진입 후 탈출 시. 현장 튜닝 필요)
-constexpr int NODE_8_TO_9_COUNTS =
-    1800;  // 8번 → 9번 엔코더 직진 거리 (현장 튜닝 필요)
 
 // 4. 주행 환경 설정
 constexpr bool WEST_IS_LEFT = true;  // 서쪽 방향이 왼쪽인지 여부
