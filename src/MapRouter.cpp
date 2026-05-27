@@ -359,11 +359,13 @@ void exitZone(int zone) {
 
       int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
       if (lineNow && !rearIsCrossing) {
-        if      (RL && !RC && !RR) { lsp = -(BACK_STEER_BASE - BACK_STEER_DIFF);     rsp = -(BACK_STEER_BASE + BACK_STEER_DIFF); }
-        else if (!RL && !RC && RR) { lsp = -(BACK_STEER_BASE + BACK_STEER_DIFF);     rsp = -(BACK_STEER_BASE - BACK_STEER_DIFF); }
-        else if (RL &&  RC && !RR) { lsp = -(BACK_STEER_BASE - BACK_STEER_DIFF / 2); rsp = -(BACK_STEER_BASE + BACK_STEER_DIFF / 2); }
-        else if (!RL && RC &&  RR) { lsp = -(BACK_STEER_BASE + BACK_STEER_DIFF / 2); rsp = -(BACK_STEER_BASE - BACK_STEER_DIFF / 2); }
-        else                       { lsp = rsp = -BACK_STEER_BASE; }  // RC만 또는 기타 → 감속 직진
+        // 강한 correction: 단측 감지 (BACK_STEER_DIFF 차동)
+        if      (RL && !RC && !RR) { lsp = -(BACK_SPEED - BACK_STEER_DIFF);     rsp = -(BACK_SPEED + BACK_STEER_DIFF); }
+        else if (!RL && !RC && RR) { lsp = -(BACK_SPEED + BACK_STEER_DIFF);     rsp = -(BACK_SPEED - BACK_STEER_DIFF); }
+        // 약한 correction: 중앙+측면 감지 (BACK_STEER_DIFF/2 차동)
+        else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED - BACK_STEER_DIFF / 2); rsp = -(BACK_SPEED + BACK_STEER_DIFF / 2); }
+        else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED + BACK_STEER_DIFF / 2); rsp = -(BACK_SPEED - BACK_STEER_DIFF / 2); }
+        // 중앙만 or 기타: 직진 유지 (이미 초기값 -BACK_SPEED)
       }
       drive(lsp, rsp);
       liftActiveTick();

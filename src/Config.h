@@ -20,12 +20,11 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
 // ── [2] 모터 속도 ────────────────────────────────────────────
-constexpr int STRAIGHT_SPEED = 36;  // 라인 없는 구간 직진 속도
-constexpr int SPEED          = 36;  // 일반 라인트레이싱 속도
-constexpr int SPEED_MIN      = 12;  // 출발 시 최저 속도 (램프업 시작점)
+constexpr int STRAIGHT_SPEED = 24;  // 라인 없는 구간 직진 속도
+constexpr int SPEED          = 24;  // 일반 라인트레이싱 속도
 constexpr int BACK_SPEED     = 21;  // 구역 후진 기본 속도
 constexpr int SPIN_SPEED     = 27;  // 제자리 스핀 턴 회전 속도
-constexpr int BLIND_SPEED    = 28;  // 블라인드 구간(라인 없음) 전용 속도
+constexpr int BLIND_SPEED    = 18;  // 블라인드 구간(라인 없음) 전용 속도
 
 // ── [3] 엔코더 거리 (물리 측정값) ────────────────────────────
 constexpr int SPIN_90_COUNTS = 1200;       // 90도 회전 엔코더 카운트
@@ -48,9 +47,7 @@ constexpr int  T_CROSS_CONFIRM   = 3;     // T자 교차로 인식 노이즈 필
 constexpr int  ANGULAR_GAIN      = 3;     // 전/후방 이중 센서 각도 교정 배율
 constexpr int  ALIGN_MAX_COUNTS  = 67;    // alignHeadingOnLine 최대 회전량 (≈5도)
 constexpr int  SPIN_BRAKE_LEAD   = 15;    // turnAngle 관성 보정 선행 제동 카운트
-constexpr int  SPEED_RAMP_COUNTS = 400;   // followToCrossing 출발 램프업 거리
-constexpr int  BACK_STEER_BASE   = 13;    // 후진 조향 중 감속 기준 속도 (< BACK_SPEED)
-constexpr int  BACK_STEER_DIFF   = 6;     // 후진 조향 좌우 차동 크기
+constexpr int  BACK_STEER_DIFF   = 8;     // 후진 조향 좌우 차동 크기 (단측 감지 시 적용)
 
 // 전역 객체 선언
 extern PRIZM prizm;

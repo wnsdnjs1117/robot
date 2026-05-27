@@ -38,30 +38,22 @@ void followToCrossing() {
   crossingArmed   = true;
   crossingStable  = 0;
   crossingStableT = 0;
-  prizm.resetEncoders();  // 램프업 거리 추적용 엔코더 리셋
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
     if (detectCrossing(L, C, R)) {
-      // 교차로 감지 후 CROSS_ALIGN_COUNTS 과전진 (절반 속도로 부드럽게 정지)
       prizm.resetEncoders();
       while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-        drive(SPEED / 2, SPEED / 2);
+        drive(SPEED, SPEED);
         liftActiveTick();
         delay(5);
       }
       stopAll();
       return;
     }
-    // 출발 램프업: SPEED_RAMP_COUNTS 내에서는 SPEED_MIN → SPEED 선형 증가
-    long pos = abs(prizm.readEncoderCount(1));
-    int curSpd = (pos < SPEED_RAMP_COUNTS)
-      ? (SPEED_MIN + (int)((SPEED - SPEED_MIN) * (float)pos / SPEED_RAMP_COUNTS))
-      : SPEED;
-
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
-    lineFollowStepFull(L, C, R, RL, RC, RR, curSpd);
+    lineFollowStepFull(L, C, R, RL, RC, RR);
     liftActiveTick();
     delay(5);
   }
@@ -182,20 +174,19 @@ void reverseEnterZone() {
     // 안전 탈출 (무한루프 방지)
     if (abs(prizm.readEncoderCount(1)) >= ZONE_FOLLOW_MAX) break;
 
-    // 후진 조향: 라인 감지 시 감속 + 6가지 패턴 처리
-    // 조향 중에는 BACK_STEER_BASE(13)로 속도 낮춤 → 과도한 correction 방지
+    // 후진 조향: 5패턴으로 빠릿하게 correction (BACK_SPEED 기준 차동)
     int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
     if (rearHasLine) {
       bool rearIsCrossing = (RL && RC && RR);
       if (!rearIsCrossing) {
-        // 강한 correction: 단측 감지
-        if      (RL && !RC && !RR) { lsp = -(BACK_STEER_BASE - BACK_STEER_DIFF); rsp = -(BACK_STEER_BASE + BACK_STEER_DIFF); }
-        else if (!RL && !RC && RR) { lsp = -(BACK_STEER_BASE + BACK_STEER_DIFF); rsp = -(BACK_STEER_BASE - BACK_STEER_DIFF); }
-        // 약한 correction: 중앙+측면 감지
-        else if (RL &&  RC && !RR) { lsp = -(BACK_STEER_BASE - BACK_STEER_DIFF/2); rsp = -(BACK_STEER_BASE + BACK_STEER_DIFF/2); }
-        else if (!RL && RC &&  RR) { lsp = -(BACK_STEER_BASE + BACK_STEER_DIFF/2); rsp = -(BACK_STEER_BASE - BACK_STEER_DIFF/2); }
-        // 중앙만 or 기타: 정렬됨 → 감속 직진
-        else { lsp = rsp = -BACK_STEER_BASE; }
+        // 강한 correction: 단측 감지 (BACK_STEER_DIFF 차동)
+        if      (RL && !RC && !RR) { lsp = -(BACK_SPEED - BACK_STEER_DIFF); rsp = -(BACK_SPEED + BACK_STEER_DIFF); }
+        else if (!RL && !RC && RR) { lsp = -(BACK_SPEED + BACK_STEER_DIFF); rsp = -(BACK_SPEED - BACK_STEER_DIFF); }
+        // 약한 correction: 중앙+측면 감지 (BACK_STEER_DIFF/2 차동)
+        else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED - BACK_STEER_DIFF/2); rsp = -(BACK_SPEED + BACK_STEER_DIFF/2); }
+        else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED + BACK_STEER_DIFF/2); rsp = -(BACK_SPEED - BACK_STEER_DIFF/2); }
+        // 중앙만 or 기타: 정렬됨 → 직진 유지
+        // else { lsp = rsp = -BACK_SPEED; }  (이미 초기값)
       }
     }
 
