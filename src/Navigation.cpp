@@ -45,6 +45,7 @@ void followToCrossing() {
       prizm.resetEncoders();
       while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
         drive(SPEED, SPEED);
+        liftActiveTick();
         delay(5);
       }
       stopAll();
@@ -53,6 +54,7 @@ void followToCrossing() {
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
     lineFollowStepFull(L, C, R, RL, RC, RR);
+    liftActiveTick();
     delay(5);
   }
 }

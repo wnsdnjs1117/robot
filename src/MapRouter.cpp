@@ -42,6 +42,7 @@ void reverseAcrossToOppositeZone();
 void enterZone();
 void reverseEnterZone();
 void alignHeadingOnLine();
+void liftActiveTick();  // LiftTest.cpp — 이동 중 리프트 틱
 
 int  robotHeading      = 0;     // 로봇 앞면 방향 (goToMainLine 후 북향으로 초기화)
 int  currentNode       = 8;     // 현재 서 있는 교차로 노드
@@ -352,7 +353,7 @@ void moveToNode(int toNode) {
 //     후진 진입 → 전진 탈출 (라인트레이싱)
 void exitZone(int zone) {
   if (lastEntryWasForward) {
-    // 전진 진입 → 후방 센서 조향 포함 후진 탈출
+    // 전진 진입 → 후방 센서 조향 포함 후진 탈출 (리프트 틱 병행)
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < ZONE_EXIT_REV_COUNTS) {
       int RL, RC, RR;
@@ -366,22 +367,24 @@ void exitZone(int zone) {
         else if (!RL && !RC && RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
       }
       drive(lsp, rsp);
+      liftActiveTick();
       delay(5);
     }
     stopAll();
     delay(100);
   } else {
     if (zoneToNode(zone) == 7) {
-      // 노드 7은 T자 교차로라 followToCrossing 미감지 → 엔코더 기반 전진 탈출
+      // 노드 7은 T자 교차로라 followToCrossing 미감지 → 엔코더 기반 전진 탈출 (리프트 틱 병행)
       prizm.resetEncoders();
       while (abs(prizm.readEncoderCount(1)) < ZONE_ENTER_COUNTS) {
         drive(SPEED, SPEED);
+        liftActiveTick();
         delay(5);
       }
       stopAll();
       delay(100);
     } else {
-      // 후진 진입 → 전진 탈출 (라인트레이싱)
+      // 후진 진입 → 전진 탈출 (followToCrossing 내부에서 liftActiveTick 호출)
       followToCrossing();
     }
   }
