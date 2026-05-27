@@ -370,11 +370,13 @@ void exitZone(int zone) {
       int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
       // ─ Primary: 후방 센서 조향 ────────────────────────────
+      // 후방 좌측 감지 → 후방이 우편향 → 좌로 밀어야 함 → 좌모터 더 후진(lsp-10)
+      // 후방 우측 감지 → 후방이 좌편향 → 우로 밀어야 함 → 우모터 더 후진(rsp-10)
       if (rearHasLine && !rearIsCrossing) {
-        if      (RL && !RC && !RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
-        else if (!RL && !RC && RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
-        else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED -  5); rsp = -(BACK_SPEED +  5); }
-        else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED +  5); rsp = -(BACK_SPEED -  5); }
+        if      (RL && !RC && !RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
+        else if (!RL && !RC && RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
+        else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED +  5); rsp = -(BACK_SPEED -  5); }
+        else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED -  5); rsp = -(BACK_SPEED +  5); }
         // RC only → 직진 유지 (이미 -BACK_SPEED)
       }
 

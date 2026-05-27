@@ -154,10 +154,12 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
     else                           { lsp = SPEED;       rsp = SPEED; }
   }
 
-  // 후방 각도 교정: 전방 라인 있음 AND 후방 라인 있음 AND 후방 교차로 아님
-  if (frontHasLine && rearHasLine && !rearIsCrossing) {
-    int angErr  = (RR - RL) - (FR - FL);
-    int angCorr = constrain(angErr * ANGULAR_GAIN, -5, 5);
+  bool frontIsCrossing = (FL && FC && FR);
+  // 후방 각도 교정: 전방 라인 있음 AND 후방 라인 있음 AND 양쪽 교차로 아님
+  // angCorr > 0 → 좌 가속(우 감속) → 우회전 / angCorr < 0 → 좌 감속(우 가속) → 좌회전
+  // RL > RR(후방 좌측 감지) → 후방이 우편향 → 우회전 보정 (angCorr > 0) ✓
+  if (frontHasLine && rearHasLine && !frontIsCrossing && !rearIsCrossing) {
+    int angCorr = constrain((RL - RR) * ANGULAR_GAIN, -5, 5);
     lsp += angCorr;
     rsp -= angCorr;
   }

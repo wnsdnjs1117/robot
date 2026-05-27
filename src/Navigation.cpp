@@ -49,7 +49,9 @@ void followToCrossing() {
       stopAll();
       return;
     }
-    lineFollowStep(L, C, R);  // 전진 = 전방 센서만 사용
+    int RL, RC, RR;
+    readRearSensors(RL, RC, RR);
+    lineFollowStepFull(L, C, R, RL, RC, RR);  // 전후방 이중 센서 사용
     delay(5);
   }
 }
@@ -111,16 +113,18 @@ void alignHeadingOnLine() {
 
 // ── [3] 존 진입/탈출 ─────────────────────────────────────────
 
-// 전진으로 존 진입: 전방 라인 추종 → 끊기면 ZONE_ENTER_EXTRA 추가 전진 (전방 센서만)
+// 전진으로 존 진입: 전방 라인 추종 → 끊기면 ZONE_ENTER_EXTRA 추가 전진
 void enterZone() {
   lastSensorState = 0;
 
-  // Phase 1: 전방 라인이 끊길 때까지 라인트레이싱 (전방 센서만)
+  // Phase 1: 전방 라인이 끊길 때까지 라인트레이싱 (전후방 이중 센서)
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
     if (!anyLine(L, C, R)) break;
-    lineFollowStep(L, C, R);
+    int RL, RC, RR;
+    readRearSensors(RL, RC, RR);
+    lineFollowStepFull(L, C, R, RL, RC, RR);
     delay(5);
   }
 
@@ -154,11 +158,29 @@ void reverseEnterZone() {
     // 안전 탈출 (무한루프 방지)
     if (abs(prizm.readEncoderCount(1)) >= ZONE_FOLLOW_MAX) break;
 
-    // 후진 조향: 후방 센서만 사용
+    // 후진 조향: 후방 주도 + 전방 보조
+    // 후방 좌측 감지 → 후방이 우편향 → 좌로 밀어야 함 → 좌모터 더 후진(lsp-10)
+    // 후방 우측 감지 → 후방이 좌편향 → 우로 밀어야 함 → 우모터 더 후진(rsp-10)
     int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
-    if (rearHasLine) {
-      if      (RL && !RC && !RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
-      else if (!RL && !RC && RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
+    bool rearIsCrossing = (RL && RC && RR);
+    if (rearHasLine && !rearIsCrossing) {
+      if      (RL && !RC && !RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
+      else if (!RL && !RC && RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
+      else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED +  5); rsp = -(BACK_SPEED -  5); }
+      else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED -  5); rsp = -(BACK_SPEED +  5); }
+    }
+    // 전방 보조 교정: 전후방 모두 라인 감지 시에만 적용 (trailing 센서 각도 정렬)
+    // 후진 시 (L-R)*GAIN > 0 → 좌측 전방 감지 → 전방이 우편향 → lsp+ rsp- → 우회전 보정 ✓
+    {
+      int fL, fC, fR;
+      readSensors(fL, fC, fR);
+      bool frontHasLine    = anyLine(fL, fC, fR);
+      bool frontIsCrossing = (fL && fC && fR);
+      if (rearHasLine && frontHasLine && !rearIsCrossing && !frontIsCrossing) {
+        int angCorr = constrain((fL - fR) * ANGULAR_GAIN, -5, 5);
+        lsp += angCorr;
+        rsp -= angCorr;
+      }
     }
     drive(lsp, rsp);
     delay(5);
