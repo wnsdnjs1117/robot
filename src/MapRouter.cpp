@@ -352,19 +352,41 @@ void moveToNode(int toNode) {
 //     후진 진입 → 전진 탈출 (라인트레이싱)
 void exitZone(int zone) {
   if (lastEntryWasForward) {
-    // 전진 진입 → 후방 센서 조향 포함 후진 탈출
+    // 전진 진입 → 후진 탈출
+    //   Primary  : 후방 센서 (leading) 5패턴 조향
+    //   Secondary: 전후방 모두 감지 시 전방 센서 (trailing) 각도 정렬 보정
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < ZONE_EXIT_REV_COUNTS) {
       int RL, RC, RR;
       readRearSensors(RL, RC, RR);
-      bool rearIsCrossing = (RL && RC && RR);
-      bool lineNow        = anyRearLine(RL, RC, RR);
+      int L, C, R;
+      readSensors(L, C, R);
+
+      bool rearHasLine     = anyRearLine(RL, RC, RR);
+      bool rearIsCrossing  = (RL && RC && RR);
+      bool frontHasLine    = anyLine(L, C, R);
+      bool frontIsCrossing = (L && C && R);
 
       int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
-      if (lineNow && !rearIsCrossing) {
+
+      // ─ Primary: 후방 센서 조향 ────────────────────────────
+      if (rearHasLine && !rearIsCrossing) {
         if      (RL && !RC && !RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
         else if (!RL && !RC && RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
+        else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED -  5); rsp = -(BACK_SPEED +  5); }
+        else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED +  5); rsp = -(BACK_SPEED -  5); }
+        // RC only → 직진 유지 (이미 -BACK_SPEED)
       }
+
+      // ─ Secondary: 전방 센서 각도 정렬 ────────────────────
+      // 전후방 모두 라인 감지 시, trailing 인 전방 센서의 좌우 차이로 회전 보정
+      // (L-R > 0 → 전방 좌편향 → CCW 기울어짐 → 후방 우측 빠르게 → lsp+, rsp-)
+      if (frontHasLine && rearHasLine && !frontIsCrossing && !rearIsCrossing) {
+        int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
+        lsp += angCorr;
+        rsp -= angCorr;
+      }
+
       drive(lsp, rsp);
       delay(5);
     }
