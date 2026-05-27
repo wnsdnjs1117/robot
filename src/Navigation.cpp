@@ -267,18 +267,18 @@ void goToMainLine() {
   stopAll();
   delay(200);
 
-  Serial.println(F(">>> [START-RUN] 서쪽(좌측) 방향 전환"));
+  Serial.println(F(">>> [START-RUN] 서쪽(좌측) 방향 전환 (95도)"));
   if (WEST_IS_LEFT)
-    turnAngle(90, false);
+    turnAngle(95, false);  // 95도 오버회전 → 메인라인 방향으로 수렴
   else
-    turnAngle(90, true);
+    turnAngle(95, true);
 
-  Serial.println(F(">>> [START-RUN] 메인라인 진입"));
+  Serial.println(F(">>> [START-RUN] 10번 노드선 통과"));
   int passedLines = 0;
   bool lineArmed  = true;
   int  lineStable = 0;
 
-  while (passedLines < 2) {
+  while (passedLines < 1) {  // 10번 노드 1회만 카운트 (회전 중 11번 이미 통과)
     int L, C, R;
     readSensors(L, C, R);
     bool onLine = anyLine(L, C, R);
@@ -293,7 +293,7 @@ void goToMainLine() {
     liftDownTick();
     delay(5);
   }
-  // 라인을 완전히 벗어날 때까지 전진
+  // 10번 노드선을 완전히 벗어날 때까지 전진
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
@@ -302,7 +302,7 @@ void goToMainLine() {
     liftDownTick();
     delay(5);
   }
-  // 메인라인 감지까지 전진
+  // 8~9번 사이 메인라인 감지까지 전진
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
@@ -311,14 +311,10 @@ void goToMainLine() {
     liftDownTick();
     delay(5);
   }
-  // 라인 위에서 CROSS_ALIGN_COUNTS만큼 더 전진해 교차로 중심에 정렬
-  prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftDownTick();
-    delay(5);
-  }
-  stopAll();
+  // 메인라인 라인트레이싱으로 8번 노드 교차로까지 추종
+  // (followToCrossing 내부 liftActiveTick → liftDownRunning=true이므로 liftDownTick 위임)
+  Serial.println(F(">>> [START-RUN] 8번 노드까지 라인 추종"));
+  followToCrossing();
 }
 
 // FINISH 구역 복귀 및 부저 울림

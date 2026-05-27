@@ -30,7 +30,7 @@ constexpr int BLIND_SPEED    = 28;  // 블라인드 구간(라인 없음) 전용
 // ── [3] 엔코더 거리 (물리 측정값) ────────────────────────────
 constexpr int SPIN_90_COUNTS = 1200;       // 90도 회전 엔코더 카운트
 constexpr int CROSS_ALIGN_COUNTS = 250;    // 교차로 감지 후 축 정렬 과전진 거리
-constexpr int START_ESCAPE_COUNTS = 1500;  // 스타트 선 밟은 후 추가 이탈 거리
+constexpr int START_ESCAPE_COUNTS = 1800;  // 스타트 선 밟은 후 추가 이탈 거리
 constexpr int FINISH_ENTRY_COUNTS = 1500;  // FINISH 구역 진입 거리
 constexpr int REAR_TO_AXLE_COUNTS = 0;  // 후방 센서 → 차축 거리 (0: 동일 위치)
 
