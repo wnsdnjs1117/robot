@@ -34,28 +34,25 @@ constexpr int FINISH_ENTRY_COUNTS = 1500;  // FINISH 구역 진입 거리
 constexpr int REAR_TO_AXLE_COUNTS = 0;  // 후방 센서 → 차축 거리 (0: 동일 위치)
 
 // ── [4] 존 진입/탈출 거리 ────────────────────────────────────
-constexpr int ZONE_ENTER_COUNTS = 2400;     // 노드7 전진 탈출 전용 (exitZone)
-constexpr int ZONE_ENTER_EXTRA = 1000;      // 전진 진입: 라인 끊긴 후 추가 직진
-constexpr int ZONE_DEPTH_EXTRA = 1000;      // 후진 진입: 라인 끊긴 후 추가 후진
+constexpr int ZONE_ENTER_COUNTS    = 2400;  // 노드7 전진 탈출 전용 (exitZone)
+constexpr int ZONE_ENTER_EXTRA     = 1000;  // 전진 진입: 라인 끊긴 후 추가 직진
+constexpr int ZONE_DEPTH_EXTRA     = 1000;  // 후진 진입: 라인 끊긴 후 추가 후진
 constexpr int ZONE_EXIT_REV_COUNTS = 2000;  // 구역 내부 → 교차로 후진 거리
-constexpr int ZONE_FOLLOW_MAX =
-    3500;  // 후진 라인 추종 최대 거리 (무한루프 방지)
+constexpr int ZONE_FOLLOW_MAX      = 3500;  // 후진 라인 추종 최대 거리 (무한루프 방지)
 
-// 4. 주행 환경 설정
-constexpr bool WEST_IS_LEFT = true;  // 서쪽 방향이 왼쪽인지 여부
-constexpr int CROSS_CONFIRM = 2;     // 교차로 인식 노이즈 필터링 카운트
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
-constexpr bool WEST_IS_LEFT = true;   // 서쪽 방향이 왼쪽인지 여부
-constexpr int CROSS_CONFIRM = 2;      // 교차로 인식 노이즈 필터링 카운트
-constexpr int ANGULAR_GAIN = 3;       // 전/후방 이중 센서 각도 교정 배율
-constexpr int ALIGN_MAX_COUNTS = 67;  // alignHeadingOnLine 최대 회전량 (≈5도)
-constexpr int SPIN_BRAKE_LEAD = 15;   // turnAngle 관성 보정 선행 제동 카운트
+constexpr bool WEST_IS_LEFT      = true;  // 서쪽 방향이 왼쪽인지 여부
+constexpr int  CROSS_CONFIRM     = 2;     // 십자 교차로 인식 노이즈 필터링 카운트
+constexpr int  T_CROSS_CONFIRM   = 3;     // T자 교차로 인식 노이즈 필터링 카운트
+constexpr int  ANGULAR_GAIN      = 3;     // 전/후방 이중 센서 각도 교정 배율
+constexpr int  ALIGN_MAX_COUNTS  = 67;    // alignHeadingOnLine 최대 회전량 (≈5도)
+constexpr int  SPIN_BRAKE_LEAD   = 15;    // turnAngle 관성 보정 선행 제동 카운트
 
 // 전역 객체 선언
 extern PRIZM prizm;
-extern int lastSensorState;
+extern int  lastSensorState;
 extern bool crossingArmed;
-extern int crossingStable;
-extern int crossingStableT;
+extern int  crossingStable;
+extern int  crossingStableT;
 
 #endif
