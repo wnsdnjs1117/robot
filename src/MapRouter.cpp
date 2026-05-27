@@ -151,8 +151,7 @@ static void stepNode(int from, int to) {
     followToCrossing();
 
   } else if (from == 9 && to == 10) {
-    // 동향: alignHeadingOnLine → 블라인드 직진 → 10번 라인 과전진 정렬
-    alignHeadingOnLine();
+    // 동향: 블라인드 직진 → 10번 라인 과전진 정렬 (alignHeadingOnLine 제거)
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
@@ -160,7 +159,7 @@ static void stepNode(int from, int to) {
       if (anyLine(L, C, R)) {
         prizm.resetEncoders();
         while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+          drive(STRAIGHT_SPEED / 2, STRAIGHT_SPEED / 2);
           delay(5);
         }
         stopAll();
@@ -176,8 +175,7 @@ static void stepNode(int from, int to) {
     }
 
   } else if (from == 10 && to == 9) {
-    // 서향: alignHeadingOnLine → 블라인드 직진 → 9번 라인 감지 정지
-    alignHeadingOnLine();
+    // 서향: 블라인드 직진 → 9번 라인 감지 정지 (alignHeadingOnLine 제거)
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
@@ -195,8 +193,7 @@ static void stepNode(int from, int to) {
     }
 
   } else if (from == 10 && to == 11) {
-    // 동향: alignHeadingOnLine → 블라인드 직진 → 11번 라인 과전진 정렬
-    alignHeadingOnLine();
+    // 동향: 블라인드 직진 → 11번 라인 과전진 정렬 (alignHeadingOnLine 제거)
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
@@ -204,7 +201,7 @@ static void stepNode(int from, int to) {
       if (anyLine(L, C, R)) {
         prizm.resetEncoders();
         while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+          drive(STRAIGHT_SPEED / 2, STRAIGHT_SPEED / 2);
           delay(5);
         }
         stopAll();
@@ -220,8 +217,7 @@ static void stepNode(int from, int to) {
     }
 
   } else if (from == 11 && to == 10) {
-    // 서향: alignHeadingOnLine → 블라인드 직진 → 10번 라인 과전진 정렬
-    alignHeadingOnLine();
+    // 서향: 블라인드 직진 → 10번 라인 과전진 정렬 (alignHeadingOnLine 제거)
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
@@ -229,7 +225,7 @@ static void stepNode(int from, int to) {
       if (anyLine(L, C, R)) {
         prizm.resetEncoders();
         while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+          drive(STRAIGHT_SPEED / 2, STRAIGHT_SPEED / 2);
           delay(5);
         }
         stopAll();
@@ -363,8 +359,11 @@ void exitZone(int zone) {
 
       int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
       if (lineNow && !rearIsCrossing) {
-        if      (RL && !RC && !RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
-        else if (!RL && !RC && RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
+        if      (RL && !RC && !RR) { lsp = -(BACK_STEER_BASE - BACK_STEER_DIFF);     rsp = -(BACK_STEER_BASE + BACK_STEER_DIFF); }
+        else if (!RL && !RC && RR) { lsp = -(BACK_STEER_BASE + BACK_STEER_DIFF);     rsp = -(BACK_STEER_BASE - BACK_STEER_DIFF); }
+        else if (RL &&  RC && !RR) { lsp = -(BACK_STEER_BASE - BACK_STEER_DIFF / 2); rsp = -(BACK_STEER_BASE + BACK_STEER_DIFF / 2); }
+        else if (!RL && RC &&  RR) { lsp = -(BACK_STEER_BASE + BACK_STEER_DIFF / 2); rsp = -(BACK_STEER_BASE - BACK_STEER_DIFF / 2); }
+        else                       { lsp = rsp = -BACK_STEER_BASE; }  // RC만 또는 기타 → 감속 직진
       }
       drive(lsp, rsp);
       liftActiveTick();

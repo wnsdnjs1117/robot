@@ -132,26 +132,29 @@ void lineFollowStepReverse(int L, int C, int R) {
 }
 
 // 전방 주도 라인트레이싱 + 후방 각도 교정
+// spd=0 이면 SPEED 상수 사용, spd>0 이면 해당 속도로 오버라이드 (램프업 등)
 // 전방 0,0,0 → 후방 무시 / 후방 1,1,1 → 교차로이므로 후방 무시
-void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
+void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR, int spd) {
+  int S = (spd > 0) ? spd : SPEED;
+
   bool frontHasLine   = anyLine(FL, FC, FR);
   bool rearHasLine    = anyRearLine(RL, RC, RR);
   bool rearIsCrossing = (RL && RC && RR);
 
-  // 전방 센서 기본 조향
-  int lsp = SPEED, rsp = SPEED;
-  if      (FL && !FC && !FR) { lsp = SPEED - 20; rsp = SPEED + 10; lastSensorState = 1; }
-  else if (FL &&  FC && !FR) { lsp = SPEED - 10; rsp = SPEED + 5;  lastSensorState = 1; }
-  else if (!FL && !FC && FR) { lsp = SPEED + 10; rsp = SPEED - 20; lastSensorState = 2; }
-  else if (!FL &&  FC && FR) { lsp = SPEED + 5;  rsp = SPEED - 10; lastSensorState = 2; }
+  // 전방 센서 기본 조향 (S를 기준 속도로 사용)
+  int lsp = S, rsp = S;
+  if      (FL && !FC && !FR) { lsp = S - 20; rsp = S + 10; lastSensorState = 1; }
+  else if (FL &&  FC && !FR) { lsp = S - 10; rsp = S +  5; lastSensorState = 1; }
+  else if (!FL && !FC && FR) { lsp = S + 10; rsp = S - 20; lastSensorState = 2; }
+  else if (!FL &&  FC && FR) { lsp = S +  5; rsp = S - 10; lastSensorState = 2; }
   else if (FC) {
-    if      (lastSensorState == 1) { lsp = SPEED + 4; rsp = SPEED - 4; lastSensorState = 0; }
-    else if (lastSensorState == 2) { lsp = SPEED - 4; rsp = SPEED + 4; lastSensorState = 0; }
-    else                           { lsp = SPEED;      rsp = SPEED; }
+    if      (lastSensorState == 1) { lsp = S + 4; rsp = S - 4; lastSensorState = 0; }
+    else if (lastSensorState == 2) { lsp = S - 4; rsp = S + 4; lastSensorState = 0; }
+    else                           { lsp = S;      rsp = S; }
   } else {  // 0,0,0
-    if      (lastSensorState == 1) { lsp = SPEED - 16; rsp = SPEED + 6; }
-    else if (lastSensorState == 2) { lsp = SPEED + 6;  rsp = SPEED - 16; }
-    else                           { lsp = SPEED;       rsp = SPEED; }
+    if      (lastSensorState == 1) { lsp = S - 16; rsp = S + 6; }
+    else if (lastSensorState == 2) { lsp = S +  6; rsp = S - 16; }
+    else                           { lsp = S;       rsp = S; }
   }
 
   // 후방 각도 교정: 전방 라인 있음 AND 후방 라인 있음 AND 후방 교차로 아님

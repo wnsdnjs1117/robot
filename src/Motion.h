@@ -21,7 +21,8 @@ bool anyRearLine(int RL, int RC, int RR);
 // ── [4] 라인 트레이싱 ────────────────────────────────────────
 void lineFollowStep(int L, int C, int R);
 void lineFollowStepReverse(int L, int C, int R);
-void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR);
+void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR, int spd = 0);
+// spd = 0: SPEED 상수 사용 / spd > 0: 오버라이드 속도 사용 (램프업 등)
 
 // ── [5] 교차로 감지 ──────────────────────────────────────────
 bool detectCrossing(int L, int C, int R);
