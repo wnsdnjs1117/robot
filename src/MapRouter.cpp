@@ -122,7 +122,7 @@ static void stepNode(int from, int to) {
   turnToHeading(dir);
 
   if (from == 8 && to == 9) {
-    // 라인 따라 직진하다 라인 끊김 = 9번 도착
+    // 라인 따라 직진하다 라인 끊김 = 9번 도착 (전후방 이중 센서)
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
@@ -130,7 +130,9 @@ static void stepNode(int from, int to) {
         stopAll();
         break;
       }
-      lineFollowStep(L, C, R);
+      int RL, RC, RR;
+      readRearSensors(RL, RC, RR);
+      lineFollowStepFull(L, C, R, RL, RC, RR);
       delay(5);
     }
 
@@ -370,19 +372,28 @@ void exitZone(int zone) {
       int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
       // ─ Primary: 후방 센서 조향 ────────────────────────────
-      // 후방 좌측 감지 → 후방이 우편향 → 좌로 밀어야 함 → 좌모터 더 후진(lsp-10)
-      // 후방 우측 감지 → 후방이 좌편향 → 우로 밀어야 함 → 우모터 더 후진(rsp-10)
+      // 후방 좌측 감지 → 후방이 우편향 → 좌로 밀어야 함 → 좌모터 더 후진(lsp+10)
+      // 후방 우측 감지 → 후방이 좌편향 → 우로 밀어야 함 → 우모터 더 후진(rsp+10)
       if (rearHasLine && !rearIsCrossing) {
         if      (RL && !RC && !RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
         else if (!RL && !RC && RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
         else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED +  5); rsp = -(BACK_SPEED -  5); }
         else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED -  5); rsp = -(BACK_SPEED +  5); }
         // RC only → 직진 유지 (이미 -BACK_SPEED)
+      } else if (!rearHasLine) {
+        // 라인 미감지 구간: 엔코더 차동으로 직진 유지
+        // d1>d2 → 좌측이 더 후진(우편향) → 좌 감속, 우 가속
+        long d1 = abs(prizm.readEncoderCount(1));
+        long d2 = abs(prizm.readEncoderCount(2));
+        long rawDiff = d1 - d2;
+        int corr = (abs(rawDiff) <= 3) ? 0 : constrain((int)(rawDiff / 7), -6, 6);
+        lsp = -BACK_SPEED + corr;
+        rsp = -BACK_SPEED - corr;
       }
+      // rearIsCrossing → 교차로 통과 중: 직진 유지 (이미 -BACK_SPEED)
 
       // ─ Secondary: 전방 센서 각도 정렬 ────────────────────
-      // 전후방 모두 라인 감지 시, trailing 인 전방 센서의 좌우 차이로 회전 보정
-      // (L-R > 0 → 전방 좌편향 → CCW 기울어짐 → 후방 우측 빠르게 → lsp+, rsp-)
+      // 전후방 모두 라인 감지 시에만 적용 (후방=leading, 전방=trailing)
       if (frontHasLine && rearHasLine && !frontIsCrossing && !rearIsCrossing) {
         int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
         lsp += angCorr;

@@ -199,10 +199,45 @@ void reverseEnterZone() {
 void reverseAcrossToOppositeZone() {
   lastSensorState = 0;
 
-  // 1단계: 구역 내부 → 교차로 통과까지 엔코더 기반 후진
+  // 1단계: 구역 내부 → 교차로 통과까지 후진
+  //   후방 센서 감지 시: 4패턴 조향 (leading)
+  //   전방 센서 보조: 양쪽 감지 시 각도 정렬 (trailing)
+  //   라인 없는 구간: 엔코더 차동으로 직진 유지
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < ZONE_EXIT_REV_COUNTS) {
-    drive(-BACK_SPEED, -BACK_SPEED);
+    int RL, RC, RR;
+    readRearSensors(RL, RC, RR);
+    int L, C, R;
+    readSensors(L, C, R);
+
+    bool rearHasLine    = anyRearLine(RL, RC, RR);
+    bool rearIsCrossing = (RL && RC && RR);
+    bool frontHasLine   = anyLine(L, C, R);
+    bool frontIsCrossing = (L && C && R);
+
+    int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
+
+    if (rearHasLine && !rearIsCrossing) {
+      if      (RL && !RC && !RR) { lsp = -(BACK_SPEED + 10); rsp = -(BACK_SPEED - 10); }
+      else if (!RL && !RC && RR) { lsp = -(BACK_SPEED - 10); rsp = -(BACK_SPEED + 10); }
+      else if (RL &&  RC && !RR) { lsp = -(BACK_SPEED +  5); rsp = -(BACK_SPEED -  5); }
+      else if (!RL && RC &&  RR) { lsp = -(BACK_SPEED -  5); rsp = -(BACK_SPEED +  5); }
+    } else if (!rearHasLine) {
+      long d1 = abs(prizm.readEncoderCount(1));
+      long d2 = abs(prizm.readEncoderCount(2));
+      long rawDiff = d1 - d2;
+      int corr = (abs(rawDiff) <= 3) ? 0 : constrain((int)(rawDiff / 7), -6, 6);
+      lsp = -BACK_SPEED + corr;
+      rsp = -BACK_SPEED - corr;
+    }
+
+    if (rearHasLine && frontHasLine && !rearIsCrossing && !frontIsCrossing) {
+      int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
+      lsp += angCorr;
+      rsp -= angCorr;
+    }
+
+    drive(lsp, rsp);
     delay(5);
   }
   stopAll();
