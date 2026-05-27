@@ -152,8 +152,9 @@ static void stepNode(int from, int to) {
     followToCrossing();
 
   } else if (from == 9 && to == 10) {
-    // 동향: alignHeadingOnLine → 블라인드 직진 → 10번 라인 과전진 정렬
+    // 동향: alignHeadingOnLine → 5도 좌회전 보정 → 블라인드 직진 → 10번 라인 과전진 정렬
     alignHeadingOnLine();
+    turnAngle(5, false);  // 좌회전 5도 → 10번 라인 확실 감지
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
@@ -177,8 +178,9 @@ static void stepNode(int from, int to) {
     }
 
   } else if (from == 10 && to == 9) {
-    // 서향: alignHeadingOnLine → 블라인드 직진 → 9번 라인 감지 정지
-    alignHeadingOnLine();
+    // 서향: 블라인드 직진 → 라인(8~9 가로선 또는 8번 세로선) 감지 즉시 정지
+    //   → 좌회전 95도 (서→북) → followToCrossing으로 8번 노드 정렬
+    //   → stepNode(8,9)로 9번까지 이동 (return 하여 currentNode=to 덮어씀 방지)
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
@@ -194,20 +196,21 @@ static void stepNode(int from, int to) {
       drive(BLIND_SPEED - correction, BLIND_SPEED + correction);
       delay(5);
     }
+    turnAngle(95, false);  // 서→북 (95도 좌회전으로 약간 과회전)
+    robotHeading = 0;
+    followToCrossing();    // 8번 노드 교차로까지 전진
+    currentNode = 8;
+    Serial.println(F(">> [NAV] 10->9 via node8, continuing 8->9"));
+    stepNode(8, 9);        // 8번에서 9번으로 이동 (currentNode=9 설정됨)
+    return;                // currentNode = to 덮어쓰기 방지
 
   } else if (from == 10 && to == 11) {
-    // 동향: alignHeadingOnLine → 블라인드 직진 → 11번 라인 과전진 정렬
-    alignHeadingOnLine();
+    // 동향: 블라인드 직진 → 11번 라인 감지 즉시 정지 (라인 끝에서 시작하므로 alignHeadingOnLine 제거)
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
-        prizm.resetEncoders();
-        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-          delay(5);
-        }
         stopAll();
         robotHeading = 1;
         break;
@@ -221,18 +224,12 @@ static void stepNode(int from, int to) {
     }
 
   } else if (from == 11 && to == 10) {
-    // 서향: alignHeadingOnLine → 블라인드 직진 → 10번 라인 과전진 정렬
-    alignHeadingOnLine();
+    // 서향: 블라인드 직진 → 10번 라인 감지 즉시 정지 (라인 끝에서 시작하므로 alignHeadingOnLine 제거)
     prizm.resetEncoders();
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
-        prizm.resetEncoders();
-        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-          delay(5);
-        }
         stopAll();
         robotHeading = 3;
         break;
@@ -306,7 +303,6 @@ void returnToHub8FromNode(int node, bool cameOutForward) {
       delay(5);
     }
     stopAll();
-    delay(100);
   } else if (node == 3 || node == 4) {
     followToCrossing();
   } else if (node == 5 || node == 6) {
@@ -404,17 +400,16 @@ void exitZone(int zone) {
       delay(5);
     }
     stopAll();
-    delay(100);
   } else {
     if (zoneToNode(zone) == 7) {
-      // 노드 7은 T자 교차로라 followToCrossing 미감지 → 엔코더 기반 전진 탈출
+      // 노드 7은 T자 교차로(서쪽 라인 없음)라 followToCrossing 미감지 → 엔코더 기반 전진 탈출
+      // 700 카운트만 전진 (교차로 근처에 정지)
       prizm.resetEncoders();
-      while (abs(prizm.readEncoderCount(1)) < ZONE_ENTER_COUNTS) {
+      while (abs(prizm.readEncoderCount(1)) < 700) {
         drive(SPEED, SPEED);
         delay(5);
       }
       stopAll();
-      delay(100);
     } else {
       // 후진 진입 → 전진 탈출 (라인트레이싱)
       followToCrossing();

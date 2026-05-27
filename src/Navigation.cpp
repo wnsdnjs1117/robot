@@ -31,7 +31,6 @@ void followToCrossing() {
         delay(5);
       }
       stopAll();
-      delay(50);
     }
   }
 
@@ -85,7 +84,6 @@ void alignHeadingOnLine() {
     delay(5);
   }
   stopAll();
-  delay(50);
 
   // Phase 2: 패턴별 미세 회전 정렬 (5도 제한)
   prizm.resetEncoders();
@@ -108,7 +106,6 @@ void alignHeadingOnLine() {
     delay(10);
   }
   stopAll();
-  delay(50);
 }
 
 // ── [3] 존 진입/탈출 ─────────────────────────────────────────
@@ -241,7 +238,6 @@ void reverseAcrossToOppositeZone() {
     delay(5);
   }
   stopAll();
-  delay(100);
 
   // 2단계: 반대 구역 라인 추종 후진 → 끊기면 ZONE_DEPTH_EXTRA 추가
   reverseEnterZone();
@@ -268,7 +264,6 @@ void goToMainLine() {
     delay(5);
   }
   stopAll();
-  delay(200);
 
   Serial.println(F(">>> [START-RUN] 서쪽(좌측) 방향 전환"));
   if (WEST_IS_LEFT)
@@ -352,7 +347,6 @@ void returnToFinish() {
     delay(5);
   }
   stopAll();
-  delay(200);
 
   turnAngle(90, true);   // 동쪽 → 남쪽
   robotHeading = 2;
