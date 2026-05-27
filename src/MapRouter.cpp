@@ -1,7 +1,7 @@
 /* ============================================================
  * MapRouter.cpp - 헤딩 완전 추적 / 진입방식 기반 탈출
  *
- * 헤딩: 로봇 앞면이 향하는 방향 (0=북, 1=동, 2=남, 3=서)
+ * 헤딩: 로봇 앞면이 향하는 방향 (HDG_N=0, HDG_E=1, HDG_S=2, HDG_W=3)
  *
  * 맵 구조:
  *         북
@@ -43,7 +43,7 @@ void enterZone();
 void reverseEnterZone();
 void alignHeadingOnLine();
 
-int  robotHeading      = 0;     // 로봇 앞면 방향 (goToMainLine 후 북향으로 초기화)
+int  robotHeading      = HDG_N; // 로봇 앞면 방향 (goToMainLine 후 북향으로 초기화)
 int  currentNode       = 8;     // 현재 서 있는 교차로 노드
 bool lastEntryWasForward = true; // 마지막 구역 진입이 전진이었는가
 
@@ -118,7 +118,7 @@ void executeBlindRun() {
 // 9→8: 직진하다 라인 감지 → followToCrossing으로 8번 정렬
 // 9↔10, 10↔11: alignHeadingOnLine + 블라인드 직진 → 라인 감지 후 정렬
 static void stepNode(int from, int to) {
-  int dir = (to > from) ? 1 : 3;
+  int dir = (to > from) ? HDG_E : HDG_W;
   turnToHeading(dir);
 
   if (from == 8 && to == 9) {
@@ -166,7 +166,7 @@ static void stepNode(int from, int to) {
           delay(5);
         }
         stopAll();
-        robotHeading = 1;
+        robotHeading = HDG_E;
         break;
       }
       long d1 = abs(prizm.readEncoderCount(1));
@@ -178,8 +178,9 @@ static void stepNode(int from, int to) {
     }
 
   } else if (from == 10 && to == 9) {
-    // 서향: 블라인드 직진 → 라인(8~9 가로선 또는 8번 세로선) 감지 즉시 정지
-    //   → 좌회전 95도 (서→북) → followToCrossing으로 8번 노드 정렬
+    // 서향 블라인드 직진 → 10번 노드 N-S선 감지 즉시 정지
+    //   → CCW 95° 회전(서→남 ~185°): 8-9 가로선을 향해 조준
+    //   → followToCrossing: 우측 센서가 8-9 라인 감지 후 서향 자동 정렬 → 8번 교차로 도달
     //   → stepNode(8,9)로 9번까지 이동 (return 하여 currentNode=to 덮어씀 방지)
     prizm.resetEncoders();
     while (true) {
@@ -196,13 +197,13 @@ static void stepNode(int from, int to) {
       drive(BLIND_SPEED - correction, BLIND_SPEED + correction);
       delay(5);
     }
-    turnAngle(95, false);  // 서→북 (95도 좌회전으로 약간 과회전)
-    robotHeading = 0;
-    followToCrossing();    // 8번 노드 교차로까지 전진
+    turnAngle(95, false);   // 서→남(~185°): 8-9 라인 향해 조준
+    followToCrossing();     // 8-9 라인 자동 조향 → 8번 노드 교차로까지 서향 도착
+    robotHeading = HDG_W;   // followToCrossing 종료 시 로봇 실제 방향 = 서향
     currentNode = 8;
     Serial.println(F(">> [NAV] 10->9 via node8, continuing 8->9"));
-    stepNode(8, 9);        // 8번에서 9번으로 이동 (currentNode=9 설정됨)
-    return;                // currentNode = to 덮어쓰기 방지
+    stepNode(8, 9);         // HDG_W→HDG_E 180° 회전 후 동진 → 9번 도달
+    return;                 // currentNode = to 덮어쓰기 방지
 
   } else if (from == 10 && to == 11) {
     // 동향: 블라인드 직진 → 11번 라인 감지 즉시 정지 (라인 끝에서 시작하므로 alignHeadingOnLine 제거)
@@ -212,7 +213,7 @@ static void stepNode(int from, int to) {
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
         stopAll();
-        robotHeading = 1;
+        robotHeading = HDG_E;
         break;
       }
       long d1 = abs(prizm.readEncoderCount(1));
@@ -231,7 +232,7 @@ static void stepNode(int from, int to) {
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
         stopAll();
-        robotHeading = 3;
+        robotHeading = HDG_W;
         break;
       }
       long d1 = abs(prizm.readEncoderCount(1));
@@ -405,7 +406,7 @@ void exitZone(int zone) {
       // 노드 7은 T자 교차로(서쪽 라인 없음)라 followToCrossing 미감지 → 엔코더 기반 전진 탈출
       // 700 카운트만 전진 (교차로 근처에 정지)
       prizm.resetEncoders();
-      while (abs(prizm.readEncoderCount(1)) < 700) {
+      while (abs(prizm.readEncoderCount(1)) < NODE7_EXIT_COUNTS) {
         drive(SPEED, SPEED);
         delay(5);
       }
@@ -438,10 +439,10 @@ void goToZoneDirect(int zone) {
   moveToNode(targetNode);
 
   // 구역 방향: 1,2,5,6=북(0), 3,4=남(2)
-  int zoneSide = (zone == 3 || zone == 4) ? 2 : 0;
+  int zoneSide = (zone == 3 || zone == 4) ? HDG_S : HDG_N;
 
   // 동/서향이면 구역 방향으로 정렬 (회전 1번으로 전진 진입 가능)
-  if (robotHeading == 1 || robotHeading == 3) {
+  if (robotHeading == HDG_E || robotHeading == HDG_W) {
     turnToHeading(zoneSide);
   }
 

@@ -47,6 +47,16 @@ constexpr int  ANGULAR_GAIN     = 3;     // 전/후방 이중 센서 각도 교�
 constexpr int  ALIGN_MAX_COUNTS = 67;    // alignHeadingOnLine 최대 회전량 (≈5도)
 constexpr int  SPIN_BRAKE_LEAD  = 15;    // turnAngle 관성 보정 선행 제동 카운트
 
+// ── [6] 방향 상수 (robotHeading) ───────────────────────────────
+// turnToHeading() 인자 및 robotHeading 값에 사용 (int 산술 호환)
+constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향
+constexpr int HDG_E = 1;  // 동 – 노드 번호 증가 / FINISH 방향
+constexpr int HDG_S = 2;  // 남 – 스타트 / 남쪽 구역(3·4) 방향
+constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
+
+// ── [7] 기타 거리 상수 ──────────────────────────────────────────
+constexpr int NODE7_EXIT_COUNTS = 700;  // 노드7 T자 교차로 탈출 엔코더 거리
+
 // 전역 객체 선언
 extern PRIZM prizm;
 extern int lastSensorState;

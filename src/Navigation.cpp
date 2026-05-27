@@ -349,7 +349,7 @@ void returnToFinish() {
   stopAll();
 
   turnAngle(90, true);   // 동쪽 → 남쪽
-  robotHeading = 2;
+  robotHeading = HDG_S;
 
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < FINISH_ENTRY_COUNTS) {
