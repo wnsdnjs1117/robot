@@ -29,6 +29,9 @@ void setup() {
   pinMode(SENSOR_LEFT, INPUT);
   pinMode(SENSOR_CENTER, INPUT);
   pinMode(SENSOR_RIGHT, INPUT);
+  pinMode(SENSOR_REAR_LEFT, INPUT);
+  pinMode(SENSOR_REAR_CENTER, INPUT);
+  pinMode(SENSOR_REAR_RIGHT, INPUT);
   prizm.resetEncoders();
 
   // 가상 맵 데이터 셔플 생성
