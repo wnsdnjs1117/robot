@@ -14,7 +14,7 @@ constexpr int  SENSOR_RIGHT          = 4;
 constexpr bool INVERT_SENSORS        = false;
 constexpr int  BUZZER_PIN            = 5;    // 부저 핀 (Arduino tone() 사용)
 
-constexpr int  SENSOR_REAR_LEFT      = A1;   // 후방 아날로그 (바퀴축과 동일 위치)
+constexpr int  SENSOR_REAR_LEFT      = A1;   // 후방 아날로그 (차축 후방 24cm, 1000 count)
 constexpr int  SENSOR_REAR_CENTER    = A2;
 constexpr int  SENSOR_REAR_RIGHT     = A3;
 constexpr int  REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
@@ -31,7 +31,7 @@ constexpr int SPIN_90_COUNTS      = 1200;  // 90도 회전 엔코더 카운트
 constexpr int CROSS_ALIGN_COUNTS  = 250;   // 교차로 감지 후 축 정렬 과전진 거리
 constexpr int START_ESCAPE_COUNTS = 1500;  // 스타트 선 밟은 후 추가 이탈 거리
 constexpr int FINISH_ENTRY_COUNTS = 1500;  // FINISH 구역 진입 거리
-constexpr int REAR_TO_AXLE_COUNTS = 0;     // 후방 센서 → 차축 거리 (0: 동일 위치)
+constexpr int REAR_TO_AXLE_COUNTS = 1000;   // 후방 센서 → 차축 거리 (24cm ≈ 1000 count)
 
 // ── [4] 존 진입/탈출 거리 ────────────────────────────────────
 constexpr int ZONE_ENTER_COUNTS    = 2400;  // 노드7 전진 탈출 전용 (exitZone)
