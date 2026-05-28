@@ -100,9 +100,10 @@ void executeStage2_Delivery() {
         exitZone(zone);        // 구역 탈출 → currentNode 갱신
 
         // ── 하차 ─────────────────────────────────────────
-        goToZoneDirect(dest);  // 현재 노드 → 목적 구역 직접 이동 + 진입
-        liftDown();            // 0cm 하강 (10cm 이하 → 주행 허가)
-        exitZone(dest);        // 구역 탈출 → currentNode 갱신
+        goToZoneDirect(dest);      // 현재 노드 → 목적 구역 직접 이동 + 진입
+        liftDownUntilClear();      // 10cm 이하 도달 시 즉시 반환
+        exitZone(dest);            // 구역 탈출 (리프트 계속 하강 중)
+        liftDownWait();            // 착지 완료 대기
 
         isOccupied[zone] = false;
         isOccupied[dest] = true;
@@ -132,8 +133,9 @@ void executeStage2_Delivery() {
       exitZone(stuckZone);
 
       goToZoneDirect(emptyZone);
-      liftDown();
+      liftDownUntilClear();
       exitZone(emptyZone);
+      liftDownWait();
 
       boxes[emptyZone].present = true;
       boxes[emptyZone].found = true;

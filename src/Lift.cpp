@@ -79,7 +79,7 @@ static void liftResetState(int startPowerL, int startPowerR) {
 //            (로봇은 15cm 이상 든 이후에야 주행 가능)
 // ============================================================
 void liftUp() {
-  Serial.println(F(">> [LIFT] 상승 시작 (목표: 24cm, 주행 해제: 15cm)"));
+  Serial.println(F(">> [LIFT] 상승 시작 (15cm 도달 시 즉시 반환)"));
 
   liftResetState(30, 30);
 
@@ -168,6 +168,13 @@ void liftUp() {
       prevCountR = curR;
       lastCheckTime = currentTime;
 
+      // 15cm 도달 → 브레이크 후 즉시 반환
+      if (heightL >= 15.0 && heightR >= 15.0) {
+        exc.setMotorPowers(EXP_ID, 125, -125);
+        Serial.println(F(">> [LIFT] 주행 허가 (15cm 도달)"));
+        return;
+      }
+
       Serial.print(F("  [UP] L="));
       Serial.print(heightL, 1);
       Serial.print(F("cm R="));
@@ -180,22 +187,15 @@ void liftUp() {
     int outPowerR = (isStalledR || isMaxReachedR) ? -125 : -powerR;
     exc.setMotorPowers(EXP_ID, outPowerL, outPowerR);
 
-    // 양쪽 모두 한계 도달 or 비상 정지 → 모터 브레이크 후 탈출
+    // 비상: 양쪽 스톨/한계 → 브레이크
     if ((isMaxReachedL || isStalledL) && (isMaxReachedR || isStalledR)) {
       exc.setMotorPowers(EXP_ID, 125, -125);
-      Serial.println(F(">> [LIFT] 상승 완료 (24cm)"));
-      break;
+      Serial.println(F(">> [LIFT] 비상 정지 (상승 중)"));
+      return;
     }
 
-    // 15cm 이상 올라간 순간부터 함수 반환 가능
     delay(10);
   }
-
-  // 15cm 미만이면 추가 대기 (안전망)
-  while (heightL < 15.0 && heightR < 15.0) {
-    delay(50);
-  }
-  Serial.println(F(">> [LIFT] 주행 허가 (15cm 이상 확인)"));
 }
 
 void liftDownStart();
@@ -326,9 +326,23 @@ void liftDownTick() {
 void liftDownWait() {
   if (!liftDownRunning) return;
   Serial.println(F(">> [LIFT] 착지 대기 중..."));
+  // prevCount 재동기화: 틱 공백 구간 동안의 누적 이동 반영
+  prevCountL = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
+  prevCountR = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
+  lastCheckTime = 0;
   while (liftDownRunning) {
     liftDownTick();
     delay(10);
   }
   Serial.println(F(">> [LIFT] 착지 확인 완료"));
+}
+
+// 10cm 이하 도달 시 즉시 반환 (착지는 liftDownWait로 완료)
+void liftDownUntilClear() {
+  liftDownStart();
+  while (heightL > 10.0 || heightR > 10.0) {
+    liftDownTick();
+    delay(10);
+  }
+  Serial.println(F(">> [LIFT] 주행 허가 (10cm 이하)"));
 }

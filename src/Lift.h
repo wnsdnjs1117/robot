@@ -13,6 +13,7 @@ void liftDown();
 void liftDownStart();
 void liftDownTick();
 void liftDownWait();
+void liftDownUntilClear();
 
 // EXPANSION 컨트롤러 외부 접근용
 extern EXPANSION exc;
