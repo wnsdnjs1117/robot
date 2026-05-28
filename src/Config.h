@@ -7,6 +7,21 @@
 #include <Arduino.h>
 #include <PRIZM.h>
 
+// ── [DEBUG] 0 = 경기용 무음, 1 = 시리얼 디버그 출력 ─────────────
+#define ROBOT_DEBUG 1
+
+#if ROBOT_DEBUG
+  #define DPRINT(x)     Serial.print(x)
+  #define DPRINTLN(x)   Serial.println(x)
+  #define DPRINTF(x)    Serial.print(F(x))
+  #define DPRINTLNF(x)  Serial.println(F(x))
+#else
+  #define DPRINT(x)
+  #define DPRINTLN(x)
+  #define DPRINTF(x)
+  #define DPRINTLNF(x)
+#endif
+
 // 경기장 레이아웃 (위 = 북)
 //
 //   [1구역]  [2구역]             [5입고]   [6출고]
@@ -62,7 +77,12 @@ constexpr int ZONE_DEPTH_EXTRA  = CM(25.0f);  // ★ 실측 필요
 constexpr int ZONE_FOLLOW_MAX   = CM(40.0f);  // 안전 한계 (실측값보다 크게)
 constexpr int NODE8_EXIT_QUAL   = CM(28.0f);  // 교차로 감지 최소 이동 거리 (≈ZONE_ENTER_EXTRA - 전후 센서 간격)
 
-// ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
+// ── [5] 블라인드 구간 엔코더 차동 보정 파라미터 ────────────────
+constexpr int BLIND_CORR_DEADZONE = 3;  // 무시할 최소 엔코더 차이 (기존 5 → 3)
+constexpr int BLIND_CORR_GAIN     = 8;  // 보정 나눗수 (기존 12 → 8, 더 빠른 응답)
+constexpr int BLIND_CORR_CAP      = 6;  // 최대 보정량 (기존 4 → 6)
+
+// ── [6] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr float LIFT_UP_CLEAR_CM   = 15.0f;  // 상승 중 주행 허가 높이 (cm)
 constexpr float LIFT_DOWN_CLEAR_CM = 10.0f;  // 하강 중 주행 허가 높이 (cm)
 constexpr int DRIVE_BIAS = 2;         // 좌 모터 가속 편향 보정: +값 → 좌↓ 우↑ (직진 우편향 시 양수)
@@ -76,13 +96,13 @@ constexpr int SPIN_BRAKE_LEAD = 15;   // turnAngle 관성 보정 선행 제동 �
 constexpr int TURN_LINE_ARM_DEG = 40;  // 이 각도 이상 회전 + 시작 라인 이탈 후부터 감지
 constexpr int TURN_LINE_MAX_DEG = 91;  // 라인 못 찾을 때 무한 회전 방지 한계각
 
-// ── [6] 방향 상수 (robotHeading) ───────────────────────────────
+// ── [7] 방향 상수 (robotHeading) ───────────────────────────────
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향
 constexpr int HDG_E = 1;  // 동 – 노드 번호 증가 / FINISH 방향
 constexpr int HDG_S = 2;  // 남 – 스타트 / 남쪽 구역(3·4) 방향
 constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 
-// ── [7] 기타 거리 상수 ──────────────────────────────────────────
+// ── [8] 기타 거리 상수 ──────────────────────────────────────────
 constexpr int NODE7_EXIT_COUNTS = CM(33.0f);      // 존1·3 후진진입→전진탈출: 정지점→노드7 (★실측)
 constexpr int NODE7_REV_EXIT_COUNTS = CM(60.0f);  // 존1·3 전진진입→후진탈출: 정지점→노드7 (★실측)
 constexpr int ZONE5_EXIT_COUNTS = CM(56.0f);      // 존5  전진진입→후진탈출: 정지점→노드10 (★실측)

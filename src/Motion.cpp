@@ -167,14 +167,14 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
     }
   } else {
     if (lastSensorState == 1) {
-      lsp = SPEED - 16;
-      rsp = SPEED + 6;
+      lsp = SPEED - 20;   // 엣지 감지 수준의 좌회전으로 선 재탐색
+      rsp = SPEED +  6;
     } else if (lastSensorState == 2) {
-      lsp = SPEED + 6;
-      rsp = SPEED - 16;
+      lsp = SPEED +  6;
+      rsp = SPEED - 20;
     } else {
-      lsp = SPEED;
-      rsp = SPEED;
+      lsp = SPEED / 2;    // 방향 기억 없음 → 감속 직진 (탈출 최소화)
+      rsp = SPEED / 2;
     }
   }
 
