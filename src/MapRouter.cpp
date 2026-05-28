@@ -239,6 +239,18 @@ void moveToNode(int toNode) {
 
 void exitZone(int zone) {
   if (lastEntryWasForward) {
+    // 노드7 연결 구역(1·3): T자 교차로 → 엔코더 기반 후진 탈출
+    if (zoneToNode(zone) == 7) {
+      prizm.resetEncoders();
+      while (abs(prizm.readEncoderCount(1)) < NODE7_REV_EXIT_COUNTS) {
+        long d1 = abs(prizm.readEncoderCount(1));
+        long d2 = abs(prizm.readEncoderCount(2));
+        int corr = (abs(d1 - d2) <= 5) ? 0 : constrain((int)((d1 - d2) / 12), -4, 4);
+        drive(-BACK_SPEED + corr, -BACK_SPEED - corr);
+        delay(5);
+      }
+      stopAll();
+    } else {
     prizm.resetEncoders();
     bool rearCrossFound = false;
     int crossCount = 0;
@@ -332,6 +344,7 @@ void exitZone(int zone) {
       delay(5);
     }
     stopAll();
+    }  // end else (non-node7)
   } else {
     if (zoneToNode(zone) == 7) {
       prizm.resetEncoders();
