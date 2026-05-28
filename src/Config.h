@@ -78,8 +78,9 @@ constexpr int HDG_S = 2;  // 남 – 스타트 / 남쪽 구역(3·4) 방향
 constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 
 // ── [7] 기타 거리 상수 ──────────────────────────────────────────
-constexpr int NODE7_EXIT_COUNTS = CM(36.0f);  // 노드7 T자 교차로 전진 탈출 거리 (17cm)
-constexpr int NODE_11_12_COUNTS = CM(70.0f);  // 노드11→12 블라인드 거리 (실측 후 조정)
+constexpr int NODE7_EXIT_COUNTS = CM(17.0f);  // 노드7 T자 교차로 탈출 거리 (17cm)
+constexpr int NODE_11_12_COUNTS = CM(35.0f);  // 노드11→12 블라인드 거리 (실측 후 조정)
+constexpr int BLIND_NODE_MAX = CM(72.0f);     // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
 
 // 전역 객체 선언
 extern PRIZM prizm;
