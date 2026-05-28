@@ -295,16 +295,30 @@ void exitZone(int zone) {
       }
       stopAll();
     } else {
-      // 나머지 노드(7·10·11): 엔코더 기반 직진 후진
+      // 나머지 노드(7·10·11): 후방 센서 라인 추종 + 엔코더 거리 컷오프
       long exitCounts = (node == 7)  ? NODE7_REV_EXIT_COUNTS
                       : (zone == 5)  ? ZONE5_EXIT_COUNTS
                                      : ZONE6_EXIT_COUNTS;
       prizm.resetEncoders();
       while (abs(prizm.readEncoderCount(1)) < exitCounts) {
-        long d1 = abs(prizm.readEncoderCount(1));
-        long d2 = abs(prizm.readEncoderCount(2));
-        int corr = (abs(d1-d2) <= 5) ? 0 : constrain((int)((d1-d2)/12), -4, 4);
-        drive(-BACK_SPEED + corr, -BACK_SPEED - corr);
+        int RL, RC, RR;
+        readRearSensors(RL, RC, RR);
+        int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
+        bool rearHasLine   = anyRearLine(RL, RC, RR);
+        bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
+        if (rearHasLine && !rearIsCrossing) {
+          if      ( RL && !RC && !RR) { lsp = -(BACK_SPEED-10); rsp = -(BACK_SPEED+10); }
+          else if (!RL && !RC &&  RR) { lsp = -(BACK_SPEED+10); rsp = -(BACK_SPEED-10); }
+          else if ( RL &&  RC && !RR) { lsp = -(BACK_SPEED- 5); rsp = -(BACK_SPEED+ 5); }
+          else if (!RL &&  RC &&  RR) { lsp = -(BACK_SPEED+ 5); rsp = -(BACK_SPEED- 5); }
+        } else if (!rearHasLine) {
+          long d1 = abs(prizm.readEncoderCount(1));
+          long d2 = abs(prizm.readEncoderCount(2));
+          int corr = (abs(d1-d2) <= 5) ? 0 : constrain((int)((d1-d2)/12), -4, 4);
+          lsp = -BACK_SPEED + corr;
+          rsp = -BACK_SPEED - corr;
+        }
+        drive(lsp, rsp);
         delay(5);
       }
       stopAll();
