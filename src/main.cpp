@@ -4,7 +4,7 @@
  * ============================================================ */
 #include "BoxMap.h"
 #include "Config.h"
-#include "LiftTest.h"  // (기존 작성하신 리프트 제어 헤더 유지)
+#include "Lift.h"  // (기존 작성하신 리프트 제어 헤더 유지)
 #include "MissionFlow.h"
 #include "Motion.h"
 #include "Navigation.h"
@@ -19,7 +19,7 @@ void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();
 
-  // EXPANSION 리프트 컨트롤러 초기화 (exc, EXP_ID, LIFT_L, LIFT_R: LiftTest.h extern)
+  // EXPANSION 리프트 컨트롤러 초기화 (exc, EXP_ID, LIFT_L, LIFT_R: Lift.h extern)
   exc.controllerEnable(EXP_ID);
   delay(10);
   exc.resetEncoder(EXP_ID, LIFT_L);

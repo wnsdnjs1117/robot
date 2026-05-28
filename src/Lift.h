@@ -1,8 +1,8 @@
 /* ============================================================
- * LiftTest.h - 연장 보드 듀얼 리프트 저항 감지 제어 헤더
+ * Lift.h - 연장 보드 듀얼 리프트 저항 감지 제어 헤더
  * ============================================================ */
-#ifndef LIFT_TEST_H
-#define LIFT_TEST_H
+#ifndef LIFT_H
+#define LIFT_H
 
 #include <Arduino.h>
 #include <PRIZM.h>   // EXPANSION 타입 선언을 위해 필요

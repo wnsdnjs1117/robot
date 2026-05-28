@@ -5,7 +5,7 @@
 
 #include "BoxMap.h"
 #include "Config.h"
-#include "LiftTest.h"
+#include "Lift.h"
 #include "MapRouter.h"
 #include "Motion.h"
 #include "Navigation.h"
