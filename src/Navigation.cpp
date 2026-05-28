@@ -131,7 +131,7 @@ void reverseEnterZone() {
     if (abs(prizm.readEncoderCount(1)) >= ZONE_FOLLOW_MAX) break;
 
     int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
-    bool rearIsCrossing = (RL && RC && RR);
+    bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
     if (rearHasLine && !rearIsCrossing) {
       if (RL && !RC && !RR) {
         lsp = -(BACK_SPEED - 10);
@@ -151,7 +151,7 @@ void reverseEnterZone() {
       int fL, fC, fR;
       readSensors(fL, fC, fR);
       bool frontHasLine = anyLine(fL, fC, fR);
-      bool frontIsCrossing = (fL && fC && fR);
+      bool frontIsCrossing = ((fL && fC) || (fC && fR) || (fL && fR));
       if (rearHasLine && frontHasLine && !rearIsCrossing && !frontIsCrossing) {
         int angCorr = constrain((fL - fR) * ANGULAR_GAIN, -5, 5);
         lsp -= angCorr;
@@ -172,7 +172,6 @@ void reverseEnterZone() {
 
 void reverseAcrossToOppositeZone() {
   lastSensorState = 0;
-
   prizm.resetEncoders();
   bool rearCrossFound = false;
   int crossCount = 0;
@@ -186,14 +185,12 @@ void reverseAcrossToOppositeZone() {
     bool rearHasLine = anyRearLine(RL, RC, RR);
     bool frontHasLine = anyLine(L, C, R);
 
-    // [핵심 수정] 맞은편으로 건너갈 때도 T/L 삼거리를 교차로로 완벽히 인식하게
-    // 변경
     bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
     bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
 
     if (rearIsCrossing && !rearCrossFound) {
       crossCount++;
-      if (crossCount >= 3) {
+      if (crossCount >= 1) {
         rearCrossFound = true;
         prizm.resetEncoders();
       }

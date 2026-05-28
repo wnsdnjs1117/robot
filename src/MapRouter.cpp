@@ -18,6 +18,7 @@ int robotHeading = HDG_N;
 int currentNode = 8;
 bool lastEntryWasForward = true;
 
+// 9->10 이동 시 북쪽으로 2도 틀어진 상태를 추적하는 변수
 static bool isTiltedNorthAt10 = false;
 
 // ── [내부] 헬퍼 ──────────────────────────────────────────────
@@ -72,10 +73,12 @@ static void blindDriveUntilLine() {
 
 // ── [내부] 노드 간 단일 구간 이동 ────────────────────────────
 static void stepNode(int from, int to, bool stopAtEnd) {
+  // [수정] 오직 9번 노드에서 와서 2도가 틀어진 상태일 때만 10번 노드 출발 전
+  // 보정 회전을 수행함
   if (from == 10 && isTiltedNorthAt10) {
     stopAll();
     delay(100);
-    turnAngle(5, true);
+    turnAngle(2, true);  // 2도 시계방향 복구 (동쪽 정확히 바라보기)
     isTiltedNorthAt10 = false;
   }
 
@@ -112,7 +115,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
 
   } else if (from == 9 && to == 10) {
     alignHeadingOnLine();
-    turnAngle(5, false);
+    turnAngle(2, false);  // [수정] 기존 5도에서 2도 북향으로만 미세 조준 변경
     isTiltedNorthAt10 = true;
     prizm.resetEncoders();
     while (true) {
@@ -198,6 +201,7 @@ void exitZone(int zone) {
     prizm.resetEncoders();
     bool rearCrossFound = false;
     int crossCount = 0;
+    bool lineWasSeen = false;
 
     while (true) {
       int RL, RC, RR;
@@ -207,38 +211,49 @@ void exitZone(int zone) {
 
       bool rearHasLine = anyRearLine(RL, RC, RR);
       bool frontHasLine = anyLine(L, C, R);
-
-      // [핵심 수정] T자, L자 삼거리도 모두 교차로로 완벽히 인식하게 변경 (2개
-      // 이상 닿으면 됨)
       bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
       bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
 
-      if (rearIsCrossing && !rearCrossFound) {
-        crossCount++;
-        // 3연속(약 15ms) 감지 시에만 진짜 교차로로 확정하여 노이즈 필터링
-        if (crossCount >= 3) {
-          rearCrossFound = true;
-          prizm.resetEncoders();
+      if (rearHasLine) lineWasSeen = true;
+
+      // [1번 요구사항 수정] 존을 빠져나올 때 최소 1200 카운트 이하에서는 사거리
+      // 판단을 아예 하지 않고 안전거리 확보
+      bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= 1200);
+
+      if (zone == 5 || zone == 6) {
+        if (distanceQualified && lineWasSeen && !rearHasLine &&
+            !rearCrossFound) {
+          crossCount++;
+          if (crossCount >= 3) {
+            rearCrossFound = true;
+            prizm.resetEncoders();
+          }
+        } else if (rearHasLine && !rearCrossFound) {
+          crossCount = 0;
         }
-      } else if (!rearIsCrossing && !rearCrossFound) {
-        crossCount = 0;
+      } else {
+        if (distanceQualified && rearIsCrossing && !rearCrossFound) {
+          crossCount++;
+          if (crossCount >= 1) {
+            rearCrossFound = true;
+            prizm.resetEncoders();
+          }
+        } else if (!rearIsCrossing && !rearCrossFound) {
+          crossCount = 0;
+        }
       }
 
-      // 교차로를 발견한 시점부터 축 정렬 거리만큼 더 후진한 뒤 정지
       if (rearCrossFound &&
           abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) {
         break;
       }
 
-      // 무한루프 방지 안전망
       if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > 6000) {
         break;
       }
 
       int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
-      // 교차로를 찾기 전까지만 선을 따라 조향함 (찾은 후엔 일직선으로 후진만
-      // 해서 각도 유지)
       if (!rearCrossFound) {
         if (rearHasLine && !rearIsCrossing) {
           if (RL && !RC && !RR) {
@@ -264,7 +279,7 @@ void exitZone(int zone) {
           rsp = -BACK_SPEED - corr;
         }
 
-        if (rearHasLine && frontHasLine && !rearIsCrossing &&
+        if (frontHasLine && rearHasLine && !rearIsCrossing &&
             !frontIsCrossing) {
           int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
           lsp -= angCorr;
@@ -288,6 +303,13 @@ void exitZone(int zone) {
       followToCrossing(true);
     }
   }
+
+  // 5번 존에서 탈출할 경우, 틀어짐 추적 변수를 명확히 false로 고정하여 남쪽
+  // 꺾임 원인 원천 차단
+  if (zone == 5) {
+    isTiltedNorthAt10 = false;
+  }
+
   currentNode = zoneToNode(zone);
   Serial.print(F(">> [NAV] exitZone "));
   Serial.print(zone);
