@@ -95,8 +95,9 @@ void alignHeadingOnLine() {
 
 // ── [3] 존 진입/탈출 ─────────────────────────────────────────
 
-void enterZone() {
+void enterZone(int zone) {
   lastSensorState = 0;
+  int enterExtra = (zone == 1 || zone == 2) ? ZONE12_ENTER_EXTRA : ZONE_ENTER_EXTRA;
 
   while (true) {
     int L, C, R;
@@ -109,15 +110,16 @@ void enterZone() {
   }
 
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < ZONE_ENTER_EXTRA) {
+  while (abs(prizm.readEncoderCount(1)) < enterExtra) {
     drive(SPEED, SPEED);
     delay(5);
   }
   softStop();
 }
 
-void reverseEnterZone() {
+void reverseEnterZone(int zone) {
   lastSensorState = 0;
+  int depthExtra = (zone == 1 || zone == 2) ? ZONE12_DEPTH_EXTRA : ZONE_DEPTH_EXTRA;
   bool lineWasFound = false;
 
   prizm.resetEncoders();
@@ -163,14 +165,14 @@ void reverseEnterZone() {
   }
 
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < ZONE_DEPTH_EXTRA) {
+  while (abs(prizm.readEncoderCount(1)) < depthExtra) {
     drive(-BACK_SPEED, -BACK_SPEED);
     delay(5);
   }
   softStop();
 }
 
-void reverseAcrossToOppositeZone() {
+void reverseAcrossToOppositeZone(int targetZone) {
   lastSensorState = 0;
   prizm.resetEncoders();
   bool rearCrossFound = false;
@@ -245,7 +247,7 @@ void reverseAcrossToOppositeZone() {
     delay(5);
   }
 
-  reverseEnterZone();
+  reverseEnterZone(targetZone);
 }
 
 // ── [4] 특수 경로 ────────────────────────────────────────────
@@ -409,7 +411,7 @@ int qrSearchStage() {
   int randomFound = 0;
 
   DPRINTLNF("\n--- [2구역 탐색] ---");
-  enterZone();
+  enterZone(2);
   lastEntryWasForward = true;
   if (scanZone(2)) randomFound++;
   if (randomFound >= 2) {
@@ -419,7 +421,7 @@ int qrSearchStage() {
   }
 
   DPRINTLNF("\n--- [4구역 탐색] ---");
-  reverseAcrossToOppositeZone();
+  reverseAcrossToOppositeZone(4);
   lastEntryWasForward = false;
   if (scanZone(4)) randomFound++;
   if (randomFound >= 2) {
@@ -433,7 +435,7 @@ int qrSearchStage() {
   turnAngle(90, false);
   followToCrossing();
   turnAngle(90, true);
-  enterZone();
+  enterZone(1);
   lastEntryWasForward = true;
   if (scanZone(1)) randomFound++;
   if (randomFound >= 2) {
@@ -443,7 +445,7 @@ int qrSearchStage() {
   }
 
   DPRINTLNF("\n--- [3구역 탐색] ---");
-  reverseAcrossToOppositeZone();
+  reverseAcrossToOppositeZone(3);
   lastEntryWasForward = false;
   scanZone(3);
   softStop();
