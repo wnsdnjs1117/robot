@@ -54,9 +54,9 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
 // ── [1.5] 센서-바퀴축 간격 / 차체 기하 ──────────────────────────
-constexpr float FRONT_SENSOR_OFFSET = 5.5f;   // 전방 센서 → 바퀴축 (cm)
-constexpr float REAR_SENSOR_OFFSET  = 24.0f;  // 후방 센서 → 바퀴축 (cm)
-constexpr float AXLE_TO_LIFT_CM     = 14.0f;  // 바퀴축 → 리프트 (cm, 후방 방향)
+constexpr float FRONT_SENSOR_OFFSET = 7.5f;   // 전방 센서 → 바퀴축 (cm)
+constexpr float REAR_SENSOR_OFFSET  = 25.0f;  // 후방 센서 → 바퀴축 (cm)
+constexpr float AXLE_TO_LIFT_CM     = 11.0f;  // 바퀴축 → 리프트 (cm, 후방 방향)
 
 // ── [2] 모터 속도 ────────────────────────────────────────────
 constexpr int STRAIGHT_SPEED = 35;  // 라인 없는 구간 직진 속도
@@ -78,20 +78,22 @@ constexpr int START_ESCAPE_COUNTS = CM(FRONT_SENSOR_OFFSET + START_ESCAPE_AXLE_C
 constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
 
 // ── [4] 존 진입 거리 ─────────────────────────────────────────
-// ZONE_LIFT_DEPTH : 진입선(노드 교차점)에서 리프트가 멈춰야 할 깊이 (cm)
-//   전진/후진 방향에 따라 리프트 위치가 달라지는 문제를 내부 공식이 자동 흡수.
-//   실측 후 이 값 하나만 조정하면 두 방향 모두 보정된다.
+// ZONE_LIFT_DEPTH : 노드에서 리프트가 멈춰야 할 깊이 (cm, 리프트 기준)
+//   전진/후진 방향 차이를 공식이 자동 흡수 — 이 값 하나만 수정하면 됨.
 //
-//   전진: ZONE_ENTER_EXTRA = CM(FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH)
-//         트리거 시 리프트 = -(5.5+14) = -19.5cm → ZONE_LIFT_DEPTH까지 전진
-//   후진: ZONE_DEPTH_EXTRA = CM(REAR_SENSOR_OFFSET - AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH)
-//         트리거 시 리프트 = -(24-14) = -10cm   → ZONE_LIFT_DEPTH까지 후진
-constexpr float ZONE_LIFT_DEPTH = 13.5f;  // ★ 실측 필요 (리프트 기준 cm)
+//   트리거: 구역 유도선(ZONE_LINE_LENGTH) 끝에서 센서가 선 소실 → resetEncoders → EXTRA 맹주행
+//   전진: 트리거 시 축=LINE-FRONT=22.5cm → ZONE_ENTER_EXTRA = CM(LIFT_DEPTH - LINE + FRONT + LIFT)
+//   후진: 트리거 시 축=LINE-REAR= 5.0cm → ZONE_DEPTH_EXTRA = CM(LIFT_DEPTH - LINE + REAR  - LIFT)
+constexpr float ZONE_LINE_LENGTH = 30.0f;   // 구역 유도선 길이 (cm)
+constexpr float ZONE_LIFT_DEPTH  = 50.0f;   // ★ 실측값 (노드 → 리프트 정지점, cm)
 
-constexpr int ZONE_ENTER_EXTRA = CM(FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);
-constexpr int ZONE_DEPTH_EXTRA = CM(REAR_SENSOR_OFFSET  - AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);
-constexpr int ZONE_FOLLOW_MAX  = CM(40.0f);  // 안전 한계 (실측값보다 크게)
+constexpr int ZONE_ENTER_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM);
+// = CM(50 - 30 + 7.5 + 11) = CM(38.5)
+constexpr int ZONE_DEPTH_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + REAR_SENSOR_OFFSET  - AXLE_TO_LIFT_CM);
+// = CM(50 - 30 + 25 - 11) = CM(34.0)
+constexpr int ZONE_FOLLOW_MAX  = CM(40.0f);  // 유도선 추적 안전 한계 (최대 이동 ~5cm << 40cm)
 constexpr int NODE8_EXIT_QUAL  = CM(AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);  // 후진 탈출 교차로 감지 최소 이동량
+// = CM(11 + 50) = CM(61.0)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr float LIFT_UP_CLEAR_CM = 8.0f;    // 상승 중 주행 허가 높이 (cm)

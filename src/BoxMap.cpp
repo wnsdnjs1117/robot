@@ -4,6 +4,7 @@
 #include "BoxMap.h"
 
 #include <Arduino.h>
+#include "Config.h"
 
 BoxInfo boxes[7];
 
