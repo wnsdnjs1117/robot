@@ -6,6 +6,7 @@
 
 void drive(int l, int r);
 void stopAll();
+void softStop();
 
 void turnAngle(int degrees, bool isRight);  // 사다리꼴 프로파일 + 관성 보정
 bool turnToLine(bool isRight, int maxDegrees);  // 회전 방향의 새 라인에 정렬 정지

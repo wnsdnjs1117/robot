@@ -113,7 +113,7 @@ void enterZone() {
     drive(SPEED, SPEED);
     delay(5);
   }
-  stopAll();
+  softStop();
 }
 
 void reverseEnterZone() {
@@ -167,7 +167,7 @@ void reverseEnterZone() {
     drive(-BACK_SPEED, -BACK_SPEED);
     delay(5);
   }
-  stopAll();
+  softStop();
 }
 
 void reverseAcrossToOppositeZone() {
@@ -393,7 +393,7 @@ void returnToFinish() {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     delay(5);
   }
-  stopAll();
+  softStop();
   DPRINTLNF(">> [FINISH] FINISH 구역 진입 완료!");
 
   tone(BUZZER_PIN, 1000);
@@ -413,7 +413,7 @@ int qrSearchStage() {
   lastEntryWasForward = true;
   if (scanZone(2)) randomFound++;
   if (randomFound >= 2) {
-    stopAll();
+    softStop();
     printSearchResult();
     return 2;
   }
@@ -423,7 +423,7 @@ int qrSearchStage() {
   lastEntryWasForward = false;
   if (scanZone(4)) randomFound++;
   if (randomFound >= 2) {
-    stopAll();
+    softStop();
     printSearchResult();
     return 4;
   }
@@ -437,7 +437,7 @@ int qrSearchStage() {
   lastEntryWasForward = true;
   if (scanZone(1)) randomFound++;
   if (randomFound >= 2) {
-    stopAll();
+    softStop();
     printSearchResult();
     return 1;
   }
@@ -446,7 +446,7 @@ int qrSearchStage() {
   reverseAcrossToOppositeZone();
   lastEntryWasForward = false;
   scanZone(3);
-  stopAll();
+  softStop();
   printSearchResult();
   return 3;
 }

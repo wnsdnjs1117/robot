@@ -83,7 +83,7 @@ static void blindPostAlign() {
     else               break;
     delay(10);
   }
-  stopAll();
+  softStop();
 }
 
 static void blindDriveUntilLine(long maxCounts = 0) {
@@ -99,7 +99,7 @@ static void blindDriveUntilLine(long maxCounts = 0) {
     drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
     delay(5);
   }
-  stopAll();
+  softStop();
   blindPostAlign();
 }
 
@@ -113,7 +113,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       int L, C, R;
       readSensors(L, C, R);
       if (!anyLine(L, C, R)) {
-        if (stopAtEnd) stopAll();
+        if (stopAtEnd) softStop();
         break;
       }
       int RL, RC, RR;
@@ -148,7 +148,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       int L, C, R;
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
-        stopAll();
+        softStop();
         blindPostAlign();
         prizm.resetEncoders();
         while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
@@ -301,7 +301,7 @@ void exitZone(int zone) {
         liftDownTick();
         delay(5);
       }
-      stopAll();
+      softStop();
     } else {
       // 나머지 노드(7·10·11): 후방 센서 라인 추종 + 엔코더 거리 컷오프
       long exitCounts = (node == 7)  ? NODE7_REV_EXIT_COUNTS
@@ -331,7 +331,7 @@ void exitZone(int zone) {
         liftDownTick();
         delay(5);
       }
-      stopAll();
+      softStop();
     }
   } else {
     if (zoneToNode(zone) == 7) {
@@ -340,7 +340,7 @@ void exitZone(int zone) {
         drive(SPEED, SPEED);
         delay(5);
       }
-      stopAll();
+      softStop();
     } else {
       followToCrossing(true);
     }

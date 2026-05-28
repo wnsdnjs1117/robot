@@ -24,6 +24,11 @@ void stopAll() {
   delay(0);
 }
 
+void softStop() {
+  prizm.setMotorPower(1, 0);
+  prizm.setMotorPower(2, 0);
+}
+
 // ── [2] 회전 제어 ────────────────────────────────────────────
 //
 // 사다리꼴 속도 프로파일:
