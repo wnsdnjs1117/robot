@@ -90,6 +90,11 @@ constexpr int SPIN_BRAKE_LEAD = 15;         // turnAngle 관성 보정 선행 �
 constexpr int TURN_LINE_ARM_DEG = 30;  // 이 각도 이상 회전 + 시작 라인 이탈 후부터 감지
 constexpr int TURN_LINE_MAX_DEG = 92;  // 라인 못 찾을 때 무한 회전 방지 한계각
 
+// ── [6] 블라인드 구간 엔코더 차동 보정 파라미터 ────────────────
+constexpr int BLIND_CORR_DEADZONE = 3;  // 무시할 최소 엔코더 차이
+constexpr int BLIND_CORR_GAIN     = 8;  // 보정 나눗수
+constexpr int BLIND_CORR_CAP      = 6;  // 최대 보정량
+
 // ── [7] 방향 상수 (robotHeading) ───────────────────────────────
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향
 constexpr int HDG_E = 1;  // 동 – 노드 번호 증가 / FINISH 방향
