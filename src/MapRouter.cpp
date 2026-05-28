@@ -75,19 +75,27 @@ void turnToHeading(int target) {
   robotHeading = target;
 }
 
-// 블라인드 구간 엔코더 차동 보정 직진 → 라인 감지 즉시 정지
-// 9-10, 10-11 사이의 선 없는 구간에서 사용
+// 블라인드 구간 엔코더 차동 보정 직진 → 다음 라인 감지 즉시 정지
+// 출발 시 이미 라인 위에 있어도 그 라인을 벗어난 후 새 라인을 감지 (arming)
+// BLIND_DRIVE_MAX_COUNTS 초과 시 안전 정지
 static void blindDriveUntilLine() {
   prizm.resetEncoders();
-  while (true) {
+  bool armed = false;
+  while (abs(prizm.readEncoderCount(1)) < BLIND_DRIVE_MAX_COUNTS) {
     int L, C, R;
     readSensors(L, C, R);
-    if (anyLine(L, C, R)) { stopAll(); break; }
+    if (!armed) {
+      if (!anyLine(L, C, R)) armed = true;
+    } else if (anyLine(L, C, R)) {
+      stopAll();
+      return;
+    }
     long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
     int corr = (abs(diff) <= 3) ? 0 : constrain((int)(diff / 7), -6, 6);
     drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
     delay(5);
   }
+  stopAll();
 }
 
 // ── [내부] 노드 간 단일 구간 이동 ────────────────────────────
@@ -151,16 +159,8 @@ static void stepNode(int from, int to) {
     }
 
   } else if (from == 10 && to == 9) {
-    // 10번 N-S선 감지 즉시 정지 → CCW 95°(서→남 ~185°)로 8-9 가로선 조준
-    // followToCrossing: 우측 센서가 8-9 라인 자동 감지 후 서향 정렬 → 8번 교차로 도달
+    // 서향 직진 → 8-9 가로선 감지 (노드9 도달)
     blindDriveUntilLine();
-    turnAngle(95, false);
-    followToCrossing();
-    robotHeading = HDG_W;
-    currentNode = 8;
-    Serial.println(F(">> [NAV] 10->9 via node8, continuing 8->9"));
-    stepNode(8, 9);
-    return;  // currentNode = to 덮어쓰기 방지
 
   } else if (from == 10 && to == 11) {
     blindDriveUntilLine();

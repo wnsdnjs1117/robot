@@ -39,6 +39,7 @@ constexpr int ZONE_ENTER_EXTRA     = 1000;  // 전진 진입: 라인 끊긴 후 
 constexpr int ZONE_DEPTH_EXTRA     = 1000;  // 후진 진입: 라인 끊긴 후 추가 후진
 constexpr int ZONE_EXIT_REV_COUNTS = 2000;  // 구역 내부 → 교차로 후진 거리
 constexpr int ZONE_FOLLOW_MAX      = 3500;  // 후진 라인 추종 최대 거리 (무한루프 방지)
+constexpr int BLIND_DRIVE_MAX_COUNTS = 5000; // 블라인드 직진 안전 한계 (노드 간 최대 거리)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr bool WEST_IS_LEFT     = true;  // 서쪽 방향이 왼쪽인지 여부
