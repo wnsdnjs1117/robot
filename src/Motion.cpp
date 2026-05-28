@@ -60,6 +60,45 @@ void turnAngle(int degrees, bool isRight) {
   stopAll();
 }
 
+// 회전 방향의 새 라인에 정렬해 멈추는 제자리 회전
+//   isRight    : true=우회전(CW), false=좌회전(CCW)
+//   maxDegrees : 라인을 못 찾았을 때 무한 회전을 막는 한계각
+//
+// 동작:
+//   1) 시작 시 밟고 있는 라인은 무시한다.
+//      (TURN_LINE_ARM_DEG 이상 회전 + 전방 센서가 라인을 완전히 벗어나면 감지 arming)
+//   2) arming 후 중앙 센서(C)가 새 라인에 닿으면 정렬된 것으로 보고 정지 → true 반환
+//   3) maxDegrees를 넘도록 회전해도 못 찾으면 정지 → false 반환
+bool turnToLine(bool isRight, int maxDegrees) {
+  prizm.resetEncoders();
+  long armCounts = (long)((SPIN_90_COUNTS / 90.0) * TURN_LINE_ARM_DEG);
+  long maxCounts = (long)((SPIN_90_COUNTS / 90.0) * maxDegrees);
+  bool armed = false;  // 시작 라인을 벗어나 새 라인 감지 준비됨
+
+  while (abs(prizm.readEncoderCount(1)) < maxCounts) {
+    int L, C, R;
+    readSensors(L, C, R);
+
+    if (!armed) {
+      // 최소 각도 이상 회전 + 시작 라인 완전 이탈 → 감지 시작
+      if (abs(prizm.readEncoderCount(1)) >= armCounts && !anyLine(L, C, R))
+        armed = true;
+    } else if (C == 1) {
+      stopAll();  // 새 라인 중앙 정렬 → 정지
+      return true;
+    }
+
+    if (isRight)
+      drive(SPIN_SPEED, -SPIN_SPEED);
+    else
+      drive(-SPIN_SPEED, SPIN_SPEED);
+    delay(5);
+  }
+
+  stopAll();  // 한계각 초과 — 라인 미발견
+  return false;
+}
+
 // ── [3] 센서 읽기 ────────────────────────────────────────────
 
 void readSensors(int& L, int& C, int& R) {

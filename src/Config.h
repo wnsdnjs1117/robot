@@ -39,6 +39,7 @@ constexpr int ZONE_ENTER_EXTRA     = 1000;  // 전진 진입: 라인 끊긴 후 
 constexpr int ZONE_DEPTH_EXTRA     = 1000;  // 후진 진입: 라인 끊긴 후 추가 후진
 constexpr int ZONE_EXIT_REV_COUNTS = 2000;  // 구역 내부 → 교차로 후진 거리
 constexpr int ZONE_FOLLOW_MAX      = 3500;  // 후진 라인 추종 최대 거리 (무한루프 방지)
+constexpr int BLIND_DRIVE_MAX_COUNTS = 5000; // 블라인드 직진 안전 한계 (노드 간 최대 거리)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr bool WEST_IS_LEFT     = true;  // 서쪽 방향이 왼쪽인지 여부
@@ -46,6 +47,10 @@ constexpr int  CROSS_CONFIRM    = 2;     // 교차로 인식 노이즈 필터링
 constexpr int  ANGULAR_GAIN     = 3;     // 전/후방 이중 센서 각도 교정 배율
 constexpr int  ALIGN_MAX_COUNTS = 67;    // alignHeadingOnLine 최대 회전량 (≈5도)
 constexpr int  SPIN_BRAKE_LEAD  = 15;    // turnAngle 관성 보정 선행 제동 카운트
+
+// 라인 정렬 회전 (turnToLine): 회전 방향에 그어진 라인을 만나면 정렬 정지
+constexpr int  TURN_LINE_ARM_DEG = 30;   // 이 각도 이상 회전 + 시작 라인 이탈 후부터 감지
+constexpr int  TURN_LINE_MAX_DEG = 100;  // 라인 못 찾을 때 무한 회전 방지 한계각
 
 // ── [6] 방향 상수 (robotHeading) ───────────────────────────────
 // turnToHeading() 인자 및 robotHeading 값에 사용 (int 산술 호환)

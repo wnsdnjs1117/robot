@@ -195,7 +195,6 @@ void moveToNode(int toNode) {
 
 void exitZone(int zone) {
   if (lastEntryWasForward) {
-    // [핵심 수정] 고정 거리 후진을 버리고, 메인 라인 교차로를 동적으로 찾음
     prizm.resetEncoders();
     bool rearCrossFound = false;
     int crossCount = 0;
@@ -207,62 +206,70 @@ void exitZone(int zone) {
       readSensors(L, C, R);
 
       bool rearHasLine = anyRearLine(RL, RC, RR);
-      bool rearIsCrossing = (RL && RC && RR);
       bool frontHasLine = anyLine(L, C, R);
-      bool frontIsCrossing = (L && C && R);
 
-      // 교차로 감지 시
+      // [핵심 수정] T자, L자 삼거리도 모두 교차로로 완벽히 인식하게 변경 (2개
+      // 이상 닿으면 됨)
+      bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
+      bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
+
       if (rearIsCrossing && !rearCrossFound) {
         crossCount++;
-        if (crossCount >= 2) {
+        // 3연속(약 15ms) 감지 시에만 진짜 교차로로 확정하여 노이즈 필터링
+        if (crossCount >= 3) {
           rearCrossFound = true;
-          prizm.resetEncoders();  // 여기서부터 바퀴를 교차로에 올리기 위해
-                                  // 카운트 리셋
+          prizm.resetEncoders();
         }
       } else if (!rearIsCrossing && !rearCrossFound) {
         crossCount = 0;
       }
 
-      // 후방 센서가 교차로를 밟은 직후, 바퀴가 교차로 중심에 올 때까지(1000
-      // 카운트) 더 후진
+      // 교차로를 발견한 시점부터 축 정렬 거리만큼 더 후진한 뒤 정지
       if (rearCrossFound &&
           abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) {
         break;
       }
 
-      // 무한루프 방지 (안전망)
+      // 무한루프 방지 안전망
       if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > 6000) {
         break;
       }
 
       int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
-      if (rearHasLine && !rearIsCrossing) {
-        if (RL && !RC && !RR) {
-          lsp = -(BACK_SPEED - 10);
-          rsp = -(BACK_SPEED + 10);
-        } else if (!RL && !RC && RR) {
-          lsp = -(BACK_SPEED + 10);
-          rsp = -(BACK_SPEED - 10);
-        } else if (RL && RC && !RR) {
-          lsp = -(BACK_SPEED - 5);
-          rsp = -(BACK_SPEED + 5);
-        } else if (!RL && RC && RR) {
-          lsp = -(BACK_SPEED + 5);
-          rsp = -(BACK_SPEED - 5);
+      // 교차로를 찾기 전까지만 선을 따라 조향함 (찾은 후엔 일직선으로 후진만
+      // 해서 각도 유지)
+      if (!rearCrossFound) {
+        if (rearHasLine && !rearIsCrossing) {
+          if (RL && !RC && !RR) {
+            lsp = -(BACK_SPEED - 10);
+            rsp = -(BACK_SPEED + 10);
+          } else if (!RL && !RC && RR) {
+            lsp = -(BACK_SPEED + 10);
+            rsp = -(BACK_SPEED - 10);
+          } else if (RL && RC && !RR) {
+            lsp = -(BACK_SPEED - 5);
+            rsp = -(BACK_SPEED + 5);
+          } else if (!RL && RC && RR) {
+            lsp = -(BACK_SPEED + 5);
+            rsp = -(BACK_SPEED - 5);
+          }
+        } else if (!rearHasLine) {
+          long d1 = abs(prizm.readEncoderCount(1));
+          long d2 = abs(prizm.readEncoderCount(2));
+          long rawDiff = d1 - d2;
+          int corr =
+              (abs(rawDiff) <= 5) ? 0 : constrain((int)(rawDiff / 12), -4, 4);
+          lsp = -BACK_SPEED + corr;
+          rsp = -BACK_SPEED - corr;
         }
-      } else if (!rearHasLine) {
-        long diff =
-            abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-        int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
-        lsp = -BACK_SPEED + corr;
-        rsp = -BACK_SPEED - corr;
-      }
 
-      if (frontHasLine && rearHasLine && !frontIsCrossing && !rearIsCrossing) {
-        int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
-        lsp -= angCorr;
-        rsp += angCorr;
+        if (rearHasLine && frontHasLine && !rearIsCrossing &&
+            !frontIsCrossing) {
+          int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
+          lsp -= angCorr;
+          rsp += angCorr;
+        }
       }
 
       drive(lsp, rsp);
