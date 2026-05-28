@@ -52,13 +52,13 @@ constexpr int START_ESCAPE_COUNTS = CM(31.0f);  // 스타트 선 밟은 후 추�
 constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
 constexpr int REAR_TO_AXLE_COUNTS = CM(24.0f);  // 후방 센서 → 차축 거리 (24cm)
 
-// ── [4] 존 진입/탈출 거리 ────────────────────────────────────
-constexpr int ZONE_ENTER_COUNTS = CM(58.0f);    // 노드7 전진 탈출 전용 (58cm)
-constexpr int ZONE_ENTER_EXTRA = CM(29.0f);     // 전진 진입: 라인 끊긴 후 추가 직진 (29cm)
-constexpr int ZONE_DEPTH_EXTRA = CM(19.0f);     // 후진 진입: 라인 끊긴 후 추가 후진 (19cm)
-constexpr int ZONE_EXIT_REV_COUNTS = CM(48.0f); // 구역 내부 → 교차로 후진 거리 (48cm)
-constexpr int ZONE_FOLLOW_MAX = CM(84.0f);      // 후진 라인 추종 최대 거리 (84cm)
-constexpr int BLIND_DRIVE_MAX_COUNTS = CM(120.0f); // 블라인드 직진 안전 한계 (120cm)
+// ── [4] 존 진입 거리 (실측값 입력) ──────────────────────────
+// ZONE_ENTER_EXTRA : 전진 진입 — 전방 센서가 라인을 잃은 순간부터 목표 정지점까지
+// ZONE_DEPTH_EXTRA : 후진 진입 — 후방 센서가 라인을 잃은 순간부터 목표 정지점까지
+// ZONE_FOLLOW_MAX  : 후진 중 안전 한계 (구역 깊이보다 넉넉하게)
+constexpr int ZONE_ENTER_EXTRA = CM(38.0f);  // ★ 실측 필요
+constexpr int ZONE_DEPTH_EXTRA = CM(29.0f);  // ★ 실측 필요
+constexpr int ZONE_FOLLOW_MAX  = CM(40.0f);  // 안전 한계 (실측값보다 크게)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr bool WEST_IS_LEFT = true;   // 서쪽 방향이 왼쪽인지 여부
