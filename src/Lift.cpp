@@ -171,8 +171,8 @@ void liftUp() {
       prevCountR = curR;
       lastCheckTime = currentTime;
 
-      // 15cm 도달 → 논블로킹으로 전환 후 즉시 반환 (모터 계속 상승)
-      if (heightL >= 15.0 && heightR >= 15.0) {
+      // LIFT_UP_CLEAR_CM 도달 → 논블로킹으로 전환 후 즉시 반환 (모터 계속 상승)
+      if (heightL >= LIFT_UP_CLEAR_CM && heightR >= LIFT_UP_CLEAR_CM) {
         liftUpRunning = true;
         Serial.println(F(">> [LIFT] 주행 허가 (15cm 도달, 배경 상승 계속)"));
         return;
@@ -427,7 +427,7 @@ void liftDownWait() {
 // 10cm 이하 도달 시 즉시 반환 (착지는 liftDownWait로 완료)
 void liftDownUntilClear() {
   liftDownStart();
-  while (heightL > 10.0 || heightR > 10.0) {
+  while (heightL > LIFT_DOWN_CLEAR_CM || heightR > LIFT_DOWN_CLEAR_CM) {
     liftDownTick();
     delay(10);
   }
