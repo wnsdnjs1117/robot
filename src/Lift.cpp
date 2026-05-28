@@ -47,6 +47,8 @@ bool isStalledR = false;
 bool isMaxReachedL = false;
 bool isMaxReachedR = false;
 
+static bool liftUpRunning = false;
+
 // 저속 상태 유지를 카운트하기 위한 누적 변수
 int lowSpeedCounterL = 0;
 int lowSpeedCounterR = 0;
@@ -209,8 +211,6 @@ void liftDown() {
 }
 
 // ── 논블로킹 상승 API ────────────────────────────────────────
-
-static bool liftUpRunning = false;
 
 void liftUpTick() {
   if (!liftUpRunning) return;
