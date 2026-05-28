@@ -28,9 +28,9 @@
 // Navigation.cpp와 순환 include 방지 — 필요한 함수만 전방 선언
 void followToCrossing();
 void followToCrossing(bool stopAtEnd);  // 연속 주행용 오버로딩
-void reverseAcrossToOppositeZone();
-void enterZone();
-void reverseEnterZone();
+void reverseAcrossToOppositeZone(int targetZone);
+void enterZone(int zone);
+void reverseEnterZone(int zone);
 void alignHeadingOnLine();
 
 int robotHeading = HDG_N;
@@ -373,10 +373,10 @@ void goToZoneDirect(int zone) {
 
   bool enterForward = (robotHeading == zoneSide);
   if (enterForward) {
-    enterZone();
+    enterZone(zone);
     lastEntryWasForward = true;
   } else {
-    reverseEnterZone();
+    reverseEnterZone(zone);
     lastEntryWasForward = false;
   }
 }

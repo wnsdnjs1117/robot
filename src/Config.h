@@ -54,9 +54,16 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
 // ── [1.5] 센서-바퀴축 간격 / 차체 기하 ──────────────────────────
+<<<<<<< HEAD
 constexpr float FRONT_SENSOR_OFFSET = 7.5f;  // 전방 센서 → 바퀴축 (cm)
 constexpr float REAR_SENSOR_OFFSET = 25.0f;  // 후방 센서 → 바퀴축 (cm)
 constexpr float AXLE_TO_LIFT_CM = 11.0f;     // 바퀴축 → 리프트 (cm, 후방 방향)
+=======
+constexpr float FRONT_SENSOR_OFFSET = 7.5f;   // 전방 센서 → 바퀴축 (cm)
+constexpr float REAR_SENSOR_OFFSET  = 25.0f;  // 후방 센서 → 바퀴축 (cm)
+constexpr float AXLE_TO_LIFT_CM     = 11.0f;  // 바퀴축 → 리프트 (cm, 후방 방향)
+constexpr float LINE_THICKNESS      = 2.0f;   // 경기장 검은선 두께 (cm)
+>>>>>>> 5f9ea1a883b99f69e520f1139cec8dc49316c979
 
 // ── [2] 모터 속도 ────────────────────────────────────────────
 constexpr int STRAIGHT_SPEED = 30;  // 라인 없는 구간 직진 속도
@@ -68,9 +75,16 @@ constexpr int BLIND_SPEED = 30;     // 블라인드 구간(라인 없음) 전용
 // ── [3] 엔코더 거리 ──────────────────────────────────────────
 constexpr int SPIN_90_COUNTS = 1200;  // 90도 회전 엔코더 카운트 (회전용, cm 무관)
 
+<<<<<<< HEAD
 // 아래 세 줄은 센서 오프셋에서 자동 계산 — 직접 편집하지 마세요
 constexpr int CROSS_ALIGN_COUNTS = CM(FRONT_SENSOR_OFFSET);  // 교차로 감지 후 축 정렬 과전진
 constexpr int REAR_TO_AXLE_COUNTS = CM(REAR_SENSOR_OFFSET);  // 후방 센서 → 차축 거리
+=======
+// 아래 두 줄은 센서 오프셋에서 자동 계산 — 직접 편집하지 마세요
+// 교차로 감지 시 센서는 선 근처 가장자리(선 두께/2만큼 앞)에 있으므로 +LINE_THICKNESS/2 보정
+constexpr int CROSS_ALIGN_COUNTS  = CM(FRONT_SENSOR_OFFSET + LINE_THICKNESS / 2.0f);  // CM(8.5)
+constexpr int REAR_TO_AXLE_COUNTS = CM(REAR_SENSOR_OFFSET  + LINE_THICKNESS / 2.0f);  // CM(26.0)
+>>>>>>> 5f9ea1a883b99f69e520f1139cec8dc49316c979
 
 constexpr float START_ESCAPE_AXLE_CM = 22.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
 constexpr int START_ESCAPE_COUNTS = CM(FRONT_SENSOR_OFFSET + START_ESCAPE_AXLE_CM);
@@ -81,18 +95,39 @@ constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (
 // ZONE_LIFT_DEPTH : 노드에서 리프트가 멈춰야 할 깊이 (cm, 리프트 기준)
 //   전진/후진 방향 차이를 공식이 자동 흡수 — 이 값 하나만 수정하면 됨.
 //
+<<<<<<< HEAD
 //   트리거: 구역 유도선(ZONE_LINE_LENGTH) 끝에서 센서가 선 소실 → resetEncoders → EXTRA 맹주행
 //   전진: 트리거 시 축=LINE-FRONT=22.5cm → ZONE_ENTER_EXTRA = CM(LIFT_DEPTH - LINE + FRONT + LIFT)
 //   후진: 트리거 시 축=LINE-REAR= 5.0cm → ZONE_DEPTH_EXTRA = CM(LIFT_DEPTH - LINE + REAR  - LIFT)
 constexpr float ZONE_LINE_LENGTH = 30.5f;  // 구역 유도선 길이 (cm)
 constexpr float ZONE_LIFT_DEPTH = 50.0f;   // ★ 실측값 (노드 → 리프트 정지점, cm)
+=======
+//   트리거: 구역 유도선 끝에서 센서 선 소실 → resetEncoders → EXTRA 맹주행
+//   전진: ZONE_ENTER_EXTRA = CM(LIFT_DEPTH - LINE + FRONT + LIFT)
+//   후진: ZONE_DEPTH_EXTRA = CM(LIFT_DEPTH - LINE + REAR  - LIFT)
+//   (1·2구역 선길이 = 28cm, 나머지 = 30cm)
+constexpr float ZONE_LINE_LENGTH     = 30.0f;  // 3·4·5·6구역 유도선 길이 (cm)
+constexpr float ZONE_LINE_LENGTH_Z12 = 28.0f;  // 1·2구역 유도선 길이 (cm)
+constexpr float ZONE_LIFT_DEPTH      = 50.0f;  // ★ 실측값 (노드 → 리프트 정지점, cm)
+>>>>>>> 5f9ea1a883b99f69e520f1139cec8dc49316c979
 
 constexpr int ZONE_ENTER_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM);
 // = CM(50 - 30 + 7.5 + 11) = CM(38.5)
 constexpr int ZONE_DEPTH_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + REAR_SENSOR_OFFSET - AXLE_TO_LIFT_CM);
 // = CM(50 - 30 + 25 - 11) = CM(34.0)
+<<<<<<< HEAD
 constexpr int ZONE_FOLLOW_MAX = CM(40.0f);  // 유도선 추적 안전 한계 (최대 이동 ~5cm << 40cm)
 constexpr int NODE8_EXIT_QUAL = CM(AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);  // 후진 탈출 교차로 감지 최소 이동량
+=======
+
+constexpr int ZONE12_ENTER_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH_Z12 + FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM);
+// = CM(50 - 28 + 7.5 + 11) = CM(40.5)
+constexpr int ZONE12_DEPTH_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH_Z12 + REAR_SENSOR_OFFSET  - AXLE_TO_LIFT_CM);
+// = CM(50 - 28 + 25 - 11) = CM(36.0)
+
+constexpr int ZONE_FOLLOW_MAX  = CM(40.0f);  // 유도선 추적 안전 한계 (최대 이동 ~5cm << 40cm)
+constexpr int NODE8_EXIT_QUAL  = CM(AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);  // 후진 탈출 교차로 감지 최소 이동량
+>>>>>>> 5f9ea1a883b99f69e520f1139cec8dc49316c979
 // = CM(11 + 50) = CM(61.0)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
@@ -121,10 +156,14 @@ constexpr int HDG_S = 2;  // 남 – 스타트 / 남쪽 구역(3·4) 방향
 constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 
 // ── [8] 기타 거리 상수 ──────────────────────────────────────────
-constexpr int NODE7_EXIT_COUNTS = CM(33.0f);      // 존1·3 후진진입→전진탈출: 정지점→노드7 (★실측)
-constexpr int NODE7_REV_EXIT_COUNTS = CM(58.0f);  // 존1·3 전진진입→후진탈출: 정지점→노드7 (★실측)
-constexpr int ZONE5_EXIT_COUNTS = CM(56.0f);      // 존5  전진진입→후진탈출: 정지점→노드10 (★실측)
-constexpr int ZONE6_EXIT_COUNTS = CM(56.0f);      // 존6  전진진입→후진탈출: 정지점→노드11 (★실측)
+// 정지 시 축 위치:
+//   후진진입 = ZONE_LIFT_DEPTH - AXLE_TO_LIFT_CM (리프트 반대편)
+//   전진진입 = ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM (리프트 같은편)
+// → 정지점에서 노드까지 = 해당 축 위치만큼 이동하면 됨
+constexpr int NODE7_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH - AXLE_TO_LIFT_CM);  // 존1·3 후진진입→전진탈출
+constexpr int NODE7_REV_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존1·3 전진진입→후진탈출
+constexpr int ZONE5_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존5  전진진입→후진탈출
+constexpr int ZONE6_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존6  전진진입→후진탈출
 constexpr int NODE_11_12_COUNTS = CM(70.0f);      // 노드11→12 블라인드 거리 (실측 후 조정)
 constexpr int BLIND_NODE_MAX = CM(71.0f);         // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
 
