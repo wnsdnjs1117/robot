@@ -25,7 +25,7 @@ const float RIGHT_OFFSET = 0.6;       // 우측 리프트 추가 상승 오차 �
 const int DEFAULT_TARGET_SPEED = 220;  // 기본 목표 속도 (220)
 const int DOWN_STALL_THRESHOLD = 100;  // 하강 시 정상 스톨 감지 기준 속도 (100으로 변경)
 const int DEFAULT_MAX_POWER = 50;  // 기본 최대 파워 제한 (60)
-const float COUNTS_PER_CM = 200.0;
+const float LIFT_COUNTS_PER_CM = 200.0;
 
 // 비상 정지 기준 상수
 const int EMERGENCY_SPEED_LIMIT = 60;         // 비상 정지 유발 속도 (60 이하)
@@ -93,8 +93,8 @@ void liftUp() {
     if (currentTime - lastCheckTime >= 100) {
       long dL = curL - prevCountL;
       long dR = curR - prevCountR;
-      heightL += (float)dL / COUNTS_PER_CM;
-      heightR += (float)dR / COUNTS_PER_CM;
+      heightL += (float)dL / LIFT_COUNTS_PER_CM;
+      heightR += (float)dR / LIFT_COUNTS_PER_CM;
       long diffL = abs(dL);
       long diffR = abs(dR);
 
@@ -230,8 +230,8 @@ void liftDownTick() {
   if (currentTime - lastCheckTime >= 100) {
     long dL = curL - prevCountL;
     long dR = curR - prevCountR;
-    heightL += (float)dL / COUNTS_PER_CM;
-    heightR += (float)dR / COUNTS_PER_CM;
+    heightL += (float)dL / LIFT_COUNTS_PER_CM;
+    heightR += (float)dR / LIFT_COUNTS_PER_CM;
     if (heightL < 0) heightL = 0;
     if (heightR < 0) heightR = 0;
     long diffL = abs(dL);
