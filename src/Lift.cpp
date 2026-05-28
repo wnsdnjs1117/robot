@@ -234,15 +234,32 @@ void liftUpTick() {
       currentMaxPower = 20;
     }
 
-    if (heightL >= MAX_HEIGHT_LIMIT) { heightL = MAX_HEIGHT_LIMIT; isMaxReachedL = true; }
-    if (heightR >= (MAX_HEIGHT_LIMIT + RIGHT_OFFSET)) { heightR = MAX_HEIGHT_LIMIT + RIGHT_OFFSET; isMaxReachedR = true; }
+    if (heightL >= MAX_HEIGHT_LIMIT) {
+      heightL = MAX_HEIGHT_LIMIT;
+      isMaxReachedL = true;
+    }
+    if (heightR >= (MAX_HEIGHT_LIMIT + RIGHT_OFFSET)) {
+      heightR = MAX_HEIGHT_LIMIT + RIGHT_OFFSET;
+      isMaxReachedR = true;
+    }
 
     if (!isStalledL && !isStalledR && !isMaxReachedL && !isMaxReachedR) {
-      if (diffL < currentTargetSpeed) powerL++; else if (diffL > currentTargetSpeed) powerL--;
-      if (diffR < currentTargetSpeed) powerR++; else if (diffR > currentTargetSpeed) powerR--;
+      if (diffL < currentTargetSpeed)
+        powerL++;
+      else if (diffL > currentTargetSpeed)
+        powerL--;
+      if (diffR < currentTargetSpeed)
+        powerR++;
+      else if (diffR > currentTargetSpeed)
+        powerR--;
       float heightError = heightL - (heightR - RIGHT_OFFSET);
-      if (heightError > 0.1) { powerL--; powerR++; }
-      else if (heightError < -0.1) { powerR--; powerL++; }
+      if (heightError > 0.1) {
+        powerL--;
+        powerR++;
+      } else if (heightError < -0.1) {
+        powerR--;
+        powerL++;
+      }
     } else {
       if (!isStalledL && !isMaxReachedL) powerL = 20;
       if (!isStalledR && !isMaxReachedR) powerR = 20;
@@ -256,13 +273,17 @@ void liftUpTick() {
           isStalledL = true;
           Serial.println(F(">> [LIFT] 왼쪽 비상 정지 (상승 중)"));
         }
-      } else { lowSpeedCounterL = 0; }
+      } else {
+        lowSpeedCounterL = 0;
+      }
       if (diffR <= EMERGENCY_SPEED_LIMIT) {
         if (++lowSpeedCounterR >= UP_EMERGENCY_DURATION_COUNT && !isStalledR) {
           isStalledR = true;
           Serial.println(F(">> [LIFT] 오른쪽 비상 정지 (상승 중)"));
         }
-      } else { lowSpeedCounterR = 0; }
+      } else {
+        lowSpeedCounterR = 0;
+      }
     }
 
     prevCountL = curL;
