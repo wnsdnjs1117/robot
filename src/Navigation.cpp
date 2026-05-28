@@ -244,7 +244,6 @@ void reverseAcrossToOppositeZone() {
     drive(lsp, rsp);
     delay(5);
   }
-  stopAll();
 
   reverseEnterZone();
 }
