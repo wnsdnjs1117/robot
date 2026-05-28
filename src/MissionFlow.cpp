@@ -96,8 +96,9 @@ void executeStage2_Delivery() {
 
         // ── 픽업 ─────────────────────────────────────────
         goToZoneDirect(zone);  // 현재 노드 → 출발 구역 직접 이동 + 진입
-        liftUp();              // 24cm 상승 (15cm 이상 → 주행 허가)
-        exitZone(zone);        // 구역 탈출 → currentNode 갱신
+        liftUp();              // 15cm 도달 시 반환 (배경에서 24cm까지 계속 상승)
+        exitZone(zone);        // 구역 탈출 (탈출 중 liftUpTick 호출)
+        liftUpWait();          // 24cm 도달 확인 후 이동
 
         // ── 하차 ─────────────────────────────────────────
         goToZoneDirect(dest);      // 현재 노드 → 목적 구역 직접 이동 + 진입
@@ -131,6 +132,7 @@ void executeStage2_Delivery() {
       goToZoneDirect(stuckZone);
       liftUp();
       exitZone(stuckZone);
+      liftUpWait();
 
       goToZoneDirect(emptyZone);
       liftDownUntilClear();
