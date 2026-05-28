@@ -47,6 +47,8 @@ bool isStalledR = false;
 bool isMaxReachedL = false;
 bool isMaxReachedR = false;
 
+static bool liftUpRunning = false;
+
 // 저속 상태 유지를 카운트하기 위한 누적 변수
 int lowSpeedCounterL = 0;
 int lowSpeedCounterR = 0;
@@ -79,6 +81,7 @@ static void liftResetState(int startPowerL, int startPowerR) {
 //            (로봇은 15cm 이상 든 이후에야 주행 가능)
 // ============================================================
 void liftUp() {
+  liftUpRunning = false;
   Serial.println(F(">> [LIFT] 상승 시작 (15cm 도달 시 즉시 반환)"));
 
   liftResetState(30, 30);
@@ -168,10 +171,10 @@ void liftUp() {
       prevCountR = curR;
       lastCheckTime = currentTime;
 
-      // 15cm 도달 → 브레이크 후 즉시 반환
-      if (heightL >= 15.0 && heightR >= 15.0) {
-        exc.setMotorPowers(EXP_ID, 125, -125);
-        Serial.println(F(">> [LIFT] 주행 허가 (15cm 도달)"));
+      // LIFT_UP_CLEAR_CM 도달 → 논블로킹으로 전환 후 즉시 반환 (모터 계속 상승)
+      if (heightL >= LIFT_UP_CLEAR_CM && heightR >= LIFT_UP_CLEAR_CM) {
+        liftUpRunning = true;
+        Serial.println(F(">> [LIFT] 주행 허가 (15cm 도달, 배경 상승 계속)"));
         return;
       }
 
@@ -205,6 +208,90 @@ void liftDownWait();
 void liftDown() {
   liftDownStart();
   liftDownWait();
+}
+
+// ── 논블로킹 상승 API ────────────────────────────────────────
+
+void liftUpTick() {
+  if (!liftUpRunning) return;
+
+  unsigned long currentTime = millis();
+  long curL = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
+  long curR = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
+
+  if (currentTime - lastCheckTime >= 100) {
+    long dL = curL - prevCountL;
+    long dR = curR - prevCountR;
+    heightL += (float)dL / LIFT_COUNTS_PER_CM;
+    heightR += (float)dR / LIFT_COUNTS_PER_CM;
+    long diffL = abs(dL);
+    long diffR = abs(dR);
+
+    int currentTargetSpeed = DEFAULT_TARGET_SPEED;
+    int currentMaxPower = DEFAULT_MAX_POWER;
+    if (heightL >= 20.0 || heightR >= 20.0) {
+      currentTargetSpeed = 70;
+      currentMaxPower = 20;
+    }
+
+    if (heightL >= MAX_HEIGHT_LIMIT) { heightL = MAX_HEIGHT_LIMIT; isMaxReachedL = true; }
+    if (heightR >= (MAX_HEIGHT_LIMIT + RIGHT_OFFSET)) { heightR = MAX_HEIGHT_LIMIT + RIGHT_OFFSET; isMaxReachedR = true; }
+
+    if (!isStalledL && !isStalledR && !isMaxReachedL && !isMaxReachedR) {
+      if (diffL < currentTargetSpeed) powerL++; else if (diffL > currentTargetSpeed) powerL--;
+      if (diffR < currentTargetSpeed) powerR++; else if (diffR > currentTargetSpeed) powerR--;
+      float heightError = heightL - (heightR - RIGHT_OFFSET);
+      if (heightError > 0.1) { powerL--; powerR++; }
+      else if (heightError < -0.1) { powerR--; powerL++; }
+    } else {
+      if (!isStalledL && !isMaxReachedL) powerL = 20;
+      if (!isStalledR && !isMaxReachedR) powerR = 20;
+    }
+    powerL = constrain(powerL, 10, currentMaxPower);
+    powerR = constrain(powerR, 10, currentMaxPower);
+
+    if (currentTime - moveStartTime > 200) {
+      if (diffL <= EMERGENCY_SPEED_LIMIT) {
+        if (++lowSpeedCounterL >= UP_EMERGENCY_DURATION_COUNT && !isStalledL) {
+          isStalledL = true;
+          Serial.println(F(">> [LIFT] 왼쪽 비상 정지 (상승 중)"));
+        }
+      } else { lowSpeedCounterL = 0; }
+      if (diffR <= EMERGENCY_SPEED_LIMIT) {
+        if (++lowSpeedCounterR >= UP_EMERGENCY_DURATION_COUNT && !isStalledR) {
+          isStalledR = true;
+          Serial.println(F(">> [LIFT] 오른쪽 비상 정지 (상승 중)"));
+        }
+      } else { lowSpeedCounterR = 0; }
+    }
+
+    prevCountL = curL;
+    prevCountR = curR;
+    lastCheckTime = currentTime;
+  }
+
+  int outPowerL = (isStalledL || isMaxReachedL) ? 125 : powerL;
+  int outPowerR = (isStalledR || isMaxReachedR) ? -125 : -powerR;
+  exc.setMotorPowers(EXP_ID, outPowerL, outPowerR);
+
+  if ((isMaxReachedL || isStalledL) && (isMaxReachedR || isStalledR)) {
+    exc.setMotorPowers(EXP_ID, 125, -125);
+    liftUpRunning = false;
+    Serial.println(F(">> [LIFT] 상승 완료 (24cm) — 논블로킹"));
+  }
+}
+
+void liftUpWait() {
+  if (!liftUpRunning) return;
+  Serial.println(F(">> [LIFT] 상승 완료 대기 중..."));
+  prevCountL = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
+  prevCountR = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
+  lastCheckTime = 0;
+  while (liftUpRunning) {
+    liftUpTick();
+    delay(10);
+  }
+  Serial.println(F(">> [LIFT] 상승 확인 완료"));
 }
 
 // ── 논블로킹 하강 3단계 API ───────────────────────────────────
@@ -340,7 +427,7 @@ void liftDownWait() {
 // 10cm 이하 도달 시 즉시 반환 (착지는 liftDownWait로 완료)
 void liftDownUntilClear() {
   liftDownStart();
-  while (heightL > 10.0 || heightR > 10.0) {
+  while (heightL > LIFT_DOWN_CLEAR_CM || heightR > LIFT_DOWN_CLEAR_CM) {
     liftDownTick();
     delay(10);
   }

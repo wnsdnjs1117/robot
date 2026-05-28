@@ -22,6 +22,7 @@
 #include "MapRouter.h"
 
 #include "Config.h"
+#include "Lift.h"
 #include "Motion.h"
 
 // Navigation.cpp와 순환 include 방지 — 필요한 함수만 전방 선언
@@ -291,6 +292,8 @@ void exitZone(int zone) {
           }
         }
         drive(lsp, rsp);
+        liftUpTick();
+        liftDownTick();
         delay(5);
       }
       stopAll();
@@ -319,6 +322,8 @@ void exitZone(int zone) {
           rsp = -BACK_SPEED - corr;
         }
         drive(lsp, rsp);
+        liftUpTick();
+        liftDownTick();
         delay(5);
       }
       stopAll();

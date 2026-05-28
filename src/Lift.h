@@ -9,6 +9,8 @@
 
 // 미션 연동 리프트 함수
 void liftUp();
+void liftUpTick();
+void liftUpWait();
 void liftDown();
 void liftDownStart();
 void liftDownTick();
