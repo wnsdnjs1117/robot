@@ -75,19 +75,19 @@ void turnToHeading(int target) {
   robotHeading = target;
 }
 
-static void blindDriveUntilLine() {
+static void blindDriveUntilLine(long maxCounts = 0) {
   prizm.resetEncoders();
   while (true) {
+    if (maxCounts > 0 && abs(prizm.readEncoderCount(1)) >= maxCounts) break;
     int L, C, R;
     readSensors(L, C, R);
-    if (anyLine(L, C, R)) {
-      break;
-    }
+    if (anyLine(L, C, R)) break;
     long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
     int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
     drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
     delay(5);
   }
+  stopAll();
 }
 
 // ── [내부] 노드 간 단일 구간 이동 ────────────────────────────
@@ -138,6 +138,11 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     isTiltedNorthAt10 = true;
     prizm.resetEncoders();
     while (true) {
+      if (abs(prizm.readEncoderCount(1)) >= BLIND_NODE_MAX) {
+        if (stopAtEnd) stopAll();
+        robotHeading = HDG_E;
+        break;
+      }
       int L, C, R;
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
@@ -158,7 +163,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     }
 
   } else if (from == 10 && to == 9) {
-    blindDriveUntilLine();
+    blindDriveUntilLine(BLIND_NODE_MAX);
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
@@ -168,7 +173,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     robotHeading = HDG_W;
 
   } else if (from == 10 && to == 11) {
-    blindDriveUntilLine();
+    blindDriveUntilLine(BLIND_NODE_MAX);
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
@@ -178,7 +183,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     robotHeading = HDG_E;
 
   } else if (from == 11 && to == 10) {
-    blindDriveUntilLine();
+    blindDriveUntilLine(BLIND_NODE_MAX);
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
