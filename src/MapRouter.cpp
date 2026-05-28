@@ -5,19 +5,19 @@
  *
  *   [1구역]  [2구역]             [5입고]   [6출고]
  *      │        │                   │        │
- *     [7]──────[8]──────[9]  ···  [10]  ··· [11] ···
- *      │        │                                  ·
- *   [3구역]  [4구역]                                ·
- *                                            ┌─────┴──────┐
- *                                            │  출발/도착  │
- *                                            │   START    │
- *                                            └────────────┘
+ *     [7]──────[8]──────[9]  ···  [10]  ··· [11] ··[12]
+ *      │        │                                    ·
+ *   [3구역]  [4구역]                                  ·
+ *                                              ┌─────┴──────┐
+ *                                              │  출발/도착  │
+ *                                              │   START    │
+ *                                              └────────────┘
  *
  *   ─── : 검은 라인 있음      ··· : 블라인드 구간 (선 없음)
  *   [N] : 교차로 노드         │   : 구역 연결선
  *
  *   구역-노드: 1,3→[7] / 2,4→[8] / 5→[10] / 6→[11]
- *   START/FINISH: [11] 동쪽 아래 (출발·도착 겸용 박스)
+ *   START/FINISH: [12] 아래 (출발·도착 겸용 박스, [11] 동쪽 가상 노드)
  * ============================================================ */
 #include "MapRouter.h"
 
@@ -50,11 +50,12 @@ static int zoneToNode(int zone) {
 }
 
 static int nodeIndex(int n) {
-  if (n == 7) return 0;
-  if (n == 8) return 1;
-  if (n == 9) return 2;
+  if (n == 7)  return 0;
+  if (n == 8)  return 1;
+  if (n == 9)  return 2;
   if (n == 10) return 3;
   if (n == 11) return 4;
+  if (n == 12) return 5;
   return 1;
 }
 
@@ -186,6 +187,23 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     if (stopAtEnd) stopAll();
     robotHeading = HDG_W;
 
+  } else if (from == 11 && to == 12) {
+    // 선 없는 블라인드 구간 — 엔코더 기반 고정 거리 동향 이동
+    prizm.resetEncoders();
+    while (abs(prizm.readEncoderCount(1)) < NODE_11_12_COUNTS) {
+      long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
+      int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+      drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
+      delay(5);
+    }
+    if (stopAtEnd) stopAll();
+    robotHeading = HDG_E;
+
+  } else if (from == 12 && to == 11) {
+    // 서향 blindDriveUntilLine → 6-11 세로선 감지 → 노드11
+    blindDriveUntilLine();
+    robotHeading = HDG_W;
+
   } else {
     followToCrossing(stopAtEnd);
   }
@@ -200,7 +218,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
 // ── [공개] 라우팅 핵심 3대 함수 ───────────────────────────────
 
 void moveToNode(int toNode) {
-  static const int nodes[] = {7, 8, 9, 10, 11};
+  static const int nodes[] = {7, 8, 9, 10, 11, 12};
   int cur = nodeIndex(currentNode);
   int tgt = nodeIndex(toNode);
   if (cur == tgt) return;

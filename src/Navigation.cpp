@@ -386,31 +386,9 @@ void returnToFinish() {
   Serial.println(F("\n========================================"));
   Serial.println(F(">> [FINISH] FINISH 구역 복귀 기동"));
 
-  moveToNode(9);
-  turnToHeading(1);
-
-  int passedLines = 0;
-  bool lineArmed = true;
-  int lineStable = 0;
-  while (passedLines < 2) {
-    int L, C, R;
-    readSensors(L, C, R);
-    bool onLine = anyLine(L, C, R);
-    if (onLine)
-      lineStable++;
-    else
-      lineStable = 0;
-    if (onLine && lineArmed && lineStable >= CROSS_CONFIRM) {
-      passedLines++;
-      lineArmed = false;
-    }
-    if (!onLine) lineArmed = true;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    delay(5);
-  }
-  stopAll();
-
-  turnAngle(90, true);
+  // 노드12(START 바로 위 가상 노드)까지 이동 후 남향 직진으로 진입
+  moveToNode(12);
+  turnAngle(90, true);   // CW 90°: 동향 → 남향 (노드12에 선 없으므로 엔코더 기반)
   robotHeading = HDG_S;
 
   prizm.resetEncoders();
