@@ -23,7 +23,7 @@
 
 // ── [0] 단위 변환 ────────────────────────────────────────────
 // 22cm = 1000 counts (물리 측정값)
-constexpr float COUNTS_PER_CM = 1000.0f / 22.2f;
+constexpr float COUNTS_PER_CM = 1000.0f / 23.0f;
 constexpr int CM(float cm) { return (int)(cm * COUNTS_PER_CM + 0.5f); }
 
 // ── [1] 센서 핀 ──────────────────────────────────────────────
@@ -39,11 +39,11 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
 // ── [2] 모터 속도 ────────────────────────────────────────────
-constexpr int STRAIGHT_SPEED = 35;  // 라인 없는 구간 직진 속도
-constexpr int SPEED = 40;           // 일반 라인트레이싱 속도
+constexpr int STRAIGHT_SPEED = 30;  // 라인 없는 구간 직진 속도
+constexpr int SPEED = 35;           // 일반 라인트레이싱 속도
 constexpr int BACK_SPEED = 25;      // 구역 후진 속도
 constexpr int SPIN_SPEED = 35;      // 제자리 스핀 턴 회전 속도
-constexpr int BLIND_SPEED = 35;     // 블라인드 구간(라인 없음) 전용 저속
+constexpr int BLIND_SPEED = 30;     // 블라인드 구간(라인 없음) 전용 저속
 
 // ── [3] 엔코더 거리 ──────────────────────────────────────────
 constexpr int SPIN_90_COUNTS = 1210;            // 90도 회전 엔코더 카운트 (회전용, cm 무관)
@@ -80,8 +80,8 @@ constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 // ── [7] 기타 거리 상수 ──────────────────────────────────────────
 constexpr int NODE7_EXIT_COUNTS = CM(30.0f);      // 존1·3 후진진입→전진탈출: 정지점→노드7 (★실측)
 constexpr int NODE7_REV_EXIT_COUNTS = CM(30.0f);  // 존1·3 전진진입→후진탈출: 정지점→노드7 (★실측)
-constexpr int ZONE5_EXIT_COUNTS = CM(55.0f);      // 존5  전진진입→후진탈출: 정지점→노드10 (★실측)
-constexpr int ZONE6_EXIT_COUNTS = CM(55.0f);      // 존6  전진진입→후진탈출: 정지점→노드11 (★실측)
+constexpr int ZONE5_EXIT_COUNTS = CM(56.0f);      // 존5  전진진입→후진탈출: 정지점→노드10 (★실측)
+constexpr int ZONE6_EXIT_COUNTS = CM(56.0f);      // 존6  전진진입→후진탈출: 정지점→노드11 (★실측)
 constexpr int NODE_11_12_COUNTS = CM(70.0f);      // 노드11→12 블라인드 거리 (실측 후 조정)
 constexpr int BLIND_NODE_MAX = CM(70.0f);         // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
 
