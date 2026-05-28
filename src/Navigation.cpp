@@ -244,7 +244,6 @@ void reverseAcrossToOppositeZone() {
     drive(lsp, rsp);
     delay(5);
   }
-  stopAll();
 
   reverseEnterZone();
 }
@@ -252,7 +251,7 @@ void reverseAcrossToOppositeZone() {
 // ── [4] 특수 경로 ────────────────────────────────────────────
 
 void goToMainLine() {
-  Serial.println(F(">>> [START-RUN] 스타트 박스 탈출"));
+  DPRINTLNF(">>> [START-RUN] 스타트 박스 탈출");
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
@@ -270,13 +269,13 @@ void goToMainLine() {
   }
   stopAll();
 
-  Serial.println(F(">>> [START-RUN] 서쪽(좌측) 방향 전환"));
+  DPRINTLNF(">>> [START-RUN] 서쪽(좌측) 방향 전환");
   if (WEST_IS_LEFT)
     turnAngle(90, false);
   else
     turnAngle(90, true);
 
-  Serial.println(F(">>> [START-RUN] 11번, 10번 노드 라인 패스 (무정차 직진)"));
+  DPRINTLNF(">>> [START-RUN] 11번, 10번 노드 라인 패스 (무정차 직진)");
   int passedLines = 0;
   bool lineArmed = true;
   int lineStable = 0;
@@ -310,7 +309,7 @@ void goToMainLine() {
     delay(5);
   }
 
-  Serial.println(F(">>> [START-RUN] 메인라인/세로선 진입 탐색"));
+  DPRINTLNF(">>> [START-RUN] 메인라인/세로선 진입 탐색");
 
   while (true) {
     int L, C, R;
@@ -341,7 +340,7 @@ void goToMainLine() {
       }
 
       if (isVertical) {
-        Serial.println(F(">> [START] 8번 세로선 관통 확인 -> 교차로 정렬"));
+        DPRINTLNF(">> [START] 8번 세로선 관통 확인 -> 교차로 정렬");
         long traveled = abs(prizm.readEncoderCount(1)) - startEnc;
         long remainingCounts = CROSS_ALIGN_COUNTS - traveled;
 
@@ -355,8 +354,7 @@ void goToMainLine() {
         }
         stopAll();
       } else if (hitCrossing) {
-        Serial.println(
-            F(">> [START] 직진 테스트 중 8번 교차로 직접 도달 -> 즉시 정렬"));
+        DPRINTLNF(">> [START] 직진 테스트 중 8번 교차로 직접 도달 -> 즉시 정렬");
         prizm.resetEncoders();
         while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
           drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
@@ -365,8 +363,7 @@ void goToMainLine() {
         }
         stopAll();
       } else {
-        Serial.println(
-            F(">> [START] 9번 가로선 연속 감지 -> 8번 교차로로 라인 트레이싱"));
+        DPRINTLNF(">> [START] 9번 가로선 연속 감지 -> 8번 교차로로 라인 트레이싱");
         followToCrossing(true);
       }
       break;
@@ -377,14 +374,14 @@ void goToMainLine() {
     delay(5);
   }
 
-  Serial.println(F(">> [START] 8번 노드 안착 -> 북향(2구역 방향) 회전"));
+  DPRINTLNF(">> [START] 8번 노드 안착 -> 북향(2구역 방향) 회전");
   turnAngle(90, true);
   robotHeading = HDG_N;
 }
 
 void returnToFinish() {
-  Serial.println(F("\n========================================"));
-  Serial.println(F(">> [FINISH] FINISH 구역 복귀 기동"));
+  DPRINTLNF("\n========================================");
+  DPRINTLNF(">> [FINISH] FINISH 구역 복귀 기동");
 
   // 노드12(START 바로 위 가상 노드)까지 이동 후 남향 직진으로 진입
   moveToNode(12);
@@ -397,21 +394,21 @@ void returnToFinish() {
     delay(5);
   }
   stopAll();
-  Serial.println(F(">> [FINISH] FINISH 구역 진입 완료!"));
+  DPRINTLNF(">> [FINISH] FINISH 구역 진입 완료!");
 
   tone(BUZZER_PIN, 1000);
   delay(1500);
   noTone(BUZZER_PIN);
 
   prizm.setGreenLED(HIGH);
-  Serial.println(F(">> [FINISH] 부저 완료. 경기 종료."));
-  Serial.println(F("========================================\n"));
+  DPRINTLNF(">> [FINISH] 부저 완료. 경기 종료.");
+  DPRINTLNF("========================================\n");
 }
 
 int qrSearchStage() {
   int randomFound = 0;
 
-  Serial.println(F("\n--- [2구역 탐색] ---"));
+  DPRINTLNF("\n--- [2구역 탐색] ---");
   enterZone();
   lastEntryWasForward = true;
   if (scanZone(2)) randomFound++;
@@ -421,7 +418,7 @@ int qrSearchStage() {
     return 2;
   }
 
-  Serial.println(F("\n--- [4구역 탐색] ---"));
+  DPRINTLNF("\n--- [4구역 탐색] ---");
   reverseAcrossToOppositeZone();
   lastEntryWasForward = false;
   if (scanZone(4)) randomFound++;
@@ -431,7 +428,7 @@ int qrSearchStage() {
     return 4;
   }
 
-  Serial.println(F("\n--- [1구역 탐색] ---"));
+  DPRINTLNF("\n--- [1구역 탐색] ---");
   followToCrossing();
   turnAngle(90, false);
   followToCrossing();
@@ -445,7 +442,7 @@ int qrSearchStage() {
     return 1;
   }
 
-  Serial.println(F("\n--- [3구역 탐색] ---"));
+  DPRINTLNF("\n--- [3구역 탐색] ---");
   reverseAcrossToOppositeZone();
   lastEntryWasForward = false;
   scanZone(3);

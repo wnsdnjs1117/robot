@@ -37,9 +37,6 @@ int robotHeading = HDG_N;
 int currentNode = 8;
 bool lastEntryWasForward = true;
 
-// 9->10 이동 시 북쪽으로 2도 틀어진 상태를 추적하는 변수
-static bool isTiltedNorthAt10 = false;
-
 // ── [내부] 헬퍼 ──────────────────────────────────────────────
 
 static int zoneToNode(int zone) {
@@ -76,6 +73,19 @@ void turnToHeading(int target) {
   robotHeading = target;
 }
 
+static void blindPostAlign() {
+  for (int i = 0; i < 20; i++) {
+    int L, C, R;
+    readSensors(L, C, R);
+    if (!anyLine(L, C, R) || (L && C && R)) break;
+    if      ( L && !R) { drive(BLIND_SPEED - 6, BLIND_SPEED + 6); }
+    else if (!L &&  R) { drive(BLIND_SPEED + 6, BLIND_SPEED - 6); }
+    else               break;
+    delay(10);
+  }
+  stopAll();
+}
+
 static void blindDriveUntilLine(long maxCounts = 0) {
   prizm.resetEncoders();
   while (true) {
@@ -84,24 +94,17 @@ static void blindDriveUntilLine(long maxCounts = 0) {
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-    int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+    int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+             : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
     drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
     delay(5);
   }
   stopAll();
+  blindPostAlign();
 }
 
 // ── [내부] 노드 간 단일 구간 이동 ────────────────────────────
 static void stepNode(int from, int to, bool stopAtEnd) {
-  // [수정] 오직 9번 노드에서 와서 2도가 틀어진 상태일 때만 10번 노드 출발 전
-  // 보정 회전을 수행함
-  if (from == 10 && isTiltedNorthAt10) {
-    stopAll();
-    delay(100);
-    turnAngle(2, true);  // 2도 시계방향 복구 (동쪽 정확히 바라보기)
-    isTiltedNorthAt10 = false;
-  }
-
   int dir = (to > from) ? HDG_E : HDG_W;
   turnToHeading(dir);
 
@@ -135,8 +138,6 @@ static void stepNode(int from, int to, bool stopAtEnd) {
 
   } else if (from == 9 && to == 10) {
     alignHeadingOnLine();
-    turnAngle(2, false);  // [수정] 기존 5도에서 2도 북향으로만 미세 조준 변경
-    isTiltedNorthAt10 = true;
     prizm.resetEncoders();
     while (true) {
       if (abs(prizm.readEncoderCount(1)) >= BLIND_NODE_MAX) {
@@ -147,6 +148,8 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       int L, C, R;
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
+        stopAll();
+        blindPostAlign();
         prizm.resetEncoders();
         while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
           drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
@@ -158,7 +161,8 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       }
       long diff =
           abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
       drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
       delay(5);
     }
@@ -198,7 +202,8 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < NODE_11_12_COUNTS) {
       long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
       drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
       delay(5);
     }
@@ -215,10 +220,10 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   }
 
   currentNode = to;
-  Serial.print(F(">> [NAV] "));
-  Serial.print(from);
-  Serial.print(F("->"));
-  Serial.println(to);
+  DPRINTF(">> [NAV] ");
+  DPRINT(from);
+  DPRINTF("->");
+  DPRINTLN(to);
 }
 
 // ── [공개] 라우팅 핵심 3대 함수 ───────────────────────────────
@@ -256,7 +261,7 @@ void exitZone(int zone) {
         bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
         bool frontHasLine = anyLine(L, C, R);
         bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
-        bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= 1200);
+        bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= NODE8_EXIT_QUAL);
 
         if (distanceQualified && rearIsCrossing && !rearCrossFound) {
           if (++crossCount >= 1) {
@@ -341,28 +346,22 @@ void exitZone(int zone) {
     }
   }
 
-  // 5번 존에서 탈출할 경우, 틀어짐 추적 변수를 명확히 false로 고정하여 남쪽
-  // 꺾임 원인 원천 차단
-  if (zone == 5) {
-    isTiltedNorthAt10 = false;
-  }
-
   currentNode = zoneToNode(zone);
-  Serial.print(F(">> [NAV] exitZone "));
-  Serial.print(zone);
-  Serial.print(F(" -> node "));
-  Serial.println(currentNode);
+  DPRINTF(">> [NAV] exitZone ");
+  DPRINT(zone);
+  DPRINTF(" -> node ");
+  DPRINTLN(currentNode);
 }
 
 void goToZoneDirect(int zone) {
   int targetNode = zoneToNode(zone);
-  Serial.print(F(">> [NAV] zone "));
-  Serial.print(zone);
-  Serial.print(F(" (node "));
-  Serial.print(currentNode);
-  Serial.print(F("->"));
-  Serial.print(targetNode);
-  Serial.println(F(")"));
+  DPRINTF(">> [NAV] zone ");
+  DPRINT(zone);
+  DPRINTF(" (node ");
+  DPRINT(currentNode);
+  DPRINTF("->");
+  DPRINT(targetNode);
+  DPRINTLNF(")");
 
   moveToNode(targetNode);
 

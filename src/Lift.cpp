@@ -82,7 +82,7 @@ static void liftResetState(int startPowerL, int startPowerR) {
 // ============================================================
 void liftUp() {
   liftUpRunning = false;
-  Serial.println(F(">> [LIFT] 상승 시작 (15cm 도달 시 즉시 반환)"));
+  DPRINTLNF(">> [LIFT] 상승 시작 (15cm 도달 시 즉시 반환)");
 
   liftResetState(30, 30);
 
@@ -152,7 +152,7 @@ void liftUp() {
         if (diffL <= EMERGENCY_SPEED_LIMIT) {
           if (++lowSpeedCounterL >= UP_EMERGENCY_DURATION_COUNT && !isStalledL) {
             isStalledL = true;
-            Serial.println(F(">> [LIFT] 왼쪽 비상 정지 (상승 중 저속)"));
+            DPRINTLNF(">> [LIFT] 왼쪽 비상 정지 (상승 중 저속)");
           }
         } else {
           lowSpeedCounterL = 0;
@@ -160,7 +160,7 @@ void liftUp() {
         if (diffR <= EMERGENCY_SPEED_LIMIT) {
           if (++lowSpeedCounterR >= UP_EMERGENCY_DURATION_COUNT && !isStalledR) {
             isStalledR = true;
-            Serial.println(F(">> [LIFT] 오른쪽 비상 정지 (상승 중 저속)"));
+            DPRINTLNF(">> [LIFT] 오른쪽 비상 정지 (상승 중 저속)");
           }
         } else {
           lowSpeedCounterR = 0;
@@ -174,15 +174,15 @@ void liftUp() {
       // LIFT_UP_CLEAR_CM 도달 → 논블로킹으로 전환 후 즉시 반환 (모터 계속 상승)
       if (heightL >= LIFT_UP_CLEAR_CM && heightR >= LIFT_UP_CLEAR_CM) {
         liftUpRunning = true;
-        Serial.println(F(">> [LIFT] 주행 허가 (15cm 도달, 배경 상승 계속)"));
+        DPRINTLNF(">> [LIFT] 주행 허가 (15cm 도달, 배경 상승 계속)");
         return;
       }
 
-      Serial.print(F("  [UP] L="));
-      Serial.print(heightL, 1);
-      Serial.print(F("cm R="));
-      Serial.print(heightR, 1);
-      Serial.println(F("cm"));
+      DPRINTF("  [UP] L=");
+      DPRINT(heightL);
+      DPRINTF("cm R=");
+      DPRINT(heightR);
+      DPRINTLNF("cm");
     }
 
     // 모터 출력
@@ -193,7 +193,7 @@ void liftUp() {
     // 비상: 양쪽 스톨/한계 → 브레이크
     if ((isMaxReachedL || isStalledL) && (isMaxReachedR || isStalledR)) {
       exc.setMotorPowers(EXP_ID, 125, -125);
-      Serial.println(F(">> [LIFT] 비상 정지 (상승 중)"));
+      DPRINTLNF(">> [LIFT] 비상 정지 (상승 중)");
       return;
     }
 
@@ -271,7 +271,7 @@ void liftUpTick() {
       if (diffL <= EMERGENCY_SPEED_LIMIT) {
         if (++lowSpeedCounterL >= UP_EMERGENCY_DURATION_COUNT && !isStalledL) {
           isStalledL = true;
-          Serial.println(F(">> [LIFT] 왼쪽 비상 정지 (상승 중)"));
+          DPRINTLNF(">> [LIFT] 왼쪽 비상 정지 (상승 중)");
         }
       } else {
         lowSpeedCounterL = 0;
@@ -279,7 +279,7 @@ void liftUpTick() {
       if (diffR <= EMERGENCY_SPEED_LIMIT) {
         if (++lowSpeedCounterR >= UP_EMERGENCY_DURATION_COUNT && !isStalledR) {
           isStalledR = true;
-          Serial.println(F(">> [LIFT] 오른쪽 비상 정지 (상승 중)"));
+          DPRINTLNF(">> [LIFT] 오른쪽 비상 정지 (상승 중)");
         }
       } else {
         lowSpeedCounterR = 0;
@@ -298,13 +298,13 @@ void liftUpTick() {
   if ((isMaxReachedL || isStalledL) && (isMaxReachedR || isStalledR)) {
     exc.setMotorPowers(EXP_ID, 125, -125);
     liftUpRunning = false;
-    Serial.println(F(">> [LIFT] 상승 완료 (24cm) — 논블로킹"));
+    DPRINTLNF(">> [LIFT] 상승 완료 (24cm) — 논블로킹");
   }
 }
 
 void liftUpWait() {
   if (!liftUpRunning) return;
-  Serial.println(F(">> [LIFT] 상승 완료 대기 중..."));
+  DPRINTLNF(">> [LIFT] 상승 완료 대기 중...");
   prevCountL = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
   prevCountR = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
   lastCheckTime = 0;
@@ -312,7 +312,7 @@ void liftUpWait() {
     liftUpTick();
     delay(10);
   }
-  Serial.println(F(">> [LIFT] 상승 확인 완료"));
+  DPRINTLNF(">> [LIFT] 상승 확인 완료");
 }
 
 // ── 논블로킹 하강 3단계 API ───────────────────────────────────
@@ -320,7 +320,7 @@ void liftUpWait() {
 static bool liftDownRunning = false;
 
 void liftDownStart() {
-  Serial.println(F(">> [LIFT] 하강 시작 (논블로킹 — 주행과 동시)"));
+  DPRINTLNF(">> [LIFT] 하강 시작 (논블로킹 — 주행과 동시)");
   liftResetState(30, 30);
   liftDownRunning = true;
 }
@@ -391,7 +391,7 @@ void liftDownTick() {
         if (++lowSpeedCounterL >= DOWN_EMERGENCY_DURATION_COUNT && !isStalledL) {
           isStalledL = true;
           heightL = 0;
-          Serial.println(F(">> [LIFT] 왼쪽 비상 정지 (이미 바닥)"));
+          DPRINTLNF(">> [LIFT] 왼쪽 비상 정지 (이미 바닥)");
         }
       } else {
         lowSpeedCounterL = 0;
@@ -400,7 +400,7 @@ void liftDownTick() {
         if (++lowSpeedCounterR >= DOWN_EMERGENCY_DURATION_COUNT && !isStalledR) {
           isStalledR = true;
           heightR = 0;
-          Serial.println(F(">> [LIFT] 오른쪽 비상 정지 (이미 바닥)"));
+          DPRINTLNF(">> [LIFT] 오른쪽 비상 정지 (이미 바닥)");
         }
       } else {
         lowSpeedCounterR = 0;
@@ -419,7 +419,7 @@ void liftDownTick() {
       heightL = 0;
       heightR = 0;
       liftDownRunning = false;
-      Serial.println(F(">> [LIFT] 하강 완료 (0cm) — 논블로킹"));
+      DPRINTLNF(">> [LIFT] 하강 완료 (0cm) — 논블로킹");
       return;
     }
   }
@@ -433,7 +433,7 @@ void liftDownTick() {
 // 하강이 완전히 끝날 때까지 블로킹 대기
 void liftDownWait() {
   if (!liftDownRunning) return;
-  Serial.println(F(">> [LIFT] 착지 대기 중..."));
+  DPRINTLNF(">> [LIFT] 착지 대기 중...");
   // prevCount 재동기화: 틱 공백 구간 동안의 누적 이동 반영
   prevCountL = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
   prevCountR = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
@@ -442,7 +442,7 @@ void liftDownWait() {
     liftDownTick();
     delay(10);
   }
-  Serial.println(F(">> [LIFT] 착지 확인 완료"));
+  DPRINTLNF(">> [LIFT] 착지 확인 완료");
 }
 
 // 10cm 이하 도달 시 즉시 반환 (착지는 liftDownWait로 완료)
@@ -452,5 +452,5 @@ void liftDownUntilClear() {
     liftDownTick();
     delay(10);
   }
-  Serial.println(F(">> [LIFT] 주행 허가 (10cm 이하)"));
+  DPRINTLNF(">> [LIFT] 주행 허가 (10cm 이하)");
 }
