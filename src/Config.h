@@ -39,11 +39,11 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
 // ── [2] 모터 속도 ────────────────────────────────────────────
-constexpr int STRAIGHT_SPEED = 30;  // 라인 없는 구간 직진 속도
+constexpr int STRAIGHT_SPEED = 25;  // 라인 없는 구간 직진 속도
 constexpr int SPEED = 35;           // 일반 라인트레이싱 속도
-constexpr int BACK_SPEED = 30;      // 구역 후진 속도
-constexpr int SPIN_SPEED = 30;      // 제자리 스핀 턴 회전 속도
-constexpr int BLIND_SPEED = 30;     // 블라인드 구간(라인 없음) 전용 저속
+constexpr int BACK_SPEED = 25;      // 구역 후진 속도
+constexpr int SPIN_SPEED = 40;      // 제자리 스핀 턴 회전 속도
+constexpr int BLIND_SPEED = 35;     // 블라인드 구간(라인 없음) 전용 저속
 
 // ── [3] 엔코더 거리 ──────────────────────────────────────────
 constexpr int SPIN_90_COUNTS = 1210;            // 90도 회전 엔코더 카운트 (회전용, cm 무관)

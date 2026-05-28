@@ -21,7 +21,7 @@ void drive(int l, int r) {
 void stopAll() {
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
-  delay(10);
+  delay(0);
 }
 
 // ── [2] 회전 제어 ────────────────────────────────────────────
