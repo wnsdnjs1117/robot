@@ -55,8 +55,6 @@ void followToCrossing() {
   }
 }
 
-void forwardToCrossing() { followToCrossing(); }
-
 // ── [2] 블라인드 구간 출발 정렬 ──────────────────────────────
 //
 // 후방 센서를 이용해 로봇을 라인에 수직 정렬한다.
@@ -396,7 +394,7 @@ int qrSearchStage() {
   }
 
   Serial.println(F("\n--- [1구역 탐색] ---"));
-  forwardToCrossing();
+  followToCrossing();
   turnAngle(90, false);
   followToCrossing();
   turnAngle(90, true);

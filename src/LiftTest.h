@@ -7,10 +7,7 @@
 #include <Arduino.h>
 #include <PRIZM.h>   // EXPANSION 타입 선언을 위해 필요
 
-// 리프트 제어 메인 테스트 함수
-void runLiftStallTest();
-
-// ★ 미션 연동 리프트 함수
+// 미션 연동 리프트 함수
 void liftUp();
 void liftDown();
 void liftDownStart();

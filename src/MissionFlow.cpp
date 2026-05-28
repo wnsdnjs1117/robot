@@ -23,7 +23,7 @@ void executeStage1_Search() {
 
   // goToMainLine() 완료 시 로봇은 8번 허브(메인라인) 위에 정렬됨
   currentNode  = 8;
-  robotHeading = 0;  // 북향
+  robotHeading = HDG_N;
 
   // 1~4구역 탐색 (qrSearchStage 내부에서 currentNode/robotHeading 갱신 불필요
   // — 탐색 완료 시 어느 구역 내부에 있으므로 아래서 exitZone으로 탈출)

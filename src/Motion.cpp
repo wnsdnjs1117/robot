@@ -19,15 +19,6 @@ void stopAll() {
   delay(200);
 }
 
-void reverseStraight(int counts) {
-  prizm.resetEncoders();
-  drive(-BACK_SPEED, -BACK_SPEED);
-  while (abs(prizm.readEncoderCount(1)) < counts) {
-    delay(5);
-  }
-  stopAll();
-}
-
 // ── [2] 회전 제어 ────────────────────────────────────────────
 //
 // 사다리꼴 속도 프로파일:
@@ -45,9 +36,8 @@ void turnAngle(int degrees, bool isRight) {
 
   while (true) {
     long pos = abs(prizm.readEncoderCount(1));
-    if (pos >= brakePoint) break;  // 제동 선행점 도달 → 즉시 정지
+    if (pos >= brakePoint) break;
 
-    // 사다리꼴 속도 계산
     float ratio = (float)pos / (float)targetCounts;
     int spd;
     if (ratio < 0.25f) {
@@ -89,56 +79,19 @@ void readRearSensors(int& RL, int& RC, int& RR) {
   RR = (analogRead(SENSOR_REAR_RIGHT)  >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
 }
 
-bool anyLine(int L, int C, int R)          { return (L == 1 || C == 1 || R == 1); }
-bool anyRearLine(int RL, int RC, int RR)   { return RL || RC || RR; }
+bool anyLine(int L, int C, int R)        { return (L == 1 || C == 1 || R == 1); }
+bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 
 // ── [4] 라인 트레이싱 ────────────────────────────────────────
-
-void lineFollowStep(int L, int C, int R) {
-  if (L == 1 && C == 0 && R == 0) {
-    drive(SPEED - 20, SPEED + 10);
-    lastSensorState = 1;
-  } else if (L == 1 && C == 1 && R == 0) {
-    drive(SPEED - 10, SPEED + 5);
-    lastSensorState = 1;
-  } else if (L == 0 && C == 0 && R == 1) {
-    drive(SPEED + 10, SPEED - 20);
-    lastSensorState = 2;
-  } else if (L == 0 && C == 1 && R == 1) {
-    drive(SPEED + 5, SPEED - 10);
-    lastSensorState = 2;
-  } else if (C == 1) {
-    if (lastSensorState == 1) {
-      drive(SPEED + 4, SPEED - 4);
-      lastSensorState = 0;
-    } else if (lastSensorState == 2) {
-      drive(SPEED - 4, SPEED + 4);
-      lastSensorState = 0;
-    } else {
-      drive(SPEED, SPEED);
-    }
-  } else {  // 0,0,0
-    if (lastSensorState == 1)
-      drive(SPEED - 16, SPEED + 6);
-    else if (lastSensorState == 2)
-      drive(SPEED + 6, SPEED - 16);
-    else
-      drive(SPEED, SPEED);
-  }
-}
-
-void lineFollowStepReverse(int L, int C, int R) {
-  drive(-BACK_SPEED, -BACK_SPEED);  // 조향 없는 일직선 후진
-}
-
+//
 // 전방 주도 라인트레이싱 + 후방 각도 교정
 // 전방 0,0,0 → 후방 무시 / 후방 1,1,1 → 교차로이므로 후방 무시
+
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   bool frontHasLine   = anyLine(FL, FC, FR);
   bool rearHasLine    = anyRearLine(RL, RC, RR);
   bool rearIsCrossing = (RL && RC && RR);
 
-  // 전방 센서 기본 조향
   int lsp = SPEED, rsp = SPEED;
   if      (FL && !FC && !FR) { lsp = SPEED - 20; rsp = SPEED + 10; lastSensorState = 1; }
   else if (FL &&  FC && !FR) { lsp = SPEED - 10; rsp = SPEED + 5;  lastSensorState = 1; }
@@ -148,16 +101,13 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
     if      (lastSensorState == 1) { lsp = SPEED + 4; rsp = SPEED - 4; lastSensorState = 0; }
     else if (lastSensorState == 2) { lsp = SPEED - 4; rsp = SPEED + 4; lastSensorState = 0; }
     else                           { lsp = SPEED;      rsp = SPEED; }
-  } else {  // 0,0,0
+  } else {
     if      (lastSensorState == 1) { lsp = SPEED - 16; rsp = SPEED + 6; }
     else if (lastSensorState == 2) { lsp = SPEED + 6;  rsp = SPEED - 16; }
     else                           { lsp = SPEED;       rsp = SPEED; }
   }
 
   bool frontIsCrossing = (FL && FC && FR);
-  // 후방 각도 교정: 전방 라인 있음 AND 후방 라인 있음 AND 양쪽 교차로 아님
-  // angCorr > 0 → 좌 가속(우 감속) → 우회전 / angCorr < 0 → 좌 감속(우 가속) → 좌회전
-  // RL > RR(후방 좌측 감지) → 후방이 우편향 → 우회전 보정 (angCorr > 0) ✓
   if (frontHasLine && rearHasLine && !frontIsCrossing && !rearIsCrossing) {
     int angCorr = constrain((RL - RR) * ANGULAR_GAIN, -5, 5);
     lsp += angCorr;
