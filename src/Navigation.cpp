@@ -173,7 +173,6 @@ void reverseEnterZone() {
 void reverseAcrossToOppositeZone() {
   lastSensorState = 0;
 
-  // [핵심 수정] 고정 거리 후진을 버리고 교차로 감지 후진으로 변경
   prizm.resetEncoders();
   bool rearCrossFound = false;
   int crossCount = 0;
@@ -185,13 +184,16 @@ void reverseAcrossToOppositeZone() {
     readSensors(L, C, R);
 
     bool rearHasLine = anyRearLine(RL, RC, RR);
-    bool rearIsCrossing = (RL && RC && RR);
     bool frontHasLine = anyLine(L, C, R);
-    bool frontIsCrossing = (L && C && R);
+
+    // [핵심 수정] 맞은편으로 건너갈 때도 T/L 삼거리를 교차로로 완벽히 인식하게
+    // 변경
+    bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
+    bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
 
     if (rearIsCrossing && !rearCrossFound) {
       crossCount++;
-      if (crossCount >= 2) {
+      if (crossCount >= 3) {
         rearCrossFound = true;
         prizm.resetEncoders();
       }
@@ -210,34 +212,36 @@ void reverseAcrossToOppositeZone() {
 
     int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
-    if (rearHasLine && !rearIsCrossing) {
-      if (RL && !RC && !RR) {
-        lsp = -(BACK_SPEED - 10);
-        rsp = -(BACK_SPEED + 10);
-      } else if (!RL && !RC && RR) {
-        lsp = -(BACK_SPEED + 10);
-        rsp = -(BACK_SPEED - 10);
-      } else if (RL && RC && !RR) {
-        lsp = -(BACK_SPEED - 5);
-        rsp = -(BACK_SPEED + 5);
-      } else if (!RL && RC && RR) {
-        lsp = -(BACK_SPEED + 5);
-        rsp = -(BACK_SPEED - 5);
+    if (!rearCrossFound) {
+      if (rearHasLine && !rearIsCrossing) {
+        if (RL && !RC && !RR) {
+          lsp = -(BACK_SPEED - 10);
+          rsp = -(BACK_SPEED + 10);
+        } else if (!RL && !RC && RR) {
+          lsp = -(BACK_SPEED + 10);
+          rsp = -(BACK_SPEED - 10);
+        } else if (RL && RC && !RR) {
+          lsp = -(BACK_SPEED - 5);
+          rsp = -(BACK_SPEED + 5);
+        } else if (!RL && RC && RR) {
+          lsp = -(BACK_SPEED + 5);
+          rsp = -(BACK_SPEED - 5);
+        }
+      } else if (!rearHasLine) {
+        long d1 = abs(prizm.readEncoderCount(1));
+        long d2 = abs(prizm.readEncoderCount(2));
+        long rawDiff = d1 - d2;
+        int corr =
+            (abs(rawDiff) <= 5) ? 0 : constrain((int)(rawDiff / 12), -4, 4);
+        lsp = -BACK_SPEED + corr;
+        rsp = -BACK_SPEED - corr;
       }
-    } else if (!rearHasLine) {
-      long d1 = abs(prizm.readEncoderCount(1));
-      long d2 = abs(prizm.readEncoderCount(2));
-      long rawDiff = d1 - d2;
-      int corr =
-          (abs(rawDiff) <= 5) ? 0 : constrain((int)(rawDiff / 12), -4, 4);
-      lsp = -BACK_SPEED + corr;
-      rsp = -BACK_SPEED - corr;
-    }
 
-    if (rearHasLine && frontHasLine && !rearIsCrossing && !frontIsCrossing) {
-      int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
-      lsp -= angCorr;
-      rsp += angCorr;
+      if (rearHasLine && frontHasLine && !rearIsCrossing && !frontIsCrossing) {
+        int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
+        lsp -= angCorr;
+        rsp += angCorr;
+      }
     }
 
     drive(lsp, rsp);
