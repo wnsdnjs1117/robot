@@ -256,7 +256,7 @@ void exitZone(int zone) {
         bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
         bool frontHasLine = anyLine(L, C, R);
         bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
-        bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= 1200);
+        bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= NODE8_EXIT_QUAL);
 
         if (distanceQualified && rearIsCrossing && !rearCrossFound) {
           if (++crossCount >= 1) {

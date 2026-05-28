@@ -53,12 +53,14 @@ constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (
 constexpr int REAR_TO_AXLE_COUNTS = CM(24.0f);  // 후방 센서 → 차축 거리 (24cm)
 
 // ── [4] 존 진입 거리 (실측값 입력) ──────────────────────────
-// ZONE_ENTER_EXTRA : 전진 진입 — 전방 센서가 라인을 잃은 순간부터 목표 정지점까지
-// ZONE_DEPTH_EXTRA : 후진 진입 — 후방 센서가 라인을 잃은 순간부터 목표 정지점까지
-// ZONE_FOLLOW_MAX  : 후진 중 안전 한계 (구역 깊이보다 넉넉하게)
-constexpr int ZONE_ENTER_EXTRA = CM(33.0f);  // ★ 실측 필요
-constexpr int ZONE_DEPTH_EXTRA = CM(25.0f);  // ★ 실측 필요
-constexpr int ZONE_FOLLOW_MAX = CM(40.0f);   // 안전 한계 (실측값보다 크게)
+// ZONE_ENTER_EXTRA  : 전진 진입 — 전방 센서가 라인을 잃은 순간부터 목표 정지점까지
+// ZONE_DEPTH_EXTRA  : 후진 진입 — 후방 센서가 라인을 잃은 순간부터 목표 정지점까지
+// ZONE_FOLLOW_MAX   : 후진 중 안전 한계 (구역 깊이보다 넉넉하게)
+// NODE8_EXIT_QUAL   : 2·4존 후진 탈출 시 교차로 감지 허용 최소 거리 (ZONE_ENTER_EXTRA와 맞출 것)
+constexpr int ZONE_ENTER_EXTRA  = CM(33.0f);  // ★ 실측 필요
+constexpr int ZONE_DEPTH_EXTRA  = CM(25.0f);  // ★ 실측 필요
+constexpr int ZONE_FOLLOW_MAX   = CM(40.0f);  // 안전 한계 (실측값보다 크게)
+constexpr int NODE8_EXIT_QUAL   = CM(28.0f);  // 교차로 감지 최소 이동 거리 (≈ZONE_ENTER_EXTRA - 전후 센서 간격)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr float LIFT_UP_CLEAR_CM   = 15.0f;  // 상승 중 주행 허가 높이 (cm)
