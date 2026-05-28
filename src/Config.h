@@ -121,10 +121,14 @@ constexpr int HDG_S = 2;  // 남 – 스타트 / 남쪽 구역(3·4) 방향
 constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 
 // ── [8] 기타 거리 상수 ──────────────────────────────────────────
-constexpr int NODE7_EXIT_COUNTS = CM(33.0f);      // 존1·3 후진진입→전진탈출: 정지점→노드7 (★실측)
-constexpr int NODE7_REV_EXIT_COUNTS = CM(58.0f);  // 존1·3 전진진입→후진탈출: 정지점→노드7 (★실측)
-constexpr int ZONE5_EXIT_COUNTS = CM(56.0f);      // 존5  전진진입→후진탈출: 정지점→노드10 (★실측)
-constexpr int ZONE6_EXIT_COUNTS = CM(56.0f);      // 존6  전진진입→후진탈출: 정지점→노드11 (★실측)
+// 정지 시 축 위치:
+//   후진진입 = ZONE_LIFT_DEPTH - AXLE_TO_LIFT_CM (리프트 반대편)
+//   전진진입 = ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM (리프트 같은편)
+// → 정지점에서 노드까지 = 해당 축 위치만큼 이동하면 됨
+constexpr int NODE7_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH - AXLE_TO_LIFT_CM);  // 존1·3 후진진입→전진탈출
+constexpr int NODE7_REV_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존1·3 전진진입→후진탈출
+constexpr int ZONE5_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존5  전진진입→후진탈출
+constexpr int ZONE6_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존6  전진진입→후진탈출
 constexpr int NODE_11_12_COUNTS = CM(70.0f);      // 노드11→12 블라인드 거리 (실측 후 조정)
 constexpr int BLIND_NODE_MAX = CM(70.5f);         // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
 
