@@ -53,6 +53,11 @@ constexpr int SENSOR_REAR_CENTER = A2;
 constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
+// ── [1.5] 센서-바퀴축 간격 / 차체 기하 ──────────────────────────
+constexpr float FRONT_SENSOR_OFFSET = 5.5f;   // 전방 센서 → 바퀴축 (cm)
+constexpr float REAR_SENSOR_OFFSET  = 24.0f;  // 후방 센서 → 바퀴축 (cm)
+constexpr float AXLE_TO_LIFT_CM     = 14.0f;  // 바퀴축 → 리프트 (cm, 후방 방향)
+
 // ── [2] 모터 속도 ────────────────────────────────────────────
 constexpr int STRAIGHT_SPEED = 35;  // 라인 없는 구간 직진 속도
 constexpr int SPEED = 50;           // 일반 라인트레이싱 속도
@@ -61,20 +66,32 @@ constexpr int SPIN_SPEED = 50;      // 제자리 스핀 턴 회전 속도
 constexpr int BLIND_SPEED = 50;     // 블라인드 구간(라인 없음) 전용 저속
 
 // ── [3] 엔코더 거리 ──────────────────────────────────────────
-constexpr int SPIN_90_COUNTS = 1210;            // 90도 회전 엔코더 카운트 (회전용, cm 무관)
-constexpr int CROSS_ALIGN_COUNTS = CM(4.5f);    // 교차로 감지 후 축 정렬 과전진 (6cm)
-constexpr int START_ESCAPE_COUNTS = CM(28.0f);  // 스타트 선 밟은 후 추가 이탈 거리 (31cm)
-constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
-constexpr int REAR_TO_AXLE_COUNTS = CM(24.0f);  // 후방 센서 → 차축 거리 (24cm)
+constexpr int SPIN_90_COUNTS = 1210;  // 90도 회전 엔코더 카운트 (회전용, cm 무관)
 
-// ── [4] 존 진입 거리 (실측값 입력) ──────────────────────────
-// ZONE_ENTER_EXTRA : 전진 진입 — 전방 센서가 라인을 잃은 순간부터 목표 정지점까지
-// ZONE_DEPTH_EXTRA : 후진 진입 — 후방 센서가 라인을 잃은 순간부터 목표 정지점까지
-// ZONE_FOLLOW_MAX  : 후진 중 안전 한계 (구역 깊이보다 넉넉하게)
-constexpr int ZONE_ENTER_EXTRA = CM(33.0f);  // ★ 실측 필요
-constexpr int ZONE_DEPTH_EXTRA = CM(25.0f);  // ★ 실측 필요
-constexpr int ZONE_FOLLOW_MAX = CM(40.0f);   // 안전 한계 (실측값보다 크게)
-constexpr int NODE8_EXIT_QUAL = CM(28.0f);   // 교차로 감지 최소 이동 거리 (≈ZONE_ENTER_EXTRA - 전후 센서 간격)
+// 아래 세 줄은 센서 오프셋에서 자동 계산 — 직접 편집하지 마세요
+constexpr int CROSS_ALIGN_COUNTS  = CM(FRONT_SENSOR_OFFSET);  // 교차로 감지 후 축 정렬 과전진
+constexpr int REAR_TO_AXLE_COUNTS = CM(REAR_SENSOR_OFFSET);   // 후방 센서 → 차축 거리
+
+constexpr float START_ESCAPE_AXLE_CM = 22.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
+constexpr int START_ESCAPE_COUNTS = CM(FRONT_SENSOR_OFFSET + START_ESCAPE_AXLE_CM);
+
+constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
+
+// ── [4] 존 진입 거리 ─────────────────────────────────────────
+// ZONE_LIFT_DEPTH : 진입선(노드 교차점)에서 리프트가 멈춰야 할 깊이 (cm)
+//   전진/후진 방향에 따라 리프트 위치가 달라지는 문제를 내부 공식이 자동 흡수.
+//   실측 후 이 값 하나만 조정하면 두 방향 모두 보정된다.
+//
+//   전진: ZONE_ENTER_EXTRA = CM(FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH)
+//         트리거 시 리프트 = -(5.5+14) = -19.5cm → ZONE_LIFT_DEPTH까지 전진
+//   후진: ZONE_DEPTH_EXTRA = CM(REAR_SENSOR_OFFSET - AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH)
+//         트리거 시 리프트 = -(24-14) = -10cm   → ZONE_LIFT_DEPTH까지 후진
+constexpr float ZONE_LIFT_DEPTH = 13.5f;  // ★ 실측 필요 (리프트 기준 cm)
+
+constexpr int ZONE_ENTER_EXTRA = CM(FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);
+constexpr int ZONE_DEPTH_EXTRA = CM(REAR_SENSOR_OFFSET  - AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);
+constexpr int ZONE_FOLLOW_MAX  = CM(40.0f);  // 안전 한계 (실측값보다 크게)
+constexpr int NODE8_EXIT_QUAL  = CM(AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);  // 후진 탈출 교차로 감지 최소 이동량
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr float LIFT_UP_CLEAR_CM = 8.0f;    // 상승 중 주행 허가 높이 (cm)
