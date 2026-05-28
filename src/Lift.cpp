@@ -22,9 +22,9 @@ const int LIFT_R = 2;
 const float MAX_HEIGHT_LIMIT = 24.0;  // 기준 최대 상승 제한 높이 (cm)
 const float RIGHT_OFFSET = 0.6;       // 우측 리프트 추가 상승 오차 조정값 (cm)
 
-const int DEFAULT_TARGET_SPEED = 220;  // 기본 목표 속도 (220)
+const int DEFAULT_TARGET_SPEED = 200;  // 기본 목표 속도 (220)
 const int DOWN_STALL_THRESHOLD = 100;  // 하강 시 정상 스톨 감지 기준 속도 (100으로 변경)
-const int DEFAULT_MAX_POWER = 50;  // 기본 최대 파워 제한 (60)
+const int DEFAULT_MAX_POWER = 50;      // 기본 최대 파워 제한 (60)
 const float LIFT_COUNTS_PER_CM = 200.0;
 
 // 비상 정지 기준 상수
@@ -209,7 +209,7 @@ void liftDown() {
 
 // ── 논블로킹 하강 3단계 API ───────────────────────────────────
 
-static bool liftDownRunning = false;  
+static bool liftDownRunning = false;
 
 void liftDownStart() {
   Serial.println(F(">> [LIFT] 하강 시작 (논블로킹 — 주행과 동시)"));
@@ -263,9 +263,7 @@ void liftDownTick() {
     powerR = constrain(powerR, 10, DEFAULT_MAX_POWER);
 
     // 가속 완료 확인
-    if (!isAccelDone && currentTime - moveStartTime > 200 &&
-        diffL >= DEFAULT_TARGET_SPEED * 0.9)
-      isAccelDone = true;
+    if (!isAccelDone && currentTime - moveStartTime > 200 && diffL >= DEFAULT_TARGET_SPEED * 0.9) isAccelDone = true;
 
     // 바닥 스톨 감지 (정상: 가속 후 감속) - 마찰 오작동 방지를 위해 DOWN_STALL_THRESHOLD 적용
     if (isAccelDone) {

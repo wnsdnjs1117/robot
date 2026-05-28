@@ -39,15 +39,15 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
 // ── [2] 모터 속도 ────────────────────────────────────────────
-constexpr int STRAIGHT_SPEED = 30;  // 라인 없는 구간 직진 속도
-constexpr int SPEED = 30;           // 일반 라인트레이싱 속도
-constexpr int BACK_SPEED = 21;      // 구역 후진 속도
-constexpr int SPIN_SPEED = 30;      // 제자리 스핀 턴 회전 속도
-constexpr int BLIND_SPEED = 25;     // 블라인드 구간(라인 없음) 전용 저속
+constexpr int STRAIGHT_SPEED = 35;  // 라인 없는 구간 직진 속도
+constexpr int SPEED = 40;           // 일반 라인트레이싱 속도
+constexpr int BACK_SPEED = 25;      // 구역 후진 속도
+constexpr int SPIN_SPEED = 35;      // 제자리 스핀 턴 회전 속도
+constexpr int BLIND_SPEED = 35;     // 블라인드 구간(라인 없음) 전용 저속
 
 // ── [3] 엔코더 거리 ──────────────────────────────────────────
-constexpr int SPIN_90_COUNTS = 1220;            // 90도 회전 엔코더 카운트 (회전용, cm 무관)
-constexpr int CROSS_ALIGN_COUNTS = CM(4.8f);    // 교차로 감지 후 축 정렬 과전진 (6cm)
+constexpr int SPIN_90_COUNTS = 1210;            // 90도 회전 엔코더 카운트 (회전용, cm 무관)
+constexpr int CROSS_ALIGN_COUNTS = CM(4.5f);    // 교차로 감지 후 축 정렬 과전진 (6cm)
 constexpr int START_ESCAPE_COUNTS = CM(28.0f);  // 스타트 선 밟은 후 추가 이탈 거리 (31cm)
 constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
 constexpr int REAR_TO_AXLE_COUNTS = CM(24.0f);  // 후방 센서 → 차축 거리 (24cm)
@@ -56,9 +56,9 @@ constexpr int REAR_TO_AXLE_COUNTS = CM(24.0f);  // 후방 센서 → 차축 거�
 // ZONE_ENTER_EXTRA : 전진 진입 — 전방 센서가 라인을 잃은 순간부터 목표 정지점까지
 // ZONE_DEPTH_EXTRA : 후진 진입 — 후방 센서가 라인을 잃은 순간부터 목표 정지점까지
 // ZONE_FOLLOW_MAX  : 후진 중 안전 한계 (구역 깊이보다 넉넉하게)
-constexpr int ZONE_ENTER_EXTRA = CM(35.0f);  // ★ 실측 필요
-constexpr int ZONE_DEPTH_EXTRA = CM(27.0f);  // ★ 실측 필요
-constexpr int ZONE_FOLLOW_MAX = CM(50.0f);   // 안전 한계 (실측값보다 크게)
+constexpr int ZONE_ENTER_EXTRA = CM(33.0f);  // ★ 실측 필요
+constexpr int ZONE_DEPTH_EXTRA = CM(25.0f);  // ★ 실측 필요
+constexpr int ZONE_FOLLOW_MAX = CM(40.0f);   // 안전 한계 (실측값보다 크게)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr bool WEST_IS_LEFT = true;   // 서쪽 방향이 왼쪽인지 여부
@@ -78,12 +78,12 @@ constexpr int HDG_S = 2;  // 남 – 스타트 / 남쪽 구역(3·4) 방향
 constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 
 // ── [7] 기타 거리 상수 ──────────────────────────────────────────
-constexpr int NODE7_EXIT_COUNTS     = CM(17.0f);  // 존1·3 후진진입→전진탈출: 정지점→노드7 (★실측)
-constexpr int NODE7_REV_EXIT_COUNTS = CM(17.0f);  // 존1·3 전진진입→후진탈출: 정지점→노드7 (★실측)
-constexpr int ZONE5_EXIT_COUNTS     = CM(30.0f);  // 존5  전진진입→후진탈출: 정지점→노드10 (★실측)
-constexpr int ZONE6_EXIT_COUNTS     = CM(30.0f);  // 존6  전진진입→후진탈출: 정지점→노드11 (★실측)
-constexpr int NODE_11_12_COUNTS     = CM(35.0f);  // 노드11→12 블라인드 거리 (실측 후 조정)
-constexpr int BLIND_NODE_MAX        = CM(72.0f);  // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
+constexpr int NODE7_EXIT_COUNTS = CM(30.0f);      // 존1·3 후진진입→전진탈출: 정지점→노드7 (★실측)
+constexpr int NODE7_REV_EXIT_COUNTS = CM(30.0f);  // 존1·3 전진진입→후진탈출: 정지점→노드7 (★실측)
+constexpr int ZONE5_EXIT_COUNTS = CM(55.0f);      // 존5  전진진입→후진탈출: 정지점→노드10 (★실측)
+constexpr int ZONE6_EXIT_COUNTS = CM(55.0f);      // 존6  전진진입→후진탈출: 정지점→노드11 (★실측)
+constexpr int NODE_11_12_COUNTS = CM(70.0f);      // 노드11→12 블라인드 거리 (실측 후 조정)
+constexpr int BLIND_NODE_MAX = CM(70.0f);         // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
 
 // 전역 객체 선언
 extern PRIZM prizm;

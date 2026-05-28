@@ -16,7 +16,7 @@ void drive(int l, int r) {
 void stopAll() {
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
-  delay(200);
+  delay(0);
 }
 
 // ── [2] 회전 제어 ────────────────────────────────────────────
@@ -31,8 +31,8 @@ void stopAll() {
 void turnAngle(int degrees, bool isRight) {
   prizm.resetEncoders();
   long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * degrees);
-  long brakePoint   = targetCounts - SPIN_BRAKE_LEAD;
-  const int minSpd  = 10;
+  long brakePoint = targetCounts - SPIN_BRAKE_LEAD;
+  const int minSpd = 10;
 
   while (true) {
     long pos = abs(prizm.readEncoderCount(1));
@@ -81,8 +81,7 @@ bool turnToLine(bool isRight, int maxDegrees) {
 
     if (!armed) {
       // 최소 각도 이상 회전 + 시작 라인 완전 이탈 → 감지 시작
-      if (abs(prizm.readEncoderCount(1)) >= armCounts && !anyLine(L, C, R))
-        armed = true;
+      if (abs(prizm.readEncoderCount(1)) >= armCounts && !anyLine(L, C, R)) armed = true;
     } else if (C == 1) {
       stopAll();  // 새 라인 중앙 정렬 → 정지
       return true;
@@ -113,12 +112,12 @@ void readSensors(int& L, int& C, int& R) {
 }
 
 void readRearSensors(int& RL, int& RC, int& RR) {
-  RL = (analogRead(SENSOR_REAR_LEFT)   >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
+  RL = (analogRead(SENSOR_REAR_LEFT) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
   RC = (analogRead(SENSOR_REAR_CENTER) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
-  RR = (analogRead(SENSOR_REAR_RIGHT)  >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
+  RR = (analogRead(SENSOR_REAR_RIGHT) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
 }
 
-bool anyLine(int L, int C, int R)        { return (L == 1 || C == 1 || R == 1); }
+bool anyLine(int L, int C, int R) { return (L == 1 || C == 1 || R == 1); }
 bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 
 // ── [4] 라인 트레이싱 ────────────────────────────────────────
@@ -127,23 +126,51 @@ bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 // 전방 0,0,0 → 후방 무시 / 후방 1,1,1 → 교차로이므로 후방 무시
 
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
-  bool frontHasLine   = anyLine(FL, FC, FR);
-  bool rearHasLine    = anyRearLine(RL, RC, RR);
+  bool frontHasLine = anyLine(FL, FC, FR);
+  bool rearHasLine = anyRearLine(RL, RC, RR);
   bool rearIsCrossing = (RL && RC && RR);
 
   int lsp = SPEED, rsp = SPEED;
-  if      (FL && !FC && !FR) { lsp = SPEED - 20; rsp = SPEED + 10; lastSensorState = 1; }
-  else if (FL &&  FC && !FR) { lsp = SPEED - 10; rsp = SPEED + 5;  lastSensorState = 1; }
-  else if (!FL && !FC && FR) { lsp = SPEED + 10; rsp = SPEED - 20; lastSensorState = 2; }
-  else if (!FL &&  FC && FR) { lsp = SPEED + 5;  rsp = SPEED - 10; lastSensorState = 2; }
-  else if (FC) {
-    if      (lastSensorState == 1) { lsp = SPEED + 4; rsp = SPEED - 4; lastSensorState = 0; }
-    else if (lastSensorState == 2) { lsp = SPEED - 4; rsp = SPEED + 4; lastSensorState = 0; }
-    else                           { lsp = SPEED;      rsp = SPEED; }
+  if (FL && !FC && !FR) {
+    lsp = SPEED - 20;
+    rsp = SPEED + 10;
+    lastSensorState = 1;
+  } else if (FL && FC && !FR) {
+    lsp = SPEED - 10;
+    rsp = SPEED + 5;
+    lastSensorState = 1;
+  } else if (!FL && !FC && FR) {
+    lsp = SPEED + 10;
+    rsp = SPEED - 20;
+    lastSensorState = 2;
+  } else if (!FL && FC && FR) {
+    lsp = SPEED + 5;
+    rsp = SPEED - 10;
+    lastSensorState = 2;
+  } else if (FC) {
+    if (lastSensorState == 1) {
+      lsp = SPEED + 4;
+      rsp = SPEED - 4;
+      lastSensorState = 0;
+    } else if (lastSensorState == 2) {
+      lsp = SPEED - 4;
+      rsp = SPEED + 4;
+      lastSensorState = 0;
+    } else {
+      lsp = SPEED;
+      rsp = SPEED;
+    }
   } else {
-    if      (lastSensorState == 1) { lsp = SPEED - 16; rsp = SPEED + 6; }
-    else if (lastSensorState == 2) { lsp = SPEED + 6;  rsp = SPEED - 16; }
-    else                           { lsp = SPEED;       rsp = SPEED; }
+    if (lastSensorState == 1) {
+      lsp = SPEED - 16;
+      rsp = SPEED + 6;
+    } else if (lastSensorState == 2) {
+      lsp = SPEED + 6;
+      rsp = SPEED - 16;
+    } else {
+      lsp = SPEED;
+      rsp = SPEED;
+    }
   }
 
   bool frontIsCrossing = (FL && FC && FR);
