@@ -61,12 +61,21 @@ static int nodeIndex(int n) {
 }
 
 // 목표 헤딩으로 최소 회전 후 갱신
+//   90° 회전(diff 1/3): 회전 방향에 라인이 있으므로 turnToLine으로 정렬 정지
+//   180° 회전(diff 2):  블라인드 구간 반전이라 라인이 없음 → 고정 각도 turnAngle
 void turnToHeading(int target) {
   int diff = (target - robotHeading + 4) % 4;
   if (diff == 0) return;
-  if (diff == 1) { turnAngle(90, true); }
-  if (diff == 3) { turnAngle(90, false); }
-  if (diff == 2) { turnAngle(90, true); turnAngle(90, true); }
+  if (diff == 1) {
+    if (!turnToLine(true, TURN_LINE_MAX_DEG))
+      Serial.println(F(">> [WARN] turnToHeading 우회전: 라인 미발견(한계각 정지)"));
+  } else if (diff == 3) {
+    if (!turnToLine(false, TURN_LINE_MAX_DEG))
+      Serial.println(F(">> [WARN] turnToHeading 좌회전: 라인 미발견(한계각 정지)"));
+  } else {  // diff == 2: 블라인드 반전
+    turnAngle(90, true);
+    turnAngle(90, true);
+  }
   robotHeading = target;
 }
 

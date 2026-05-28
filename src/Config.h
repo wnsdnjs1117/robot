@@ -47,6 +47,10 @@ constexpr int  ANGULAR_GAIN     = 3;     // 전/후방 이중 센서 각도 교�
 constexpr int  ALIGN_MAX_COUNTS = 67;    // alignHeadingOnLine 최대 회전량 (≈5도)
 constexpr int  SPIN_BRAKE_LEAD  = 15;    // turnAngle 관성 보정 선행 제동 카운트
 
+// 라인 정렬 회전 (turnToLine): 회전 방향에 그어진 라인을 만나면 정렬 정지
+constexpr int  TURN_LINE_ARM_DEG = 30;   // 이 각도 이상 회전 + 시작 라인 이탈 후부터 감지
+constexpr int  TURN_LINE_MAX_DEG = 135;  // 라인 못 찾을 때 무한 회전 방지 한계각
+
 // ── [6] 방향 상수 (robotHeading) ───────────────────────────────
 // turnToHeading() 인자 및 robotHeading 값에 사용 (int 산술 호환)
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향
