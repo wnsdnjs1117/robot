@@ -23,13 +23,14 @@ const float MAX_HEIGHT_LIMIT = 24.0;  // 기준 최대 상승 제한 높이 (cm)
 const float RIGHT_OFFSET = 0.6;       // 우측 리프트 추가 상승 오차 조정값 (cm)
 
 const int DEFAULT_TARGET_SPEED = 220;  // 기본 목표 속도 (220)
-const int STALL_THRESHOLD = 140;
+const int DOWN_STALL_THRESHOLD = 100;  // 하강 시 정상 스톨 감지 기준 속도 (100으로 변경)
 const int DEFAULT_MAX_POWER = 50;  // 기본 최대 파워 제한 (60)
 const float COUNTS_PER_CM = 200.0;
 
 // 비상 정지 기준 상수
-const int EMERGENCY_SPEED_LIMIT = 60;     // 비상 정지 유발 속도 (60 이하)
-const int EMERGENCY_DURATION_COUNT = 10;  // 100ms * 10회 = 1000ms (1초)
+const int EMERGENCY_SPEED_LIMIT = 60;         // 비상 정지 유발 속도 (60 이하)
+const int UP_EMERGENCY_DURATION_COUNT = 10;   // 상승 시 걸림 판정 시간 (1초 - 무거운 짐 대응)
+const int DOWN_EMERGENCY_DURATION_COUNT = 5;  // 하강 시 걸림 판정 시간 (0.5초 - 바닥 뚜둑 소리 최소화)
 // ========================================================================
 
 // 글로벌 초기값
@@ -146,7 +147,7 @@ void liftUp() {
       // 비상 저속 감시 (상승 중 걸림 감지)
       if (currentTime - moveStartTime > 200) {
         if (diffL <= EMERGENCY_SPEED_LIMIT) {
-          if (++lowSpeedCounterL >= EMERGENCY_DURATION_COUNT && !isStalledL) {
+          if (++lowSpeedCounterL >= UP_EMERGENCY_DURATION_COUNT && !isStalledL) {
             isStalledL = true;
             Serial.println(F(">> [LIFT] 왼쪽 비상 정지 (상승 중 저속)"));
           }
@@ -154,7 +155,7 @@ void liftUp() {
           lowSpeedCounterL = 0;
         }
         if (diffR <= EMERGENCY_SPEED_LIMIT) {
-          if (++lowSpeedCounterR >= EMERGENCY_DURATION_COUNT && !isStalledR) {
+          if (++lowSpeedCounterR >= UP_EMERGENCY_DURATION_COUNT && !isStalledR) {
             isStalledR = true;
             Serial.println(F(">> [LIFT] 오른쪽 비상 정지 (상승 중 저속)"));
           }
@@ -186,12 +187,11 @@ void liftUp() {
       break;
     }
 
-    // ★ 15cm 이상 올라간 순간부터 함수 반환 가능 — 여기선 끝까지 올리므로 계속
-    // 진행
+    // 15cm 이상 올라간 순간부터 함수 반환 가능
     delay(10);
   }
 
-  // 15cm 미만이면 추가 대기 (안전망 — 정상 흐름에서는 발생 안 함)
+  // 15cm 미만이면 추가 대기 (안전망)
   while (heightL < 15.0 && heightR < 15.0) {
     delay(50);
   }
@@ -201,18 +201,15 @@ void liftUp() {
 void liftDownStart();
 void liftDownWait();
 
-// liftDown() : 블로킹 하강 — liftDownStart + liftDownWait 조합
+// liftDown() : 블로킹 하강
 void liftDown() {
   liftDownStart();
   liftDownWait();
 }
 
 // ── 논블로킹 하강 3단계 API ───────────────────────────────────
-//   liftDownStart()  — 하강 시작 (즉시 반환)
-//   liftDownTick()   — 매 5ms 틱마다 호출 (주행 루프에 끼워 넣기)
-//   liftDownWait()   — 착지까지 블로킹 대기
 
-static bool liftDownRunning = false;  // 논블로킹 하강 진행 중 플래그
+static bool liftDownRunning = false;  
 
 void liftDownStart() {
   Serial.println(F(">> [LIFT] 하강 시작 (논블로킹 — 주행과 동시)"));
@@ -270,24 +267,22 @@ void liftDownTick() {
         diffL >= DEFAULT_TARGET_SPEED * 0.9)
       isAccelDone = true;
 
-    // 바닥 스톨 감지 (정상: 가속 후 감속)
+    // 바닥 스톨 감지 (정상: 가속 후 감속) - 마찰 오작동 방지를 위해 DOWN_STALL_THRESHOLD 적용
     if (isAccelDone) {
-      if (diffL < STALL_THRESHOLD && !isStalledL) {
+      if (diffL < DOWN_STALL_THRESHOLD && !isStalledL) {
         isStalledL = true;
         heightL = 0;
       }
-      if (diffR < STALL_THRESHOLD && !isStalledR) {
+      if (diffR < DOWN_STALL_THRESHOLD && !isStalledR) {
         isStalledR = true;
         heightR = 0;
       }
     }
 
-    // 비상 정지: 가속 완료 여부와 무관하게
-    // 시작 200ms 후에도 속도가 EMERGENCY_SPEED_LIMIT 미만으로
-    // EMERGENCY_DURATION_COUNT(10회=1초) 연속이면 이미 바닥으로 간주
+    // 비상 정지: DOWN_EMERGENCY_DURATION_COUNT 적용 (빠른 감지로 뚜둑 소리 방지)
     if (currentTime - moveStartTime > 200) {
       if (diffL < EMERGENCY_SPEED_LIMIT) {
-        if (++lowSpeedCounterL >= EMERGENCY_DURATION_COUNT && !isStalledL) {
+        if (++lowSpeedCounterL >= DOWN_EMERGENCY_DURATION_COUNT && !isStalledL) {
           isStalledL = true;
           heightL = 0;
           Serial.println(F(">> [LIFT] 왼쪽 비상 정지 (이미 바닥)"));
@@ -296,7 +291,7 @@ void liftDownTick() {
         lowSpeedCounterL = 0;
       }
       if (diffR < EMERGENCY_SPEED_LIMIT) {
-        if (++lowSpeedCounterR >= EMERGENCY_DURATION_COUNT && !isStalledR) {
+        if (++lowSpeedCounterR >= DOWN_EMERGENCY_DURATION_COUNT && !isStalledR) {
           isStalledR = true;
           heightR = 0;
           Serial.println(F(">> [LIFT] 오른쪽 비상 정지 (이미 바닥)"));

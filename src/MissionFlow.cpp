@@ -4,6 +4,7 @@
 #include "MissionFlow.h"
 
 #include "BoxMap.h"
+#include "Config.h"
 #include "LiftTest.h"
 #include "MapRouter.h"
 #include "Motion.h"
@@ -22,7 +23,7 @@ void executeStage1_Search() {
   liftDownWait();
 
   // goToMainLine() 완료 시 로봇은 8번 허브(메인라인) 위에 정렬됨
-  currentNode  = 8;
+  currentNode = 8;
   robotHeading = HDG_N;
 
   // 1~4구역 탐색 (qrSearchStage 내부에서 currentNode/robotHeading 갱신 불필요
@@ -43,7 +44,7 @@ void executeStage1_Search() {
   scanZone(5);
 
   // ── 6구역 스캔 (5구역 탈출 후 바로 11번으로 이동) ────────
-  exitZone(5);   // 10번 노드로 탈출
+  exitZone(5);  // 10번 노드로 탈출
   goToZoneDirect(6);
   scanZone(6);
 
@@ -71,7 +72,8 @@ void executeStage2_Delivery() {
     bool movedThisTurn = false;
 
     for (int zone = 1; zone <= 6; zone++) {
-      if (!boxes[zone].found || !boxes[zone].present || delivered[zone]) continue;
+      if (!boxes[zone].found || !boxes[zone].present || delivered[zone])
+        continue;
       int dest = boxes[zone].destination;
 
       // 제자리 유지
@@ -104,7 +106,7 @@ void executeStage2_Delivery() {
 
         isOccupied[zone] = false;
         isOccupied[dest] = true;
-        delivered[zone]  = true;
+        delivered[zone] = true;
         deliveredCount++;
         movedThisTurn = true;
         break;
@@ -133,11 +135,11 @@ void executeStage2_Delivery() {
       liftDown();
       exitZone(emptyZone);
 
-      boxes[emptyZone].present     = true;
-      boxes[emptyZone].found       = true;
+      boxes[emptyZone].present = true;
+      boxes[emptyZone].found = true;
       boxes[emptyZone].destination = boxes[stuckZone].destination;
-      boxes[stuckZone].present     = false;
-      boxes[stuckZone].found       = false;
+      boxes[stuckZone].present = false;
+      boxes[stuckZone].found = false;
       boxes[stuckZone].destination = 0;
       isOccupied[stuckZone] = false;
       isOccupied[emptyZone] = true;
