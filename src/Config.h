@@ -61,6 +61,7 @@ constexpr int ZONE_DEPTH_EXTRA = CM(25.0f);  // ★ 실측 필요
 constexpr int ZONE_FOLLOW_MAX = CM(40.0f);   // 안전 한계 (실측값보다 크게)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
+constexpr int DRIVE_BIAS = 2;         // 좌 모터 가속 편향 보정: +값 → 좌↓ 우↑ (직진 우편향 시 양수)
 constexpr bool WEST_IS_LEFT = true;   // 서쪽 방향이 왼쪽인지 여부
 constexpr int CROSS_CONFIRM = 2;      // 교차로 인식 노이즈 필터링 카운트
 constexpr int ANGULAR_GAIN = 3;       // 전/후방 이중 센서 각도 교정 배율
