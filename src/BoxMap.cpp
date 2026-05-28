@@ -96,14 +96,6 @@ bool scanZone(int zone) {
   }
 }
 
-int knownBoxCount() {
-  int n = 0;
-  for (int z = 1; z <= 6; z++) {
-    if (boxes[z].found) n++;
-  }
-  return n;
-}
-
 void printSearchResult() {
   Serial.println(F("\n========== [현재까지 확정된 QR 정보] =========="));
   for (int z = 1; z <= 6; z++) {

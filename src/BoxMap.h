@@ -17,7 +17,6 @@ extern BoxInfo boxes[7];
 
 void setupRandomLayout();
 bool scanZone(int zone);
-int knownBoxCount();
 void printSearchResult();
 
 #endif
