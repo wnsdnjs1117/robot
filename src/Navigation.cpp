@@ -244,128 +244,31 @@ void reverseAcrossToOppositeZone() {
 // ── [4] 특수 경로 ────────────────────────────────────────────
 
 void goToMainLine() {
-  Serial.println(F(">>> [START-RUN] 스타트 박스 탈출"));
-  prizm.resetEncoders();
+  Serial.println(F(">>> [START-RUN] 서향 출발 → 북향 전환"));
 
+  // 서향(초기 자세) → 북향 CW 90°
+  turnAngle(90, true);
+
+  Serial.println(F(">>> [START-RUN] 북향 직진 → 11번 노드 라인 탐색"));
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftDownTick();
     delay(5);
   }
 
+  // 전방 센서 감지 시점에서 CROSS_ALIGN_COUNTS 전진 → 축이 교차점 위로
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < START_ESCAPE_COUNTS) {
+  while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftDownTick();
     delay(5);
   }
   stopAll();
 
-  Serial.println(F(">>> [START-RUN] 서쪽(좌측) 방향 전환"));
-  if (WEST_IS_LEFT)
-    turnAngle(90, false);
-  else
-    turnAngle(90, true);
-
-  Serial.println(F(">>> [START-RUN] 11번, 10번 노드 라인 패스 (무정차 직진)"));
-  int passedLines = 0;
-  prizm.resetEncoders();
-
-  while (passedLines < 2) {
-    while (true) {
-      int L, C, R;
-      readSensors(L, C, R);
-      if (anyLine(L, C, R)) break;
-
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftDownTick();
-      delay(5);
-    }
-
-    passedLines++;
-    Serial.print(F(">> [START-RUN] 통과 노드 카운트: "));
-    Serial.println(passedLines);
-
-    while (true) {
-      int L, C, R;
-      readSensors(L, C, R);
-      if (!anyLine(L, C, R)) break;
-
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftDownTick();
-      delay(5);
-    }
-  }
-
-  Serial.println(F(">>> [START-RUN] 메인라인(9번/8번) 진입 탐색"));
-
-  while (true) {
-    int L, C, R;
-    readSensors(L, C, R);
-
-    if (anyLine(L, C, R)) {
-      bool isVertical = false;
-      bool hitCrossing = false;
-
-      prizm.resetEncoders();
-      while (abs(prizm.readEncoderCount(1)) < 400) {
-        int cL, cC, cR;
-        readSensors(cL, cC, cR);
-
-        if (!anyLine(cL, cC, cR)) {
-          isVertical = true;
-          break;
-        }
-
-        if (cL == 1 && cC == 1 && cR == 1) {
-          hitCrossing = true;
-          break;
-        }
-
-        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-        liftDownTick();
-        delay(5);
-      }
-
-      if (isVertical) {
-        Serial.println(F(">> [START] 8번 세로선 관통 확인 -> 교차로 정렬"));
-        long remainingCounts = CROSS_ALIGN_COUNTS - abs(prizm.readEncoderCount(1));
-        prizm.resetEncoders();
-        if (remainingCounts > 0) {
-          while (abs(prizm.readEncoderCount(1)) < remainingCounts) {
-            drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-            liftDownTick();
-            delay(5);
-          }
-        }
-        stopAll();
-      } else if (hitCrossing) {
-        Serial.println(F(">> [START] 8번 교차로 직접 도달 -> 즉시 정렬"));
-        prizm.resetEncoders();
-        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-          liftDownTick();
-          delay(5);
-        }
-        stopAll();
-      } else {
-        Serial.println(F(">> [START] 9번 가로선 연속 감지 -> 8번 교차로로 라인 트레이싱"));
-        followToCrossing(true);
-      }
-      break;
-    }
-
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftDownTick();
-    delay(5);
-  }
-
-  Serial.println(F(">> [START] 8번 노드 안착 -> 북향(2구역 방향) 회전"));
-  turnAngle(90, true);
+  Serial.println(F(">> [START] 11번 노드 안착"));
   robotHeading = HDG_N;
 }
 
@@ -373,8 +276,8 @@ void returnToFinish() {
   Serial.println(F("\n========================================"));
   Serial.println(F(">> [FINISH] FINISH 구역 복귀 기동"));
 
-  moveToNode(12);
-  turnAngle(90, true);  // CW 90°: 동향 → 남향
+  moveToNode(11);
+  turnToHeading(HDG_S);
   robotHeading = HDG_S;
 
   prizm.resetEncoders();

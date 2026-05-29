@@ -15,7 +15,7 @@ void reverseEnterZone();
 void alignHeadingOnLine();
 
 int robotHeading = HDG_N;
-int currentNode = 8;
+int currentNode = 11;
 bool lastEntryWasForward = true;
 
 // 9->10 이동 시 북쪽으로 2도 틀어진 상태를 추적하는 변수
@@ -37,7 +37,6 @@ static int nodeIndex(int n) {
   if (n == 9) return 2;
   if (n == 10) return 3;
   if (n == 11) return 4;
-  if (n == 12) return 5;
   return 1;
 }
 
@@ -175,19 +174,6 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     if (stopAtEnd) stopAll();
     robotHeading = HDG_W;
 
-  } else if (from == 11 && to == 12) {
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < NODE_11_12_COUNTS) {
-      drive(BLIND_SPEED, BLIND_SPEED);
-      delay(5);
-    }
-    if (stopAtEnd) stopAll();
-    robotHeading = HDG_E;
-
-  } else if (from == 12 && to == 11) {
-    blindDriveUntilLine();
-    robotHeading = HDG_W;
-
   } else {
     followToCrossing(stopAtEnd);
   }
@@ -202,7 +188,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
 // ── [공개] 라우팅 핵심 3대 함수 ───────────────────────────────
 
 void moveToNode(int toNode) {
-  static const int nodes[] = {7, 8, 9, 10, 11, 12};
+  static const int nodes[] = {7, 8, 9, 10, 11};
   int cur = nodeIndex(currentNode);
   int tgt = nodeIndex(toNode);
   if (cur == tgt) return;

@@ -26,15 +26,15 @@
 //
 //   [1구역]  [2구역]             [5입고]   [6출고]
 //      │        │                   │        │
-//     [7]──────[8]──────[9]  ···  [10]  ··· [11] ··[12]
-//      │        │                                    ·
-//   [3구역]  [4구역]                                  ·
-//                                              ┌─────┴──────┐
-//                                              │  출발/도착  │
-//                                              │   START    │
-//                                              └────────────┘
+//     [7]──────[8]──────[9]  ···  [10]  ··· [11]
+//      │        │                             │
+//   [3구역]  [4구역]                      ┌───┴──────┐
+//                                         │ 출발/도착 │
+//                                         │  START   │
+//                                         └──────────┘
 //
 //   ─── : 검은 라인   ··· : 블라인드 구간   구역-노드: 1,3→[7] / 2,4→[8] / 5→[10] / 6→[11]
+//   START: 서향 배치 → 북향 전환 후 직진 → 11번 노드 라인 도달
 
 // ── [0] 단위 변환 ────────────────────────────────────────────
 // 22cm = 1000 counts (물리 측정값)
@@ -134,7 +134,6 @@ constexpr int NODE7_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH - AXLE_TO_LIFT_CM);      //
 constexpr int NODE7_REV_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존1·3 전진진입→후진탈출
 constexpr int ZONE5_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);      // 존5  전진진입→후진탈출
 constexpr int ZONE6_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);      // 존6  전진진입→후진탈출
-constexpr int NODE_11_12_COUNTS = CM(70.0f);                                  // 노드11→12 블라인드 거리 (실측 후 조정)
 constexpr int BLIND_NODE_MAX = CM(71.0f);  // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
 // EXIT_SAFETY_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM - REAR_SENSOR_OFFSET + 여유)
 //                   = CM(50 + 11 - 25 + 34) = CM(70)  ≈ 2979 counts

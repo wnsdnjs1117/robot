@@ -22,8 +22,8 @@ void executeStage1_Search() {
   goToMainLine();
   liftDownWait();
 
-  // goToMainLine() 완료 시 로봇은 8번 허브(메인라인) 위에 정렬됨
-  currentNode = 8;
+  // goToMainLine() 완료 시 로봇은 11번 노드 위에 정렬됨
+  currentNode = 11;
   robotHeading = HDG_N;
 
   // 1~4구역 탐색 (qrSearchStage 내부에서 currentNode/robotHeading 갱신 불필요
