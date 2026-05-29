@@ -116,6 +116,16 @@ static void blindDriveUntilLine(long maxCounts = 0) {
 // ── [내부] 노드 간 단일 구간 이동 ────────────────────────────
 static void stepNode(int from, int to, bool stopAtEnd) {
   int dir = (to > from) ? HDG_E : HDG_W;
+
+  // 노드 10·11에서 블라인드 구간으로 출발 시:
+  // 세로 가이드 라인(존 5·6 방향) 위에 서 있는 상태라면 회전 전에 먼저 라인에 정렬.
+  // robotHeading N/S = 존 진출 직후 가이드 라인 위 → alignHeadingOnLine() 유효.
+  // robotHeading E/W = 블라인드 구간에서 도착 → 가이드 라인 없음, 호출 생략.
+  if ((from == 10 || from == 11) &&
+      (robotHeading == HDG_N || robotHeading == HDG_S)) {
+    alignHeadingOnLine();
+  }
+
   turnToHeading(dir);
 
   if (from == 8 && to == 9) {
@@ -179,17 +189,14 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     }
 
   } else if (from == 10 && to == 9) {
-    snapToLine();
     blindDriveUntilLine(BLIND_NODE_MAX);
     advanceToCrossing(stopAtEnd, HDG_W);
 
   } else if (from == 10 && to == 11) {
-    snapToLine();
     blindDriveUntilLine(BLIND_NODE_MAX);
     advanceToCrossing(stopAtEnd, HDG_E);
 
   } else if (from == 11 && to == 10) {
-    snapToLine();
     blindDriveUntilLine(BLIND_NODE_MAX);
     advanceToCrossing(stopAtEnd, HDG_W);
 
