@@ -4,6 +4,7 @@
 #include "BoxMap.h"
 
 #include <Arduino.h>
+
 #include "Config.h"
 
 BoxInfo boxes[7];
@@ -27,11 +28,9 @@ void setupRandomLayout() {
   }
   randomSeed(analogRead(A0));
 
-  // 1. 고정 박스 배치 (5번 입고, 6번 출고)
   boxes[ZONE_IN].present = true;
   boxes[ZONE_OUT].present = true;
 
-  // 2. 1~4구역 중 랜덤하게 2곳 배치 (a, b)
   int a = random(1, 5);
   int b;
   do {
@@ -41,10 +40,8 @@ void setupRandomLayout() {
   boxes[a].present = true;
   boxes[b].present = true;
 
-  // 3. 목적지 배열 셔플 (제자리 유지 가능)
-  int dests[4];
+  // 목적지 배열 셔플 (제자리 유지 가능)
   int all[6] = {1, 2, 3, 4, 5, 6};
-
   for (int i = 5; i > 0; i--) {
     int r = random(0, i + 1);
     int temp = all[i];
@@ -52,33 +49,25 @@ void setupRandomLayout() {
     all[r] = temp;
   }
 
-  dests[0] = all[0];
-  dests[1] = all[1];
-  dests[2] = all[2];
-  dests[3] = all[3];
+  // 목적지 확정 데이터 바인딩 (불필요한 중간 배열 제거)
+  boxes[a].destination = all[0];
+  boxes[b].destination = all[1];
+  boxes[ZONE_IN].destination = all[2];
+  boxes[ZONE_OUT].destination = all[3];
 
-  // 4. 목적지 확정 데이터 바인딩
-  boxes[a].destination = dests[0];
-  boxes[b].destination = dests[1];
-  boxes[ZONE_IN].destination = dests[2];
-  boxes[ZONE_OUT].destination = dests[3];
-
-  // 5. 시리얼 모니터 정답지 출력 (★ 문법 에러 전면 수정 완료)
   DPRINTLNF("\n===== [시뮬레이션: 이번 판 정답지] =====");
-
   DPRINTF("  랜덤 박스 [");
   printZoneName(a);
   DPRINTF("] -> 목적지: ");
-  DPRINTLN(dests[0]);
+  DPRINTLN(all[0]);
   DPRINTF("  랜덤 박스 [");
   printZoneName(b);
   DPRINTF("] -> 목적지: ");
-  DPRINTLN(dests[1]);
+  DPRINTLN(all[1]);
   DPRINTF("  고정 박스 [입고(5)] -> 목적지: ");
-  DPRINTLN(dests[2]);
+  DPRINTLN(all[2]);
   DPRINTF("  고정 박스 [출고(6)] -> 목적지: ");
-  DPRINTLN(dests[3]);
-
+  DPRINTLN(all[3]);
   DPRINTLNF("========================================");
 }
 

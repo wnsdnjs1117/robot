@@ -7,8 +7,7 @@
 void drive(int l, int r);
 void stopAll();
 
-void turnAngle(int degrees, bool isRight);  // 사다리꼴 프로파일 + 관성 보정
-bool turnToLine(bool isRight, int maxDegrees);  // 회전 방향의 새 라인에 정렬 정지
+void turnAngle(int degrees, bool isRight);  // 사다리꼴 프로파일 + 오버슈팅 방지
 
 void readSensors(int& L, int& C, int& R);
 void readRearSensors(int& RL, int& RC, int& RR);
