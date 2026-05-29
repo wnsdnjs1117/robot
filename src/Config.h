@@ -141,6 +141,7 @@ constexpr int ZONE5_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);      //
 constexpr int ZONE6_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);      // 존6  전진진입→후진탈출
 constexpr int NODE_11_12_COUNTS = CM(70.0f);                                  // 노드11→12 블라인드 거리 (실측 후 조정)
 constexpr int BLIND_NODE_MAX = CM(71.0f);  // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
+constexpr int EXIT_SAFETY_COUNTS = 6000;   // 후진 탈출 안전 컷오프 (~141 cm)
 
 // 전역 객체 선언
 extern PRIZM prizm;

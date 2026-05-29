@@ -20,4 +20,8 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR);
 
 bool detectCrossing(int L, int C, int R);
 
+// 후방 센서 라인 추종 조향 보정 (rearHasLine && !rearIsCrossing 조건 하에 호출)
+// lsp/rsp 는 -BACK_SPEED 로 초기화된 상태로 전달; 오프셋만 가산함
+void applyRearLineSteering(int RL, int RC, int RR, int& lsp, int& rsp);
+
 #endif

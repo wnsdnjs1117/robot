@@ -135,19 +135,7 @@ void reverseEnterZone(int zone) {
     int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
     bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
     if (rearHasLine && !rearIsCrossing) {
-      if (RL && !RC && !RR) {
-        lsp = -(BACK_SPEED - 10);
-        rsp = -(BACK_SPEED + 10);
-      } else if (!RL && !RC && RR) {
-        lsp = -(BACK_SPEED + 10);
-        rsp = -(BACK_SPEED - 10);
-      } else if (RL && RC && !RR) {
-        lsp = -(BACK_SPEED - 5);
-        rsp = -(BACK_SPEED + 5);
-      } else if (!RL && RC && RR) {
-        lsp = -(BACK_SPEED + 5);
-        rsp = -(BACK_SPEED - 5);
-      }
+      applyRearLineSteering(RL, RC, RR, lsp, rsp);
     }
     {
       int fL, fC, fR;
@@ -176,7 +164,6 @@ void reverseAcrossToOppositeZone(int targetZone) {
   lastSensorState = 0;
   prizm.resetEncoders();
   bool rearCrossFound = false;
-  int crossCount = 0;
 
   while (true) {
     int RL, RC, RR;
@@ -184,54 +171,30 @@ void reverseAcrossToOppositeZone(int targetZone) {
     int L, C, R;
     readSensors(L, C, R);
 
-    bool rearHasLine = anyRearLine(RL, RC, RR);
-    bool frontHasLine = anyLine(L, C, R);
-
+    bool rearHasLine    = anyRearLine(RL, RC, RR);
+    bool frontHasLine   = anyLine(L, C, R);
     bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
     bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
 
     if (rearIsCrossing && !rearCrossFound) {
-      crossCount++;
-      if (crossCount >= 1) {
-        rearCrossFound = true;
-        prizm.resetEncoders();
-      }
-    } else if (!rearIsCrossing && !rearCrossFound) {
-      crossCount = 0;
+      rearCrossFound = true;
+      prizm.resetEncoders();
     }
 
-    if (rearCrossFound &&
-        abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) {
-      break;
-    }
-
-    if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > 6000) {
-      break;
-    }
+    if (rearCrossFound && abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) break;
+    if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > EXIT_SAFETY_COUNTS) break;
 
     int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
     if (!rearCrossFound) {
       if (rearHasLine && !rearIsCrossing) {
-        if (RL && !RC && !RR) {
-          lsp = -(BACK_SPEED - 10);
-          rsp = -(BACK_SPEED + 10);
-        } else if (!RL && !RC && RR) {
-          lsp = -(BACK_SPEED + 10);
-          rsp = -(BACK_SPEED - 10);
-        } else if (RL && RC && !RR) {
-          lsp = -(BACK_SPEED - 5);
-          rsp = -(BACK_SPEED + 5);
-        } else if (!RL && RC && RR) {
-          lsp = -(BACK_SPEED + 5);
-          rsp = -(BACK_SPEED - 5);
-        }
+        applyRearLineSteering(RL, RC, RR, lsp, rsp);
       } else if (!rearHasLine) {
         long d1 = abs(prizm.readEncoderCount(1));
         long d2 = abs(prizm.readEncoderCount(2));
-        long rawDiff = d1 - d2;
-        int corr =
-            (abs(rawDiff) <= 5) ? 0 : constrain((int)(rawDiff / 12), -4, 4);
+        long diff = d1 - d2;
+        int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+                 : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
         lsp = -BACK_SPEED + corr;
         rsp = -BACK_SPEED - corr;
       }
