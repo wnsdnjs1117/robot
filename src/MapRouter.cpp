@@ -339,8 +339,11 @@ void exitZone(int zone) {
   } else {
     if (zoneToNode(zone) == 7) {
       prizm.resetEncoders();
-      while (abs(prizm.readEncoderCount(1)) < NODE7_EXIT_COUNTS) {
-        drive(SPEED, SPEED);
+      while (true) {
+        long d1 = abs(prizm.readEncoderCount(1));
+        long d2 = abs(prizm.readEncoderCount(2));
+        if (d1 >= NODE7_EXIT_COUNTS) break;
+        corrDrive(SPEED, d1, d2);
         delay(5);
       }
       softStop();

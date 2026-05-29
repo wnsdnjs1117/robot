@@ -58,11 +58,13 @@ void followToCrossing() { followToCrossing(true); }
 void alignHeadingOnLine() {
   prizm.resetEncoders();
   while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
     if (anyRearLine(RL, RC, RR)) break;
-    if (abs(prizm.readEncoderCount(1)) > REAR_TO_AXLE_COUNTS + 100) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    if (d1 > REAR_TO_AXLE_COUNTS + 100) break;
+    corrDrive(STRAIGHT_SPEED, d1, d2);
     delay(5);
   }
   stopAll();
@@ -110,8 +112,11 @@ void enterZone(int zone) {
   }
 
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < enterExtra) {
-    drive(SPEED, SPEED);
+  while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
+    if (d1 >= enterExtra) break;
+    corrDrive(SPEED, d1, d2);
     delay(5);
   }
   softStop();
@@ -153,8 +158,11 @@ void reverseEnterZone(int zone) {
   }
 
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < depthExtra) {
-    drive(-BACK_SPEED, -BACK_SPEED);
+  while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
+    if (d1 >= depthExtra) break;
+    corrDrive(-BACK_SPEED, d1, d2);
     delay(5);
   }
   softStop();
@@ -217,18 +225,24 @@ void reverseAcrossToOppositeZone(int targetZone) {
 
 void goToMainLine() {
   DPRINTLNF(">>> [START-RUN] 스타트 박스 탈출");
+  prizm.resetEncoders();
   while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
     int L, C, R;
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    corrDrive(STRAIGHT_SPEED, d1, d2);
     liftDownTick();
     delay(5);
   }
 
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < START_ESCAPE_COUNTS) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+  while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
+    if (d1 >= START_ESCAPE_COUNTS) break;
+    corrDrive(STRAIGHT_SPEED, d1, d2);
     liftDownTick();
     delay(5);
   }
@@ -245,7 +259,10 @@ void goToMainLine() {
   bool lineArmed = true;
   int lineStable = 0;
 
+  prizm.resetEncoders();
   while (passedLines < 2) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
     int L, C, R;
     readSensors(L, C, R);
     bool onLine = anyLine(L, C, R);
@@ -260,30 +277,36 @@ void goToMainLine() {
     }
     if (!onLine) lineArmed = true;
 
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    corrDrive(STRAIGHT_SPEED, d1, d2);
     liftDownTick();
     delay(5);
   }
 
+  prizm.resetEncoders();
   while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
     int L, C, R;
     readSensors(L, C, R);
     if (!anyLine(L, C, R)) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    corrDrive(STRAIGHT_SPEED, d1, d2);
     liftDownTick();
     delay(5);
   }
 
   DPRINTLNF(">>> [START-RUN] 메인라인/세로선 진입 탐색");
 
+  prizm.resetEncoders();
   while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
     int L, C, R;
     readSensors(L, C, R);
 
     if (anyLine(L, C, R)) {
       bool isVertical = false;
       bool hitCrossing = false;
-      long startEnc = abs(prizm.readEncoderCount(1));
+      long startEnc = d1;
 
       while (abs(prizm.readEncoderCount(1)) - startEnc < 400) {
         int cL, cC, cR;
@@ -311,8 +334,11 @@ void goToMainLine() {
 
         prizm.resetEncoders();
         if (remainingCounts > 0) {
-          while (abs(prizm.readEncoderCount(1)) < remainingCounts) {
-            drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+          while (true) {
+            long rd1 = abs(prizm.readEncoderCount(1));
+            long rd2 = abs(prizm.readEncoderCount(2));
+            if (rd1 >= remainingCounts) break;
+            corrDrive(STRAIGHT_SPEED, rd1, rd2);
             liftDownTick();
             delay(5);
           }
@@ -321,8 +347,11 @@ void goToMainLine() {
       } else if (hitCrossing) {
         DPRINTLNF(">> [START] 직진 테스트 중 8번 교차로 직접 도달 -> 즉시 정렬");
         prizm.resetEncoders();
-        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+        while (true) {
+          long rd1 = abs(prizm.readEncoderCount(1));
+          long rd2 = abs(prizm.readEncoderCount(2));
+          if (rd1 >= CROSS_ALIGN_COUNTS) break;
+          corrDrive(STRAIGHT_SPEED, rd1, rd2);
           liftDownTick();
           delay(5);
         }
@@ -334,7 +363,7 @@ void goToMainLine() {
       break;
     }
 
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    corrDrive(STRAIGHT_SPEED, d1, d2);
     liftDownTick();
     delay(5);
   }
@@ -354,8 +383,11 @@ void returnToFinish() {
   robotHeading = HDG_S;
 
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < FINISH_ENTRY_COUNTS) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+  while (true) {
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
+    if (d1 >= FINISH_ENTRY_COUNTS) break;
+    corrDrive(STRAIGHT_SPEED, d1, d2);
     delay(5);
   }
   softStop();

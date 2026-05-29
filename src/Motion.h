@@ -5,6 +5,7 @@
 #define MOTION_H
 
 void drive(int l, int r);
+void corrDrive(int speed, long d1, long d2);  // 차동 보정 직진 (양수=전진, 음수=후진)
 void stopAll();
 void softStop();
 

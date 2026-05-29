@@ -18,6 +18,16 @@ void drive(int l, int r) {
   prizm.setMotorSpeeds(-(l * 7), r * 7);
 }
 
+void corrDrive(int speed, long d1, long d2) {
+  long diff = d1 - d2;
+  int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+           : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
+  if (speed >= 0)
+    drive(speed - corr, speed + corr);
+  else
+    drive(speed + corr, speed - corr);
+}
+
 void stopAll() {
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
