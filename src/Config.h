@@ -123,6 +123,8 @@ constexpr int TURN_LINE_MAX_DEG = 92;  // 라인 못 찾을 때 무한 회전 �
 constexpr int BLIND_CORR_DEADZONE = 3;  // 무시할 최소 엔코더 차이
 constexpr int BLIND_CORR_GAIN = 8;      // 보정 나눗수
 constexpr int BLIND_CORR_CAP = 6;       // 최대 보정량
+constexpr int BLIND_START_COUNTS = 200; // 시작 편향 적용 구간 (~4.7cm, ★ 튜닝값)
+constexpr int BLIND_START_BIAS = 4;     // 시작 시 왼쪽 감속량 (★ 튜닝값, 오른쪽 편향이면 양수)
 
 // ── [7] 방향 상수 (robotHeading) ───────────────────────────────
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향

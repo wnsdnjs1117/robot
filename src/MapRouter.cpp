@@ -96,17 +96,26 @@ static void advanceToCrossing(bool stopAtEnd, int newHeading) {
   robotHeading = newHeading;
 }
 
+// 블라인드 1스텝: 차동 보정 + 출발 편향 보정 통합
+// d1 = abs(enc1) 현재 위치, d2 = abs(enc2) 현재 위치
+static void blindDriveStep(long d1, long d2) {
+  long diff = d1 - d2;
+  int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+           : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
+  int startBias = (d1 < BLIND_START_COUNTS) ? BLIND_START_BIAS : 0;
+  drive(BLIND_SPEED - corr - startBias, BLIND_SPEED + corr);
+}
+
 static void blindDriveUntilLine(long maxCounts = 0) {
   prizm.resetEncoders();
   while (true) {
-    if (maxCounts > 0 && abs(prizm.readEncoderCount(1)) >= maxCounts) break;
+    long d1 = abs(prizm.readEncoderCount(1));
+    long d2 = abs(prizm.readEncoderCount(2));
+    if (maxCounts > 0 && d1 >= maxCounts) break;
     int L, C, R;
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-    long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-    int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
-             : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
-    drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
+    blindDriveStep(d1, d2);
     delay(5);
   }
   softStop();
@@ -161,7 +170,9 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     alignHeadingOnLine();
     prizm.resetEncoders();
     while (true) {
-      if (abs(prizm.readEncoderCount(1)) >= BLIND_NODE_MAX) {
+      long d1 = abs(prizm.readEncoderCount(1));
+      long d2 = abs(prizm.readEncoderCount(2));
+      if (d1 >= BLIND_NODE_MAX) {
         if (stopAtEnd) stopAll();
         robotHeading = HDG_E;
         break;
@@ -180,11 +191,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
         robotHeading = HDG_E;
         break;
       }
-      long diff =
-          abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
-               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
-      drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
+      blindDriveStep(d1, d2);
       delay(5);
     }
 
@@ -203,11 +210,11 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   } else if (from == 11 && to == 12) {
     // 선 없는 블라인드 구간 — 엔코더 기반 고정 거리 동향 이동
     prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < NODE_11_12_COUNTS) {
-      long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
-               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
-      drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
+    while (true) {
+      long d1 = abs(prizm.readEncoderCount(1));
+      long d2 = abs(prizm.readEncoderCount(2));
+      if (d1 >= NODE_11_12_COUNTS) break;
+      blindDriveStep(d1, d2);
       delay(5);
     }
     if (stopAtEnd) stopAll();
