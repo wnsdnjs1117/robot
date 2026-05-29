@@ -84,7 +84,7 @@ constexpr int   HEADING_12_TO_9 = 315;                       // 12번 위치 도
 
 constexpr float DIST_9_TO_9_3_CM = 15.0f;                    // 9-2 교차점에서 9-3 지점까지 전진하는 거리
 constexpr int   DIST_9_TO_9_3_COUNTS = CM(DIST_9_TO_9_3_CM);
-constexpr int   HEADING_9_3_TO_12 = 225;                     // 9-3 지점에서 12번 노드를 향해 꺾는 절대 각도 (남서쪽)
+constexpr int   HEADING_9_3_TO_12 = 135;                     // 9-3 지점에서 12번 노드를 향해 꺾는 절대 각도 (남동쪽)
 constexpr float DIST_9_3_TO_12_CM = 45.0f;                   // 9-3 지점에서 12번 노드까지 맹주행 돌파하는 거리
 constexpr int   DIST_9_3_TO_12_COUNTS = CM(DIST_9_3_TO_12_CM);
 constexpr int   HEADING_12_TO_START = 90;                    // 12번 노드에서 START 박스를 향해 꺾는 절대 각도 (동쪽)
