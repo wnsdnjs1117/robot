@@ -38,7 +38,7 @@
 
 // ── [0] 단위 변환 ────────────────────────────────────────────
 // 22cm = 1000 counts (물리 측정값)
-constexpr float COUNTS_PER_CM = 1000.0f / 23.5f;
+constexpr float COUNTS_PER_CM = 1000.0f / 23.0f;
 constexpr int CM(float cm) { return (int)(cm * COUNTS_PER_CM + 0.5f); }
 
 // ── [1] 센서 핀 ──────────────────────────────────────────────
@@ -54,7 +54,7 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;  // analogRead >= 200 → 라인 감지
 
 // ── [1.5] 센서-바퀴축 간격 / 차체 기하 ──────────────────────────
-constexpr float FRONT_SENSOR_OFFSET = 6.0f;  // 전방 센서 → 바퀴축 (cm)
+constexpr float FRONT_SENSOR_OFFSET = 5.0f;  // 전방 센서 → 바퀴축 (cm)
 constexpr float REAR_SENSOR_OFFSET = 25.0f;  // 후방 센서 → 바퀴축 (cm)
 constexpr float AXLE_TO_LIFT_CM = 11.0f;     // 바퀴축 → 리프트 (cm, 후방 방향)
 constexpr float LINE_THICKNESS = 2.0f;       // 경기장 검은선 두께 (cm)
@@ -74,8 +74,8 @@ constexpr int SPIN_90_COUNTS = 1200;  // 90도 회전 엔코더 카운트 (회�
 constexpr int CROSS_ALIGN_COUNTS = CM(FRONT_SENSOR_OFFSET + LINE_THICKNESS / 2.0f);  // CM(8.5)
 constexpr int REAR_TO_AXLE_COUNTS = CM(REAR_SENSOR_OFFSET + LINE_THICKNESS / 2.0f);  // CM(26.0)
 
-// constexpr float START_ESCAPE_AXLE_CM = 22.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
-constexpr float START_ESCAPE_AXLE_CM = 200.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
+constexpr float START_ESCAPE_AXLE_CM = 22.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
+// constexpr float START_ESCAPE_AXLE_CM = 200.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
 constexpr int START_ESCAPE_COUNTS = CM(FRONT_SENSOR_OFFSET + START_ESCAPE_AXLE_CM);
 
 constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
@@ -123,9 +123,9 @@ constexpr int TURN_LINE_MAX_DEG = 92;  // 라인 못 찾을 때 무한 회전 �
 // ── [6] 블라인드 구간 엔코더 차동 보정 파라미터 ────────────────
 constexpr int BLIND_CORR_DEADZONE = 5;   // 무시할 최소 엔코더 차이
 constexpr int BLIND_CORR_GAIN = 4;       // 보정 나눗수
-constexpr int BLIND_CORR_CAP = 2;        // 최대 보정량
-constexpr int BLIND_START_COUNTS = 200;  // 시작 편향 적용 구간 (~4.7cm, ★ 튜닝값)
-constexpr int BLIND_START_BIAS = 4;      // 시작 시 왼쪽 감속량 (★ 튜닝값, 오른쪽 편향이면 양수)
+constexpr int BLIND_CORR_CAP = 1;        // 최대 보정량
+constexpr int BLIND_START_COUNTS = 500;  // 시작 편향 적용 구간 (~4.7cm, ★ 튜닝값)
+constexpr int BLIND_START_BIAS = 50;     // 시작 시 왼쪽 감속량 (★ 튜닝값, 오른쪽 편향이면 양수)
 
 // ── [7] 방향 상수 (robotHeading) ───────────────────────────────
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향
