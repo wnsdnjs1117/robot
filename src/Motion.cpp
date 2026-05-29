@@ -28,13 +28,6 @@ void stopAll() {
 }
 
 // ── [2] 회전 제어 ────────────────────────────────────────────
-//
-// 사다리꼴 속도 프로파일:
-//   0 ~ 25%   : minSpd(10) → SPIN_SPEED 선형 가속
-//   25 ~ 70%  : SPIN_SPEED 순항
-//   70 ~ 90%  : SPIN_SPEED → minSpd 선형 감속
-//   90% ~ 제동: minSpd 저속 유지
-//   제동점 도달: stopAll() 즉시 브레이크 (관성 보정 SPIN_BRAKE_LEAD)
 
 void turnAngle(int degrees, bool isRight) {
   prizm.resetEncoders();
@@ -46,6 +39,24 @@ void turnAngle(int degrees, bool isRight) {
     long pos = (abs(prizm.readEncoderCount(1)) + abs(prizm.readEncoderCount(2))) / 2;
     if (pos >= brakePoint) break;
 
+    // ★ 90도 회전 오버슈팅 방지 로직 (회전의 60% 이상 진행된 상태에서만 작동)
+    if (degrees == 90 && pos > (targetCounts * 0.6f)) {
+      int L, C, R;
+      readSensors(L, C, R);
+
+      if (isRight && L == 1) {
+        // 우회전 시: 좌측 센서가 선을 밟으면 오버슈팅으로 간주하고 즉시 정지
+        Serial.println(F(">> [TURN] 우회전 오버슈트 방지! (좌센서 감지)"));
+        break;
+      }
+      if (!isRight && R == 1) {
+        // 좌회전 시: 우측 센서가 선을 밟으면 오버슈팅으로 간주하고 즉시 정지
+        Serial.println(F(">> [TURN] 좌회전 오버슈트 방지! (우센서 감지)"));
+        break;
+      }
+    }
+
+    // 사다리꼴 속도 프로파일
     float ratio = (float)pos / (float)targetCounts;
     int spd;
     if (ratio < 0.25f) {
@@ -65,33 +76,25 @@ void turnAngle(int degrees, bool isRight) {
 
     delay(5);
   }
+
   stopAll();
 }
 
-// 회전 방향의 새 라인에 정렬해 멈추는 제자리 회전
-//   isRight    : true=우회전(CW), false=좌회전(CCW)
-//   maxDegrees : 라인을 못 찾았을 때 무한 회전을 막는 한계각
-//
-// 동작:
-//   1) 시작 시 밟고 있는 라인은 무시한다.
-//      (TURN_LINE_ARM_DEG 이상 회전 + 전방 센서가 라인을 완전히 벗어나면 감지 arming)
-//   2) arming 후 중앙 센서(C)가 새 라인에 닿으면 정렬된 것으로 보고 정지 → true 반환
-//   3) maxDegrees를 넘도록 회전해도 못 찾으면 정지 → false 반환
+// 회전 방향의 새 라인에 정렬해 멈추는 제자리 회전 (현재 맵 구조상 예비용으로 보존)
 bool turnToLine(bool isRight, int maxDegrees) {
   prizm.resetEncoders();
   long armCounts = (long)((SPIN_90_COUNTS / 90.0) * TURN_LINE_ARM_DEG);
   long maxCounts = (long)((SPIN_90_COUNTS / 90.0) * maxDegrees);
-  bool armed = false;  // 시작 라인을 벗어나 새 라인 감지 준비됨
+  bool armed = false;
 
   while (abs(prizm.readEncoderCount(1)) < maxCounts) {
     int L, C, R;
     readSensors(L, C, R);
 
     if (!armed) {
-      // 최소 각도 이상 회전 + 시작 라인 완전 이탈 → 감지 시작
       if (abs(prizm.readEncoderCount(1)) >= armCounts && !anyLine(L, C, R)) armed = true;
     } else if (C == 1) {
-      stopAll();  // 새 라인 중앙 정렬 → 정지
+      stopAll();
       return true;
     }
 
@@ -102,7 +105,7 @@ bool turnToLine(bool isRight, int maxDegrees) {
     delay(5);
   }
 
-  stopAll();  // 한계각 초과 — 라인 미발견
+  stopAll();
   return false;
 }
 
@@ -129,9 +132,6 @@ bool anyLine(int L, int C, int R) { return (L == 1 || C == 1 || R == 1); }
 bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 
 // ── [4] 라인 트레이싱 ────────────────────────────────────────
-//
-// 전방 주도 라인트레이싱 + 후방 각도 교정
-// 전방 0,0,0 → 후방 무시 / 후방 1,1,1 → 교차로이므로 후방 무시
 
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   bool frontHasLine = anyLine(FL, FC, FR);
@@ -170,13 +170,13 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
     }
   } else {
     if (lastSensorState == 1) {
-      lsp = SPEED - 20;  // 엣지 감지 수준의 좌회전으로 선 재탐색
+      lsp = SPEED - 20;
       rsp = SPEED + 6;
     } else if (lastSensorState == 2) {
       lsp = SPEED + 6;
       rsp = SPEED - 20;
     } else {
-      lsp = SPEED / 2;  // 방향 기억 없음 → 감속 직진 (탈출 최소화)
+      lsp = SPEED / 2;
       rsp = SPEED / 2;
     }
   }

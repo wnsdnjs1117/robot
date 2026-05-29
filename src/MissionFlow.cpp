@@ -22,12 +22,11 @@ void executeStage1_Search() {
   goToMainLine();
   liftDownWait();
 
-  // goToMainLine() 완료 시 로봇은 11번 노드 위에 정렬됨
-  currentNode = 11;
-  robotHeading = HDG_N;
+  // ★ 수정: goToMainLine() 완료 시 로봇은 8번 노드 위에 서쪽(270도)을 바라보고 안착함
+  currentNode = 8;
+  robotHeading = 270;
 
-  // 1~4구역 탐색 (qrSearchStage 내부에서 currentNode/robotHeading 갱신 불필요
-  // — 탐색 완료 시 어느 구역 내부에 있으므로 아래서 exitZone으로 탈출)
+  // 1~4구역 탐색 (qrSearchStage 내부에서 탐색 기동 수행)
   int foundZone = qrSearchStage();
   // foundZone: 탐색이 멈춘 구역 (1~4)
 
@@ -72,8 +71,7 @@ void executeStage2_Delivery() {
     bool movedThisTurn = false;
 
     for (int zone = 1; zone <= 6; zone++) {
-      if (!boxes[zone].found || !boxes[zone].present || delivered[zone])
-        continue;
+      if (!boxes[zone].found || !boxes[zone].present || delivered[zone]) continue;
       int dest = boxes[zone].destination;
 
       // 제자리 유지
@@ -101,10 +99,10 @@ void executeStage2_Delivery() {
         liftUpWait();          // 24cm 도달 확인 후 이동
 
         // ── 하차 ─────────────────────────────────────────
-        goToZoneDirect(dest);      // 현재 노드 → 목적 구역 직접 이동 + 진입
-        liftDownUntilClear();      // 10cm 이하 도달 시 즉시 반환
-        exitZone(dest);            // 구역 탈출 (리프트 계속 하강 중)
-        liftDownWait();            // 착지 완료 대기
+        goToZoneDirect(dest);  // 현재 노드 → 목적 구역 직접 이동 + 진입
+        liftDownUntilClear();  // 10cm 이하 도달 시 즉시 반환
+        exitZone(dest);        // 구역 탈출 (리프트 계속 하강 중)
+        liftDownWait();        // 착지 완료 대기
 
         isOccupied[zone] = false;
         isOccupied[dest] = true;
