@@ -137,11 +137,13 @@ constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 // → 정지점에서 노드까지 = 해당 축 위치만큼 이동하면 됨
 constexpr int NODE7_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH - AXLE_TO_LIFT_CM);      // 존1·3 후진진입→전진탈출
 constexpr int NODE7_REV_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존1·3 전진진입→후진탈출
-constexpr int ZONE5_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);      // 존5  전진진입→후진탈출
-constexpr int ZONE6_EXIT_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);      // 존6  전진진입→후진탈출
-constexpr int NODE_11_12_COUNTS = CM(70.0f);                                  // 노드11→12 블라인드 거리 (실측 후 조정)
-constexpr int BLIND_NODE_MAX = CM(71.0f);  // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
-constexpr int EXIT_SAFETY_COUNTS = 6000;   // 후진 탈출 안전 컷오프 (~141 cm)
+constexpr int ZONE5_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존5  전진진입→후진탈출
+constexpr int ZONE6_EXIT_COUNTS     = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM);  // 존6  전진진입→후진탈출
+constexpr int NODE_11_12_COUNTS   = CM(70.0f);  // 노드11→12 블라인드 거리 (실측 후 조정)
+constexpr int BLIND_NODE_MAX      = CM(71.0f);  // 블라인드 구간 폴백 (10↔11 = 70cm + 여유)
+// EXIT_SAFETY_COUNTS = CM(ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM - REAR_SENSOR_OFFSET + 여유)
+//                   = CM(50 + 11 - 25 + 34) = CM(70)  ≈ 2979 counts
+constexpr int EXIT_SAFETY_COUNTS  = CM(70.0f);  // 후진 탈출 안전 컷오프 (교차로 36cm + 여유 34cm)
 
 // 전역 객체 선언
 extern PRIZM prizm;
