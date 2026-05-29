@@ -179,14 +179,17 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     }
 
   } else if (from == 10 && to == 9) {
+    snapToLine();
     blindDriveUntilLine(BLIND_NODE_MAX);
     advanceToCrossing(stopAtEnd, HDG_W);
 
   } else if (from == 10 && to == 11) {
+    snapToLine();
     blindDriveUntilLine(BLIND_NODE_MAX);
     advanceToCrossing(stopAtEnd, HDG_E);
 
   } else if (from == 11 && to == 10) {
+    snapToLine();
     blindDriveUntilLine(BLIND_NODE_MAX);
     advanceToCrossing(stopAtEnd, HDG_W);
 

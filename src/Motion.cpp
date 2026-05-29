@@ -45,7 +45,7 @@ void turnAngle(int degrees, bool isRight) {
   const int minSpd = 10;
 
   while (true) {
-    long pos = abs(prizm.readEncoderCount(1));
+    long pos = (abs(prizm.readEncoderCount(1)) + abs(prizm.readEncoderCount(2))) / 2;
     if (pos >= brakePoint) break;
 
     float ratio = (float)pos / (float)targetCounts;
@@ -203,6 +203,32 @@ void applyRearLineSteering(int RL, int RC, int RR, int& lsp, int& rsp) {
 }
 
 // ── [6] 교차로 감지 ──────────────────────────────────────────
+
+// ── [7] 블라인드 진입 직전 라인 정밀 정렬 ──────────────────────
+//
+// turnAngle() 완료 후 ±maxDeg 범위를 저속 스윕해 C 센서로 라인 위에 정지.
+// 전방 센서가 7.5cm 앞에 있으므로 ±15° = ±1.96cm 반경 → E-W 라인(2cm폭) 확실히 탐지.
+// 두 방향 모두 탐색 실패 시 false 반환(그대로 진행 — 안전 폴백).
+bool snapToLine(bool preferRight, int maxDeg) {
+  int L, C, R;
+  readSensors(L, C, R);
+  if (C) return true;
+
+  long maxCounts = (long)((SPIN_90_COUNTS / 90.0) * maxDeg);
+  bool isRight = preferRight;
+  for (int pass = 0; pass < 2; pass++) {
+    prizm.resetEncoders();
+    while (abs(prizm.readEncoderCount(1)) < maxCounts) {
+      readSensors(L, C, R);
+      if (C) { stopAll(); return true; }
+      drive(isRight ? 8 : -8, isRight ? -8 : 8);
+      delay(5);
+    }
+    stopAll();
+    isRight = !isRight;
+  }
+  return false;
+}
 
 bool detectCrossing(int L, int C, int R) {
   bool isCross = (L == 1 && C == 1 && R == 1);
