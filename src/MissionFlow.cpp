@@ -14,8 +14,8 @@
 // [1단계] 스타트 박스 탈출 및 1~6구역 전체 QR 탐색
 // ============================================================
 void executeStage1_Search() {
-  Serial.println(F("\n========================================"));
-  Serial.println(F(">> [STAGE 1] 1~6구역 전체 QR 탐색 기동"));
+  DPRINTLNF("\n========================================");
+  DPRINTLNF(">> [STAGE 1] 1~6구역 전체 QR 탐색 기동");
 
   // 리프트 초기화: 하강 시작 → goToMainLine()과 동시 진행
   liftDownStart();
@@ -31,9 +31,9 @@ void executeStage1_Search() {
   int foundZone = qrSearchStage();
   // foundZone: 탐색이 멈춘 구역 (1~4)
 
-  Serial.print(F("\n>> [STAGE 1-A] 탐색 완료. 현 위치: "));
-  Serial.print(foundZone);
-  Serial.println(F("구역. 5,6구역 스캔으로 이동합니다."));
+  DPRINTF("\n>> [STAGE 1-A] 탐색 완료. 현 위치: ");
+  DPRINT(foundZone);
+  DPRINTLNF("구역. 5,6구역 스캔으로 이동합니다.");
 
   // 현재 구역에서 탈출 → currentNode 갱신
   exitZone(foundZone);
@@ -51,16 +51,16 @@ void executeStage1_Search() {
   // 6구역 탈출 → currentNode = 11
   exitZone(6);
 
-  Serial.println(F(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!"));
-  Serial.println(F("========================================\n"));
+  DPRINTLNF(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!");
+  DPRINTLNF("========================================\n");
 }
 
 // ============================================================
 // [2단계] 1구역 1박스 제약 준수 직접 라우팅 배송
 // ============================================================
 void executeStage2_Delivery() {
-  Serial.println(F("\n========================================"));
-  Serial.println(F(">> [STAGE 2] 직접 라우팅 배송 가동"));
+  DPRINTLNF("\n========================================");
+  DPRINTLNF(">> [STAGE 2] 직접 라우팅 배송 가동");
 
   bool isOccupied[7] = {false};
   for (int i = 1; i <= 6; i++) isOccupied[i] = boxes[i].present;
@@ -78,9 +78,9 @@ void executeStage2_Delivery() {
 
       // 제자리 유지
       if (dest == zone) {
-        Serial.print(F("\n[STAY] "));
-        Serial.print(zone);
-        Serial.println(F("구역: 이미 정답 위치."));
+        DPRINTF("\n[STAY] ");
+        DPRINT(zone);
+        DPRINTLNF("구역: 이미 정답 위치.");
         delivered[zone] = true;
         deliveredCount++;
         movedThisTurn = true;
@@ -89,20 +89,22 @@ void executeStage2_Delivery() {
 
       // 목적지가 비어 있으면 픽업 → 직접 이동 → 하차
       if (!isOccupied[dest]) {
-        Serial.print(F("\n[ROUTE] "));
-        Serial.print(zone);
-        Serial.print(F(" ➔ "));
-        Serial.println(dest);
+        DPRINTF("\n[ROUTE] ");
+        DPRINT(zone);
+        DPRINTF(" -> ");
+        DPRINTLN(dest);
 
         // ── 픽업 ─────────────────────────────────────────
         goToZoneDirect(zone);  // 현재 노드 → 출발 구역 직접 이동 + 진입
-        liftUp();              // 24cm 상승 (15cm 이상 → 주행 허가)
-        exitZone(zone);        // 구역 탈출 → currentNode 갱신
+        liftUp();              // 15cm 도달 시 반환 (배경에서 24cm까지 계속 상승)
+        exitZone(zone);        // 구역 탈출 (탈출 중 liftUpTick 호출)
+        liftUpWait();          // 24cm 도달 확인 후 이동
 
         // ── 하차 ─────────────────────────────────────────
-        goToZoneDirect(dest);  // 현재 노드 → 목적 구역 직접 이동 + 진입
-        liftDown();            // 0cm 하강 (10cm 이하 → 주행 허가)
-        exitZone(dest);        // 구역 탈출 → currentNode 갱신
+        goToZoneDirect(dest);      // 현재 노드 → 목적 구역 직접 이동 + 진입
+        liftDownUntilClear();      // 10cm 이하 도달 시 즉시 반환
+        exitZone(dest);            // 구역 탈출 (리프트 계속 하강 중)
+        liftDownWait();            // 착지 완료 대기
 
         isOccupied[zone] = false;
         isOccupied[dest] = true;
@@ -122,18 +124,20 @@ void executeStage2_Delivery() {
       }
       if (stuckZone == 0 || emptyZone == 0) break;  // 안전 탈출
 
-      Serial.print(F("\n[DEADLOCK] "));
-      Serial.print(stuckZone);
-      Serial.print(F(" ➔ 빈 구역 "));
-      Serial.println(emptyZone);
+      DPRINTF("\n[DEADLOCK] ");
+      DPRINT(stuckZone);
+      DPRINTF(" -> 빈 구역 ");
+      DPRINTLN(emptyZone);
 
       goToZoneDirect(stuckZone);
       liftUp();
       exitZone(stuckZone);
+      liftUpWait();
 
       goToZoneDirect(emptyZone);
-      liftDown();
+      liftDownUntilClear();
       exitZone(emptyZone);
+      liftDownWait();
 
       boxes[emptyZone].present = true;
       boxes[emptyZone].found = true;
@@ -146,6 +150,6 @@ void executeStage2_Delivery() {
     }
   }
 
-  Serial.println(F("\n>> [STAGE 2] 배송 완료!"));
-  Serial.println(F("========================================\n"));
+  DPRINTLNF("\n>> [STAGE 2] 배송 완료!");
+  DPRINTLNF("========================================\n");
 }

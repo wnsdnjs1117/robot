@@ -4,17 +4,18 @@
 #include "BoxMap.h"
 
 #include <Arduino.h>
+#include "Config.h"
 
 BoxInfo boxes[7];
 
 static void printZoneName(int z) {
   if (z == ZONE_IN)
-    Serial.print(F("입고(5)"));
+    DPRINTF("입고(5)");
   else if (z == ZONE_OUT)
-    Serial.print(F("출고(6)"));
+    DPRINTF("출고(6)");
   else {
-    Serial.print(z);
-    Serial.print(F("구역"));
+    DPRINT(z);
+    DPRINTF("구역");
   }
 }
 
@@ -63,48 +64,48 @@ void setupRandomLayout() {
   boxes[ZONE_OUT].destination = dests[3];
 
   // 5. 시리얼 모니터 정답지 출력 (★ 문법 에러 전면 수정 완료)
-  Serial.println(F("\n===== [시뮬레이션: 이번 판 정답지] ====="));
+  DPRINTLNF("\n===== [시뮬레이션: 이번 판 정답지] =====");
 
-  Serial.print(F("  랜덤 박스 ["));
+  DPRINTF("  랜덤 박스 [");
   printZoneName(a);
-  Serial.print(F("] ➔ 목적지: "));
-  Serial.println(dests[0]);
-  Serial.print(F("  랜덤 박스 ["));
+  DPRINTF("] -> 목적지: ");
+  DPRINTLN(dests[0]);
+  DPRINTF("  랜덤 박스 [");
   printZoneName(b);
-  Serial.print(F("] ➔ 목적지: "));
-  Serial.println(dests[1]);
-  Serial.print(F("  고정 박스 [입고(5)] ➔ 목적지: "));
-  Serial.println(dests[2]);
-  Serial.print(F("  고정 박스 [출고(6)] ➔ 목적지: "));
-  Serial.println(dests[3]);
+  DPRINTF("] -> 목적지: ");
+  DPRINTLN(dests[1]);
+  DPRINTF("  고정 박스 [입고(5)] -> 목적지: ");
+  DPRINTLN(dests[2]);
+  DPRINTF("  고정 박스 [출고(6)] -> 목적지: ");
+  DPRINTLN(dests[3]);
 
-  Serial.println(F("========================================"));
+  DPRINTLNF("========================================");
 }
 
 bool scanZone(int zone) {
-  Serial.print(F(">> [SCAN] "));
+  DPRINTF(">> [SCAN] ");
   printZoneName(zone);
   if (boxes[zone].present) {
     boxes[zone].found = true;
-    Serial.print(F(" -> 발견! (목적지: "));
-    Serial.print(boxes[zone].destination);
-    Serial.println(F(")"));
+    DPRINTF(" -> 발견! (목적지: ");
+    DPRINT(boxes[zone].destination);
+    DPRINTLNF(")");
     return true;
   } else {
-    Serial.println(F(" -> 비어 있음"));
+    DPRINTLNF(" -> 비어 있음");
     return false;
   }
 }
 
 void printSearchResult() {
-  Serial.println(F("\n========== [현재까지 확정된 QR 정보] =========="));
+  DPRINTLNF("\n========== [현재까지 확정된 QR 정보] ==========");
   for (int z = 1; z <= 6; z++) {
     if (boxes[z].found) {
-      Serial.print(F("  구역 "));
-      Serial.print(z);
-      Serial.print(F(" ➔ 목적지: "));
-      Serial.println(boxes[z].destination);
+      DPRINTF("  구역 ");
+      DPRINT(z);
+      DPRINTF(" -> 목적지: ");
+      DPRINTLN(boxes[z].destination);
     }
   }
-  Serial.println(F("=============================================="));
+  DPRINTLNF("==============================================");
 }

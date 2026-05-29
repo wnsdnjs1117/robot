@@ -22,22 +22,20 @@
 #include "MapRouter.h"
 
 #include "Config.h"
+#include "Lift.h"
 #include "Motion.h"
 
 // Navigation.cpp와 순환 include 방지 — 필요한 함수만 전방 선언
 void followToCrossing();
 void followToCrossing(bool stopAtEnd);  // 연속 주행용 오버로딩
-void reverseAcrossToOppositeZone();
-void enterZone();
-void reverseEnterZone();
+void reverseAcrossToOppositeZone(int targetZone);
+void enterZone(int zone);
+void reverseEnterZone(int zone);
 void alignHeadingOnLine();
 
 int robotHeading = HDG_N;
 int currentNode = 8;
 bool lastEntryWasForward = true;
-
-// 9->10 이동 시 북쪽으로 2도 틀어진 상태를 추적하는 변수
-static bool isTiltedNorthAt10 = false;
 
 // ── [내부] 헬퍼 ──────────────────────────────────────────────
 
@@ -75,32 +73,48 @@ void turnToHeading(int target) {
   robotHeading = target;
 }
 
-static void blindDriveUntilLine() {
-  prizm.resetEncoders();
-  while (true) {
+static void blindPostAlign() {
+  for (int i = 0; i < 20; i++) {
     int L, C, R;
     readSensors(L, C, R);
-    if (anyLine(L, C, R)) {
-      break;
-    }
+    if (!anyLine(L, C, R) || (L && C && R)) break;
+    if      ( L && !R) { drive(BLIND_SPEED - 6, BLIND_SPEED + 6); }
+    else if (!L &&  R) { drive(BLIND_SPEED + 6, BLIND_SPEED - 6); }
+    else               break;
+    delay(10);
+  }
+  softStop();
+}
+
+static void advanceToCrossing(bool stopAtEnd, int newHeading) {
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    delay(5);
+  }
+  if (stopAtEnd) stopAll();
+  robotHeading = newHeading;
+}
+
+static void blindDriveUntilLine(long maxCounts = 0) {
+  prizm.resetEncoders();
+  while (true) {
+    if (maxCounts > 0 && abs(prizm.readEncoderCount(1)) >= maxCounts) break;
+    int L, C, R;
+    readSensors(L, C, R);
+    if (anyLine(L, C, R)) break;
     long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-    int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+    int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+             : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
     drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
     delay(5);
   }
+  softStop();
+  blindPostAlign();
 }
 
 // ── [내부] 노드 간 단일 구간 이동 ────────────────────────────
 static void stepNode(int from, int to, bool stopAtEnd) {
-  // [수정] 오직 9번 노드에서 와서 2도가 틀어진 상태일 때만 10번 노드 출발 전
-  // 보정 회전을 수행함
-  if (from == 10 && isTiltedNorthAt10) {
-    stopAll();
-    delay(100);
-    turnAngle(2, true);  // 2도 시계방향 복구 (동쪽 정확히 바라보기)
-    isTiltedNorthAt10 = false;
-  }
-
   int dir = (to > from) ? HDG_E : HDG_W;
   turnToHeading(dir);
 
@@ -109,7 +123,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       int L, C, R;
       readSensors(L, C, R);
       if (!anyLine(L, C, R)) {
-        if (stopAtEnd) stopAll();
+        if (stopAtEnd) softStop();
         break;
       }
       int RL, RC, RR;
@@ -126,7 +140,8 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       if (anyLine(L, C, R)) break;
       long diff =
           abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
       drive(STRAIGHT_SPEED - corr, STRAIGHT_SPEED + corr);
       delay(5);
     }
@@ -134,13 +149,18 @@ static void stepNode(int from, int to, bool stopAtEnd) {
 
   } else if (from == 9 && to == 10) {
     alignHeadingOnLine();
-    turnAngle(2, false);  // [수정] 기존 5도에서 2도 북향으로만 미세 조준 변경
-    isTiltedNorthAt10 = true;
     prizm.resetEncoders();
     while (true) {
+      if (abs(prizm.readEncoderCount(1)) >= BLIND_NODE_MAX) {
+        if (stopAtEnd) stopAll();
+        robotHeading = HDG_E;
+        break;
+      }
       int L, C, R;
       readSensors(L, C, R);
       if (anyLine(L, C, R)) {
+        softStop();
+        blindPostAlign();
         prizm.resetEncoders();
         while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
           drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
@@ -152,47 +172,31 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       }
       long diff =
           abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
       drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
       delay(5);
     }
 
   } else if (from == 10 && to == 9) {
-    blindDriveUntilLine();
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      delay(5);
-    }
-    if (stopAtEnd) stopAll();
-    robotHeading = HDG_W;
+    blindDriveUntilLine(BLIND_NODE_MAX);
+    advanceToCrossing(stopAtEnd, HDG_W);
 
   } else if (from == 10 && to == 11) {
-    blindDriveUntilLine();
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      delay(5);
-    }
-    if (stopAtEnd) stopAll();
-    robotHeading = HDG_E;
+    blindDriveUntilLine(BLIND_NODE_MAX);
+    advanceToCrossing(stopAtEnd, HDG_E);
 
   } else if (from == 11 && to == 10) {
-    blindDriveUntilLine();
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      delay(5);
-    }
-    if (stopAtEnd) stopAll();
-    robotHeading = HDG_W;
+    blindDriveUntilLine(BLIND_NODE_MAX);
+    advanceToCrossing(stopAtEnd, HDG_W);
 
   } else if (from == 11 && to == 12) {
     // 선 없는 블라인드 구간 — 엔코더 기반 고정 거리 동향 이동
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < NODE_11_12_COUNTS) {
       long diff = abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
       drive(BLIND_SPEED - corr, BLIND_SPEED + corr);
       delay(5);
     }
@@ -209,10 +213,10 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   }
 
   currentNode = to;
-  Serial.print(F(">> [NAV] "));
-  Serial.print(from);
-  Serial.print(F("->"));
-  Serial.println(to);
+  DPRINTF(">> [NAV] ");
+  DPRINT(from);
+  DPRINTF("->");
+  DPRINTLN(to);
 }
 
 // ── [공개] 라우팅 핵심 3대 함수 ───────────────────────────────
@@ -234,99 +238,87 @@ void moveToNode(int toNode) {
 
 void exitZone(int zone) {
   if (lastEntryWasForward) {
-    prizm.resetEncoders();
-    bool rearCrossFound = false;
-    int crossCount = 0;
-    bool lineWasSeen = false;
+    int node = zoneToNode(zone);
+    if (node == 8) {
+      // 8번 노드(존2·4)만 센서로 교차로 감지 후 후진
+      prizm.resetEncoders();
+      bool rearCrossFound = false;
 
-    while (true) {
-      int RL, RC, RR;
-      readRearSensors(RL, RC, RR);
-      int L, C, R;
-      readSensors(L, C, R);
+      while (true) {
+        int RL, RC, RR;
+        readRearSensors(RL, RC, RR);
+        int L, C, R;
+        readSensors(L, C, R);
 
-      bool rearHasLine = anyRearLine(RL, RC, RR);
-      bool frontHasLine = anyLine(L, C, R);
-      bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
-      bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
+        bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
+        bool frontHasLine = anyLine(L, C, R);
+        bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
+        bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= NODE8_EXIT_QUAL);
 
-      if (rearHasLine) lineWasSeen = true;
-
-      // [1번 요구사항 수정] 존을 빠져나올 때 최소 1200 카운트 이하에서는 사거리
-      // 판단을 아예 하지 않고 안전거리 확보
-      bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= 1200);
-
-      if (zone == 5 || zone == 6) {
-        if (distanceQualified && lineWasSeen && !rearHasLine &&
-            !rearCrossFound) {
-          crossCount++;
-          if (crossCount >= 3) {
-            rearCrossFound = true;
-            prizm.resetEncoders();
-          }
-        } else if (rearHasLine && !rearCrossFound) {
-          crossCount = 0;
-        }
-      } else {
         if (distanceQualified && rearIsCrossing && !rearCrossFound) {
-          crossCount++;
-          if (crossCount >= 1) {
-            rearCrossFound = true;
-            prizm.resetEncoders();
-          }
-        } else if (!rearIsCrossing && !rearCrossFound) {
-          crossCount = 0;
+          rearCrossFound = true;
+          prizm.resetEncoders();
         }
-      }
 
-      if (rearCrossFound &&
-          abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) {
-        break;
-      }
+        if (rearCrossFound && abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) break;
+        if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > EXIT_SAFETY_COUNTS) break;
 
-      if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > 6000) {
-        break;
-      }
-
-      int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
-
-      if (!rearCrossFound) {
-        if (rearHasLine && !rearIsCrossing) {
-          if (RL && !RC && !RR) {
-            lsp = -(BACK_SPEED - 10);
-            rsp = -(BACK_SPEED + 10);
-          } else if (!RL && !RC && RR) {
-            lsp = -(BACK_SPEED + 10);
-            rsp = -(BACK_SPEED - 10);
-          } else if (RL && RC && !RR) {
-            lsp = -(BACK_SPEED - 5);
-            rsp = -(BACK_SPEED + 5);
-          } else if (!RL && RC && RR) {
-            lsp = -(BACK_SPEED + 5);
-            rsp = -(BACK_SPEED - 5);
+        int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
+        if (!rearCrossFound) {
+          bool rearHasLine = anyRearLine(RL, RC, RR);
+          if (rearHasLine && !rearIsCrossing) {
+            applyRearLineSteering(RL, RC, RR, lsp, rsp);
+          } else if (!rearHasLine) {
+            long d1 = abs(prizm.readEncoderCount(1));
+            long d2 = abs(prizm.readEncoderCount(2));
+            long diff = d1 - d2;
+            int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+                     : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
+            lsp = -BACK_SPEED + corr;
+            rsp = -BACK_SPEED - corr;
           }
+          if (frontHasLine && anyRearLine(RL,RC,RR) && !rearIsCrossing && !frontIsCrossing) {
+            int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
+            lsp -= angCorr;
+            rsp += angCorr;
+          }
+        }
+        drive(lsp, rsp);
+        liftUpTick();
+        liftDownTick();
+        delay(5);
+      }
+      softStop();
+    } else {
+      // 나머지 노드(7·10·11): 후방 센서 라인 추종 + 엔코더 거리 컷오프
+      long exitCounts = (node == 7)  ? NODE7_REV_EXIT_COUNTS
+                      : (zone == 5)  ? ZONE5_EXIT_COUNTS
+                                     : ZONE6_EXIT_COUNTS;
+      prizm.resetEncoders();
+      while (abs(prizm.readEncoderCount(1)) < exitCounts) {
+        int RL, RC, RR;
+        readRearSensors(RL, RC, RR);
+        int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
+        bool rearHasLine    = anyRearLine(RL, RC, RR);
+        bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
+        if (rearHasLine && !rearIsCrossing) {
+          applyRearLineSteering(RL, RC, RR, lsp, rsp);
         } else if (!rearHasLine) {
           long d1 = abs(prizm.readEncoderCount(1));
           long d2 = abs(prizm.readEncoderCount(2));
-          long rawDiff = d1 - d2;
-          int corr =
-              (abs(rawDiff) <= 5) ? 0 : constrain((int)(rawDiff / 12), -4, 4);
+          long diff = d1 - d2;
+          int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+                   : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
           lsp = -BACK_SPEED + corr;
           rsp = -BACK_SPEED - corr;
         }
-
-        if (frontHasLine && rearHasLine && !rearIsCrossing &&
-            !frontIsCrossing) {
-          int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
-          lsp -= angCorr;
-          rsp += angCorr;
-        }
+        drive(lsp, rsp);
+        liftUpTick();
+        liftDownTick();
+        delay(5);
       }
-
-      drive(lsp, rsp);
-      delay(5);
+      softStop();
     }
-    stopAll();
   } else {
     if (zoneToNode(zone) == 7) {
       prizm.resetEncoders();
@@ -334,49 +326,43 @@ void exitZone(int zone) {
         drive(SPEED, SPEED);
         delay(5);
       }
-      stopAll();
+      softStop();
     } else {
       followToCrossing(true);
     }
   }
 
-  // 5번 존에서 탈출할 경우, 틀어짐 추적 변수를 명확히 false로 고정하여 남쪽
-  // 꺾임 원인 원천 차단
-  if (zone == 5) {
-    isTiltedNorthAt10 = false;
-  }
-
   currentNode = zoneToNode(zone);
-  Serial.print(F(">> [NAV] exitZone "));
-  Serial.print(zone);
-  Serial.print(F(" -> node "));
-  Serial.println(currentNode);
+  DPRINTF(">> [NAV] exitZone ");
+  DPRINT(zone);
+  DPRINTF(" -> node ");
+  DPRINTLN(currentNode);
 }
 
 void goToZoneDirect(int zone) {
   int targetNode = zoneToNode(zone);
-  Serial.print(F(">> [NAV] zone "));
-  Serial.print(zone);
-  Serial.print(F(" (node "));
-  Serial.print(currentNode);
-  Serial.print(F("->"));
-  Serial.print(targetNode);
-  Serial.println(F(")"));
+  DPRINTF(">> [NAV] zone ");
+  DPRINT(zone);
+  DPRINTF(" (node ");
+  DPRINT(currentNode);
+  DPRINTF("->");
+  DPRINT(targetNode);
+  DPRINTLNF(")");
 
   moveToNode(targetNode);
 
   int zoneSide = (zone == 3 || zone == 4) ? HDG_S : HDG_N;
 
-  if (robotHeading == HDG_E || robotHeading == HDG_W) {
+  if (robotHeading != zoneSide) {
     turnToHeading(zoneSide);
   }
 
   bool enterForward = (robotHeading == zoneSide);
   if (enterForward) {
-    enterZone();
+    enterZone(zone);
     lastEntryWasForward = true;
   } else {
-    reverseEnterZone();
+    reverseEnterZone(zone);
     lastEntryWasForward = false;
   }
 }
