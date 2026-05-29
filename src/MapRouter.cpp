@@ -86,6 +86,16 @@ static void blindPostAlign() {
   softStop();
 }
 
+static void advanceToCrossing(bool stopAtEnd, int newHeading) {
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    delay(5);
+  }
+  if (stopAtEnd) stopAll();
+  robotHeading = newHeading;
+}
+
 static void blindDriveUntilLine(long maxCounts = 0) {
   prizm.resetEncoders();
   while (true) {
@@ -130,7 +140,8 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       if (anyLine(L, C, R)) break;
       long diff =
           abs(prizm.readEncoderCount(1)) - abs(prizm.readEncoderCount(2));
-      int corr = (abs(diff) <= 5) ? 0 : constrain((int)(diff / 12), -4, 4);
+      int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+               : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
       drive(STRAIGHT_SPEED - corr, STRAIGHT_SPEED + corr);
       delay(5);
     }
@@ -169,33 +180,15 @@ static void stepNode(int from, int to, bool stopAtEnd) {
 
   } else if (from == 10 && to == 9) {
     blindDriveUntilLine(BLIND_NODE_MAX);
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      delay(5);
-    }
-    if (stopAtEnd) stopAll();
-    robotHeading = HDG_W;
+    advanceToCrossing(stopAtEnd, HDG_W);
 
   } else if (from == 10 && to == 11) {
     blindDriveUntilLine(BLIND_NODE_MAX);
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      delay(5);
-    }
-    if (stopAtEnd) stopAll();
-    robotHeading = HDG_E;
+    advanceToCrossing(stopAtEnd, HDG_E);
 
   } else if (from == 11 && to == 10) {
     blindDriveUntilLine(BLIND_NODE_MAX);
-    prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      delay(5);
-    }
-    if (stopAtEnd) stopAll();
-    robotHeading = HDG_W;
+    advanceToCrossing(stopAtEnd, HDG_W);
 
   } else if (from == 11 && to == 12) {
     // 선 없는 블라인드 구간 — 엔코더 기반 고정 거리 동향 이동
@@ -250,7 +243,6 @@ void exitZone(int zone) {
       // 8번 노드(존2·4)만 센서로 교차로 감지 후 후진
       prizm.resetEncoders();
       bool rearCrossFound = false;
-      int crossCount = 0;
 
       while (true) {
         int RL, RC, RR;
@@ -264,29 +256,24 @@ void exitZone(int zone) {
         bool distanceQualified = (abs(prizm.readEncoderCount(1)) >= NODE8_EXIT_QUAL);
 
         if (distanceQualified && rearIsCrossing && !rearCrossFound) {
-          if (++crossCount >= 1) {
-            rearCrossFound = true;
-            prizm.resetEncoders();
-          }
-        } else if (!rearIsCrossing) {
-          crossCount = 0;
+          rearCrossFound = true;
+          prizm.resetEncoders();
         }
 
         if (rearCrossFound && abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) break;
-        if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > 6000) break;
+        if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > EXIT_SAFETY_COUNTS) break;
 
         int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
         if (!rearCrossFound) {
           bool rearHasLine = anyRearLine(RL, RC, RR);
           if (rearHasLine && !rearIsCrossing) {
-            if      ( RL && !RC && !RR) { lsp = -(BACK_SPEED-10); rsp = -(BACK_SPEED+10); }
-            else if (!RL && !RC &&  RR) { lsp = -(BACK_SPEED+10); rsp = -(BACK_SPEED-10); }
-            else if ( RL &&  RC && !RR) { lsp = -(BACK_SPEED- 5); rsp = -(BACK_SPEED+ 5); }
-            else if (!RL &&  RC &&  RR) { lsp = -(BACK_SPEED+ 5); rsp = -(BACK_SPEED- 5); }
+            applyRearLineSteering(RL, RC, RR, lsp, rsp);
           } else if (!rearHasLine) {
             long d1 = abs(prizm.readEncoderCount(1));
             long d2 = abs(prizm.readEncoderCount(2));
-            int corr = (abs(d1-d2) <= 5) ? 0 : constrain((int)((d1-d2)/12), -4, 4);
+            long diff = d1 - d2;
+            int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+                     : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
             lsp = -BACK_SPEED + corr;
             rsp = -BACK_SPEED - corr;
           }
@@ -312,17 +299,16 @@ void exitZone(int zone) {
         int RL, RC, RR;
         readRearSensors(RL, RC, RR);
         int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
-        bool rearHasLine   = anyRearLine(RL, RC, RR);
+        bool rearHasLine    = anyRearLine(RL, RC, RR);
         bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
         if (rearHasLine && !rearIsCrossing) {
-          if      ( RL && !RC && !RR) { lsp = -(BACK_SPEED-10); rsp = -(BACK_SPEED+10); }
-          else if (!RL && !RC &&  RR) { lsp = -(BACK_SPEED+10); rsp = -(BACK_SPEED-10); }
-          else if ( RL &&  RC && !RR) { lsp = -(BACK_SPEED- 5); rsp = -(BACK_SPEED+ 5); }
-          else if (!RL &&  RC &&  RR) { lsp = -(BACK_SPEED+ 5); rsp = -(BACK_SPEED- 5); }
+          applyRearLineSteering(RL, RC, RR, lsp, rsp);
         } else if (!rearHasLine) {
           long d1 = abs(prizm.readEncoderCount(1));
           long d2 = abs(prizm.readEncoderCount(2));
-          int corr = (abs(d1-d2) <= 5) ? 0 : constrain((int)((d1-d2)/12), -4, 4);
+          long diff = d1 - d2;
+          int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
+                   : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
           lsp = -BACK_SPEED + corr;
           rsp = -BACK_SPEED - corr;
         }
@@ -367,7 +353,7 @@ void goToZoneDirect(int zone) {
 
   int zoneSide = (zone == 3 || zone == 4) ? HDG_S : HDG_N;
 
-  if (robotHeading == HDG_E || robotHeading == HDG_W) {
+  if (robotHeading != zoneSide) {
     turnToHeading(zoneSide);
   }
 

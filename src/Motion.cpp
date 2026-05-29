@@ -193,7 +193,16 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   drive(constrain(lsp, -100, 100), constrain(rsp, -100, 100));
 }
 
-// ── [5] 교차로 감지 ──────────────────────────────────────────
+// ── [5] 후방 센서 조향 ───────────────────────────────────────
+
+void applyRearLineSteering(int RL, int RC, int RR, int& lsp, int& rsp) {
+  if      ( RL && !RC && !RR) { lsp += 10; rsp -= 10; }
+  else if (!RL && !RC &&  RR) { lsp -= 10; rsp += 10; }
+  else if ( RL &&  RC && !RR) { lsp +=  5; rsp -=  5; }
+  else if (!RL &&  RC &&  RR) { lsp -=  5; rsp +=  5; }
+}
+
+// ── [6] 교차로 감지 ──────────────────────────────────────────
 
 bool detectCrossing(int L, int C, int R) {
   bool isCross = (L == 1 && C == 1 && R == 1);
