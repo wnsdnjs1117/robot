@@ -18,25 +18,10 @@ void drive(int l, int r) {
   prizm.setMotorSpeeds(-(l * 7), r * 7);
 }
 
-void corrDrive(int speed, long d1, long d2) {
-  long diff = d1 - d2;
-  int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
-           : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
-  if (speed >= 0)
-    drive(speed - corr, speed + corr);
-  else
-    drive(speed + corr, speed - corr);
-}
-
 void stopAll() {
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
   delay(50);
-}
-
-void softStop() {
-  prizm.setMotorPower(1, 0);
-  prizm.setMotorPower(2, 0);
 }
 
 // ── [2] 회전 제어 ────────────────────────────────────────────
@@ -203,16 +188,7 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   drive(constrain(lsp, -100, 100), constrain(rsp, -100, 100));
 }
 
-// ── [5] 후방 센서 조향 ───────────────────────────────────────
-
-void applyRearLineSteering(int RL, int RC, int RR, int& lsp, int& rsp) {
-  if      ( RL && !RC && !RR) { lsp += 10; rsp -= 10; }
-  else if (!RL && !RC &&  RR) { lsp -= 10; rsp += 10; }
-  else if ( RL &&  RC && !RR) { lsp +=  5; rsp -=  5; }
-  else if (!RL &&  RC &&  RR) { lsp -=  5; rsp +=  5; }
-}
-
-// ── [6] 교차로 감지 ──────────────────────────────────────────
+// ── [5] 교차로 감지 ──────────────────────────────────────────
 
 bool detectCrossing(int L, int C, int R) {
   bool isCross = (L == 1 && C == 1 && R == 1);

@@ -75,7 +75,6 @@ constexpr int CROSS_ALIGN_COUNTS = CM(FRONT_SENSOR_OFFSET + LINE_THICKNESS / 2.0
 constexpr int REAR_TO_AXLE_COUNTS = CM(REAR_SENSOR_OFFSET + LINE_THICKNESS / 2.0f);  // CM(26.0)
 
 constexpr float START_ESCAPE_AXLE_CM = 22.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
-// constexpr float START_ESCAPE_AXLE_CM = 200.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
 constexpr int START_ESCAPE_COUNTS = CM(FRONT_SENSOR_OFFSET + START_ESCAPE_AXLE_CM);
 
 constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
@@ -97,11 +96,6 @@ constexpr int ZONE_ENTER_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + FRONT_S
 constexpr int ZONE_DEPTH_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + REAR_SENSOR_OFFSET - AXLE_TO_LIFT_CM);
 // = CM(50 - 30.5 + 25 - 11) = CM(33.5)
 
-constexpr int ZONE12_ENTER_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH_Z12 + FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM);
-// = CM(50 - 28 + 7.5 + 11) = CM(40.5)
-constexpr int ZONE12_DEPTH_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH_Z12 + REAR_SENSOR_OFFSET - AXLE_TO_LIFT_CM);
-// = CM(50 - 28 + 25 - 11) = CM(36.0)
-
 constexpr int ZONE_FOLLOW_MAX = CM(40.0f);  // 유도선 추적 안전 한계 (최대 이동 ~5cm << 40cm)
 constexpr int NODE8_EXIT_QUAL = CM(AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);  // 후진 탈출 교차로 감지 최소 이동량
 // = CM(11 + 50) = CM(61.0)
@@ -120,20 +114,13 @@ constexpr int SPIN_BRAKE_LEAD = 15;         // turnAngle 관성 보정 선행 �
 constexpr int TURN_LINE_ARM_DEG = 30;  // 이 각도 이상 회전 + 시작 라인 이탈 후부터 감지
 constexpr int TURN_LINE_MAX_DEG = 92;  // 라인 못 찾을 때 무한 회전 방지 한계각
 
-// ── [6] 블라인드 구간 엔코더 차동 보정 파라미터 ────────────────
-constexpr int BLIND_CORR_DEADZONE = 5;   // 무시할 최소 엔코더 차이
-constexpr int BLIND_CORR_GAIN = 4;       // 보정 나눗수
-constexpr int BLIND_CORR_CAP = 1;        // 최대 보정량
-constexpr int BLIND_START_COUNTS = 500;  // 시작 편향 적용 구간 (~4.7cm, ★ 튜닝값)
-constexpr int BLIND_START_BIAS = 50;     // 시작 시 왼쪽 감속량 (★ 튜닝값, 오른쪽 편향이면 양수)
-
-// ── [7] 방향 상수 (robotHeading) ───────────────────────────────
+// ── [6] 방향 상수 (robotHeading) ───────────────────────────────
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향
 constexpr int HDG_E = 1;  // 동 – 노드 번호 증가 / FINISH 방향
 constexpr int HDG_S = 2;  // 남 – 스타트 / 남쪽 구역(3·4) 방향
 constexpr int HDG_W = 3;  // 서 – 노드 번호 감소 방향
 
-// ── [8] 기타 거리 상수 ──────────────────────────────────────────
+// ── [7] 기타 거리 상수 ──────────────────────────────────────────
 // 정지 시 축 위치:
 //   후진진입 = ZONE_LIFT_DEPTH - AXLE_TO_LIFT_CM (리프트 반대편)
 //   전진진입 = ZONE_LIFT_DEPTH + AXLE_TO_LIFT_CM (리프트 같은편)

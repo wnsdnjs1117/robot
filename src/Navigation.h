@@ -8,9 +8,9 @@ void followToCrossing();
 
 void alignHeadingOnLine();  // 후방 센서로 라인 수직 정렬 (최대 5도 보정)
 
-void enterZone(int zone);
-void reverseEnterZone(int zone);
-void reverseAcrossToOppositeZone(int targetZone);
+void enterZone();
+void reverseEnterZone();
+void reverseAcrossToOppositeZone();
 
 void goToMainLine();
 void returnToFinish();
