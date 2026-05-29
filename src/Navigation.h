@@ -5,15 +5,14 @@
 #define NAVIGATION_H
 
 void followToCrossing();
+void followToCrossing(bool stopAtEnd);  // ★ 누락되었던 오버로드 선언 추가
 
-void alignHeadingOnLine();  // 후방 센서로 라인 수직 정렬 (최대 5도 보정)
-
-void enterZone(int zone);
-void reverseEnterZone(int zone);
-void reverseAcrossToOppositeZone(int targetZone);
+void enterZone();
+void reverseEnterZone();
+void reverseAcrossToOppositeZone();
 
 void goToMainLine();
 void returnToFinish();
-int  qrSearchStage();  // 탐색 완료 구역 번호(1~4) 반환
+int qrSearchStage();
 
 #endif

@@ -1,5 +1,5 @@
 /* ============================================================
- * Navigation.cpp - 즉시 종료 및 구역 번호 반환형 탐색 알고리즘
+ * Navigation.cpp - 거리/각도 기반 진입 및 탈출 탐색 시나리오
  * ============================================================ */
 #include "Navigation.h"
 
@@ -9,9 +9,10 @@
 #include "MapRouter.h"
 #include "Motion.h"
 
-// ── [1] 라인 추종 → 교차로 ───────────────────────────────────
+// ── [1] 일반 수평선 라인 추종 ───────────────────────────────────
 
 void followToCrossing(bool stopAtEnd) {
+  // 방금 출발한 교차로를 다시 교차로로 오인하지 않도록 강제로 센서가 선을 벗어날 때까지 밀어냅니다.
   {
     int L, C, R;
     readSensors(L, C, R);
@@ -31,364 +32,183 @@ void followToCrossing(bool stopAtEnd) {
 
   crossingArmed = true;
   crossingStable = 0;
+  // 본격적인 다음 노드(교차로) 탐색 라인트레이싱
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
+
+    // 교차로 십자가를 발견하면 중심을 맞추기 위해 지정 거리만큼 더 전진
     if (detectCrossing(L, C, R)) {
       prizm.resetEncoders();
-      while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
+      while (abs(prizm.readEncoderCount(1)) < DIST_CROSS_ALIGN_COUNTS) {
         drive(SPEED, SPEED);
         delay(5);
       }
-      if (stopAtEnd) {
-        stopAll();
-      }
+      if (stopAtEnd) stopAll();
       return;
     }
+
+    // 평상시엔 앞뒤 센서 기반 고속 라인트레이싱 수행
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
     lineFollowStepFull(L, C, R, RL, RC, RR);
-    delay(5);
+    delay(5);  // 이 딜레이가 로봇의 150Hz 반응 속도를 만듭니다.
   }
 }
 
 void followToCrossing() { followToCrossing(true); }
 
-// ── [2] 블라인드 구간 출발 정렬 ──────────────────────────────
-void alignHeadingOnLine() {
+// ── [2] 존(구역) 진입 및 횡단 (순수 이동 거리 기반) ─────────────────
+
+void enterZone() {
+  DPRINTLNF(">> [NAV] 전진으로 존 진입 시작");
   prizm.resetEncoders();
-  while (true) {
-    int RL, RC, RR;
-    readRearSensors(RL, RC, RR);
-    if (anyRearLine(RL, RC, RR)) break;
-    if (abs(prizm.readEncoderCount(1)) > REAR_TO_AXLE_COUNTS + 100) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    delay(5);
-  }
-  stopAll();
-
-  prizm.resetEncoders();
-  for (int t = 0; t < 60; t++) {
-    int RL, RC, RR;
-    readRearSensors(RL, RC, RR);
-
-    if (abs(prizm.readEncoderCount(1)) >= ALIGN_MAX_COUNTS) break;
-
-    if (RL && RR) break;
-    if (!RL && RC && !RR) break;
-    if (RL && RC && RR) break;
-    if (!RL && !RC && !RR) break;
-
-    if (RL && !RC && !RR)
-      drive(-4, 4);
-    else if (!RL && !RC && RR)
-      drive(4, -4);
-    else if (RL && RC && !RR)
-      drive(4, -4);
-    else if (!RL && RC && RR)
-      drive(-4, 4);
-
-    delay(10);
-  }
-  stopAll();
-}
-
-// ── [3] 존 진입/탈출 ─────────────────────────────────────────
-
-void enterZone(int zone) {
-  lastSensorState = 0;
-  int enterExtra = (zone == 1 || zone == 2) ? ZONE12_ENTER_EXTRA : ZONE_ENTER_EXTRA;
-
-  while (true) {
-    int L, C, R;
-    readSensors(L, C, R);
-    if (!anyLine(L, C, R)) break;
-    int RL, RC, RR;
-    readRearSensors(RL, RC, RR);
-    lineFollowStepFull(L, C, R, RL, RC, RR);
-    delay(5);
-  }
-
-  prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < enterExtra) {
+  // 라인 무시, Config.h에 지정된 거리(cm)만큼 무조건 진입
+  while (abs(prizm.readEncoderCount(1)) < DIST_ZONE_ENTER_FWD_COUNTS) {
     drive(SPEED, SPEED);
     delay(5);
   }
-  softStop();
+  stopAll();
 }
 
-void reverseEnterZone(int zone) {
-  lastSensorState = 0;
-  int depthExtra = (zone == 1 || zone == 2) ? ZONE12_DEPTH_EXTRA : ZONE_DEPTH_EXTRA;
-  bool lineWasFound = false;
-
+void reverseEnterZone() {
+  DPRINTLNF(">> [NAV] 후진으로 존 진입 시작");
   prizm.resetEncoders();
-  while (true) {
-    int RL, RC, RR;
-    readRearSensors(RL, RC, RR);
-
-    bool rearHasLine = anyRearLine(RL, RC, RR);
-    if (rearHasLine) lineWasFound = true;
-    if (lineWasFound && !rearHasLine) break;
-    if (abs(prizm.readEncoderCount(1)) >= ZONE_FOLLOW_MAX) break;
-
-    int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
-    bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
-    if (rearHasLine && !rearIsCrossing) {
-      applyRearLineSteering(RL, RC, RR, lsp, rsp);
-    }
-    {
-      int fL, fC, fR;
-      readSensors(fL, fC, fR);
-      bool frontHasLine = anyLine(fL, fC, fR);
-      bool frontIsCrossing = ((fL && fC) || (fC && fR) || (fL && fR));
-      if (rearHasLine && frontHasLine && !rearIsCrossing && !frontIsCrossing) {
-        int angCorr = constrain((fL - fR) * ANGULAR_GAIN, -5, 5);
-        lsp -= angCorr;
-        rsp += angCorr;
-      }
-    }
-    drive(lsp, rsp);
-    delay(5);
-  }
-
-  prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < depthExtra) {
+  while (abs(prizm.readEncoderCount(1)) < DIST_ZONE_ENTER_REV_COUNTS) {
     drive(-BACK_SPEED, -BACK_SPEED);
     delay(5);
   }
-  softStop();
+  stopAll();
 }
 
-void reverseAcrossToOppositeZone(int targetZone) {
-  lastSensorState = 0;
+void reverseAcrossToOppositeZone() {
+  DPRINTLNF(">> [NAV] 반대편 존으로 횡단 (거리 기반)");
+
+  // 복도 교차로로 후진 탈출 후, 방향을 꺾지 않고 곧바로 맞은편 구역으로 후진 진입
   prizm.resetEncoders();
-  bool rearCrossFound = false;
-
-  while (true) {
-    int RL, RC, RR;
-    readRearSensors(RL, RC, RR);
-    int L, C, R;
-    readSensors(L, C, R);
-
-    bool rearHasLine    = anyRearLine(RL, RC, RR);
-    bool frontHasLine   = anyLine(L, C, R);
-    bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
-    bool frontIsCrossing = ((L && C) || (C && R) || (L && R));
-
-    if (rearIsCrossing && !rearCrossFound) {
-      rearCrossFound = true;
-      prizm.resetEncoders();
-    }
-
-    if (rearCrossFound && abs(prizm.readEncoderCount(1)) >= REAR_TO_AXLE_COUNTS) break;
-    if (!rearCrossFound && abs(prizm.readEncoderCount(1)) > EXIT_SAFETY_COUNTS) break;
-
-    int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
-
-    if (!rearCrossFound) {
-      if (rearHasLine && !rearIsCrossing) {
-        applyRearLineSteering(RL, RC, RR, lsp, rsp);
-      } else if (!rearHasLine) {
-        long d1 = abs(prizm.readEncoderCount(1));
-        long d2 = abs(prizm.readEncoderCount(2));
-        long diff = d1 - d2;
-        int corr = (abs(diff) <= BLIND_CORR_DEADZONE) ? 0
-                 : constrain((int)(diff / BLIND_CORR_GAIN), -BLIND_CORR_CAP, BLIND_CORR_CAP);
-        lsp = -BACK_SPEED + corr;
-        rsp = -BACK_SPEED - corr;
-      }
-
-      if (rearHasLine && frontHasLine && !rearIsCrossing && !frontIsCrossing) {
-        int angCorr = constrain((L - R) * ANGULAR_GAIN, -5, 5);
-        lsp -= angCorr;
-        rsp += angCorr;
-      }
-    }
-
-    drive(lsp, rsp);
+  while (abs(prizm.readEncoderCount(1)) < DIST_ZONE_EXIT_REV_COUNTS) {
+    drive(-BACK_SPEED, -BACK_SPEED);
     delay(5);
   }
+  stopAll();
+  delay(100);
 
-  reverseEnterZone(targetZone);
+  reverseEnterZone();
 }
 
-// ── [4] 특수 경로 ────────────────────────────────────────────
+// ── [3] 특수 시나리오: 출발 및 복귀 기동 ──────────────────────────
 
 void goToMainLine() {
-  DPRINTLNF(">>> [START-RUN] 스타트 박스 탈출");
+  DPRINTLNF(">>> [START-RUN] 서향 출발 -> 12번 노드(빈 공간) -> 9-2 노드 -> 8번 노드");
+
+  robotHeading = 270;
+
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < DIST_START_TO_12_COUNTS) {
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftDownTick();  // 리프트를 내리면서 맹주행 동시 진행
+    delay(5);
+  }
+  stopAll();
+  delay(100);
+
+  turnToHeading(HEADING_12_TO_9);
+
   while (true) {
     int L, C, R;
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftDownTick();
+    drive(BLIND_SPEED, BLIND_SPEED);
     delay(5);
   }
 
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < START_ESCAPE_COUNTS) {
+  while (abs(prizm.readEncoderCount(1)) < DIST_CROSS_ALIGN_COUNTS) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftDownTick();
     delay(5);
   }
   stopAll();
+  delay(100);
 
-  DPRINTLNF(">>> [START-RUN] 서쪽(좌측) 방향 전환");
-  if (WEST_IS_LEFT)
-    turnAngle(90, false);
-  else
-    turnAngle(90, true);
+  turnToHeading(270);
+  followToCrossing(true);
 
-  DPRINTLNF(">>> [START-RUN] 11번, 10번 노드 라인 패스 (무정차 직진)");
-  int passedLines = 0;
-  bool lineArmed = true;
-  int lineStable = 0;
-
-  while (passedLines < 2) {
-    int L, C, R;
-    readSensors(L, C, R);
-    bool onLine = anyLine(L, C, R);
-    if (onLine)
-      lineStable++;
-    else
-      lineStable = 0;
-
-    if (onLine && lineArmed && lineStable >= CROSS_CONFIRM) {
-      passedLines++;
-      lineArmed = false;
-    }
-    if (!onLine) lineArmed = true;
-
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftDownTick();
-    delay(5);
-  }
-
-  while (true) {
-    int L, C, R;
-    readSensors(L, C, R);
-    if (!anyLine(L, C, R)) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftDownTick();
-    delay(5);
-  }
-
-  DPRINTLNF(">>> [START-RUN] 메인라인/세로선 진입 탐색");
-
-  while (true) {
-    int L, C, R;
-    readSensors(L, C, R);
-
-    if (anyLine(L, C, R)) {
-      bool isVertical = false;
-      bool hitCrossing = false;
-      long startEnc = abs(prizm.readEncoderCount(1));
-
-      while (abs(prizm.readEncoderCount(1)) - startEnc < 400) {
-        int cL, cC, cR;
-        readSensors(cL, cC, cR);
-
-        if (!anyLine(cL, cC, cR)) {
-          isVertical = true;
-          break;
-        }
-
-        if (cL == 1 && cC == 1 && cR == 1) {
-          hitCrossing = true;
-          break;
-        }
-
-        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-        liftDownTick();
-        delay(5);
-      }
-
-      if (isVertical) {
-        DPRINTLNF(">> [START] 8번 세로선 관통 확인 -> 교차로 정렬");
-        long traveled = abs(prizm.readEncoderCount(1)) - startEnc;
-        long remainingCounts = CROSS_ALIGN_COUNTS - traveled;
-
-        prizm.resetEncoders();
-        if (remainingCounts > 0) {
-          while (abs(prizm.readEncoderCount(1)) < remainingCounts) {
-            drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-            liftDownTick();
-            delay(5);
-          }
-        }
-        stopAll();
-      } else if (hitCrossing) {
-        DPRINTLNF(">> [START] 직진 테스트 중 8번 교차로 직접 도달 -> 즉시 정렬");
-        prizm.resetEncoders();
-        while (abs(prizm.readEncoderCount(1)) < CROSS_ALIGN_COUNTS) {
-          drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-          liftDownTick();
-          delay(5);
-        }
-        stopAll();
-      } else {
-        DPRINTLNF(">> [START] 9번 가로선 연속 감지 -> 8번 교차로로 라인 트레이싱");
-        followToCrossing(true);
-      }
-      break;
-    }
-
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftDownTick();
-    delay(5);
-  }
-
-  DPRINTLNF(">> [START] 8번 노드 안착 -> 북향(2구역 방향) 회전");
-  turnAngle(90, true);
-  robotHeading = HDG_N;
+  currentNode = 8;
+  DPRINTLNF(">> [START] 8번 노드 안착 완료");
 }
 
 void returnToFinish() {
   DPRINTLNF("\n========================================");
-  DPRINTLNF(">> [FINISH] FINISH 구역 복귀 기동");
+  DPRINTLNF(">> [FINISH] 복귀 기동: 9-3 -> 12 -> START");
 
-  // 노드12(START 바로 위 가상 노드)까지 이동 후 남향 직진으로 진입
-  moveToNode(12);
-  turnAngle(90, true);   // CW 90°: 동향 → 남향 (노드12에 선 없으므로 엔코더 기반)
-  robotHeading = HDG_S;
+  moveToNode(9);
 
+  turnToHeading(90);
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < FINISH_ENTRY_COUNTS) {
+  while (abs(prizm.readEncoderCount(1)) < DIST_9_TO_9_3_COUNTS) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     delay(5);
   }
-  softStop();
-  DPRINTLNF(">> [FINISH] FINISH 구역 진입 완료!");
+  stopAll();
+  delay(100);
 
+  turnToHeading(HEADING_9_3_TO_12);
+
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < DIST_9_3_TO_12_COUNTS) {
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    delay(5);
+  }
+  stopAll();
+  delay(100);
+
+  turnToHeading(HEADING_12_TO_START);
+  while (true) {
+    int L, C, R;
+    readSensors(L, C, R);
+    if (anyLine(L, C, R)) break;
+    drive(BLIND_SPEED, BLIND_SPEED);
+    delay(5);
+  }
+
+  prizm.resetEncoders();
+  while (abs(prizm.readEncoderCount(1)) < DIST_FINISH_ENTRY_COUNTS) {
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    delay(5);
+  }
+  stopAll();
+
+  // 종료 세리머니
   tone(BUZZER_PIN, 1000);
   delay(1500);
   noTone(BUZZER_PIN);
-
   prizm.setGreenLED(HIGH);
-  DPRINTLNF(">> [FINISH] 부저 완료. 경기 종료.");
+  DPRINTLNF(">> [FINISH] 경기 종료.");
   DPRINTLNF("========================================\n");
 }
+
+// ── [4] 탐색 스테이지 (1~4구역 순회) ──────────────────────────────────
 
 int qrSearchStage() {
   int randomFound = 0;
 
+  // 동선 최적화를 위해 위(2구역) -> 아래(4구역) 횡단 -> 이동 -> 위(1구역) -> 아래(3구역) 순서로 탐색
   DPRINTLNF("\n--- [2구역 탐색] ---");
-  enterZone(2);
+  enterZone();
   lastEntryWasForward = true;
   if (scanZone(2)) randomFound++;
   if (randomFound >= 2) {
-    softStop();
+    stopAll();
     printSearchResult();
-    return 2;
+    return 2;  // 박스 2개를 일찍 다 찾으면 쓸데없는 곳은 돌지 않고 즉시 종료
   }
 
   DPRINTLNF("\n--- [4구역 탐색] ---");
-  reverseAcrossToOppositeZone(4);
+  reverseAcrossToOppositeZone();
   lastEntryWasForward = false;
   if (scanZone(4)) randomFound++;
   if (randomFound >= 2) {
-    softStop();
+    stopAll();
     printSearchResult();
     return 4;
   }
@@ -398,20 +218,20 @@ int qrSearchStage() {
   turnAngle(90, false);
   followToCrossing();
   turnAngle(90, true);
-  enterZone(1);
+  enterZone();
   lastEntryWasForward = true;
   if (scanZone(1)) randomFound++;
   if (randomFound >= 2) {
-    softStop();
+    stopAll();
     printSearchResult();
     return 1;
   }
 
   DPRINTLNF("\n--- [3구역 탐색] ---");
-  reverseAcrossToOppositeZone(3);
+  reverseAcrossToOppositeZone();
   lastEntryWasForward = false;
   scanZone(3);
-  softStop();
+  stopAll();
   printSearchResult();
   return 3;
 }

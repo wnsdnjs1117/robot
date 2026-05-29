@@ -10,54 +10,38 @@
 #include "Motion.h"
 #include "Navigation.h"
 
-// ============================================================
-// [1단계] 스타트 박스 탈출 및 1~6구역 전체 QR 탐색
-// ============================================================
 void executeStage1_Search() {
   DPRINTLNF("\n========================================");
   DPRINTLNF(">> [STAGE 1] 1~6구역 전체 QR 탐색 기동");
 
-  // 리프트 초기화: 하강 시작 → goToMainLine()과 동시 진행
   liftDownStart();
   goToMainLine();
   liftDownWait();
 
-  // goToMainLine() 완료 시 로봇은 8번 허브(메인라인) 위에 정렬됨
   currentNode = 8;
-  robotHeading = HDG_N;
+  robotHeading = 270;
 
-  // 1~4구역 탐색 (qrSearchStage 내부에서 currentNode/robotHeading 갱신 불필요
-  // — 탐색 완료 시 어느 구역 내부에 있으므로 아래서 exitZone으로 탈출)
   int foundZone = qrSearchStage();
-  // foundZone: 탐색이 멈춘 구역 (1~4)
 
   DPRINTF("\n>> [STAGE 1-A] 탐색 완료. 현 위치: ");
   DPRINT(foundZone);
   DPRINTLNF("구역. 5,6구역 스캔으로 이동합니다.");
 
-  // 현재 구역에서 탈출 → currentNode 갱신
   exitZone(foundZone);
 
-  // ── 5구역 스캔 ──────────────────────────────────────────
-  // 현재 노드(7 or 8)에서 10번 노드로 직접 이동 → 5구역 진입
   goToZoneDirect(5);
   scanZone(5);
 
-  // ── 6구역 스캔 (5구역 탈출 후 바로 11번으로 이동) ────────
-  exitZone(5);  // 10번 노드로 탈출
+  exitZone(5);
   goToZoneDirect(6);
   scanZone(6);
 
-  // 6구역 탈출 → currentNode = 11
   exitZone(6);
 
   DPRINTLNF(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!");
   DPRINTLNF("========================================\n");
 }
 
-// ============================================================
-// [2단계] 1구역 1박스 제약 준수 직접 라우팅 배송
-// ============================================================
 void executeStage2_Delivery() {
   DPRINTLNF("\n========================================");
   DPRINTLNF(">> [STAGE 2] 직접 라우팅 배송 가동");
@@ -72,11 +56,9 @@ void executeStage2_Delivery() {
     bool movedThisTurn = false;
 
     for (int zone = 1; zone <= 6; zone++) {
-      if (!boxes[zone].found || !boxes[zone].present || delivered[zone])
-        continue;
+      if (!boxes[zone].found || !boxes[zone].present || delivered[zone]) continue;
       int dest = boxes[zone].destination;
 
-      // 제자리 유지
       if (dest == zone) {
         DPRINTF("\n[STAY] ");
         DPRINT(zone);
@@ -87,42 +69,42 @@ void executeStage2_Delivery() {
         break;
       }
 
-      // 목적지가 비어 있으면 픽업 → 직접 이동 → 하차
       if (!isOccupied[dest]) {
         DPRINTF("\n[ROUTE] ");
         DPRINT(zone);
         DPRINTF(" -> ");
         DPRINTLN(dest);
 
-        // ── 픽업 ─────────────────────────────────────────
-        goToZoneDirect(zone);  // 현재 노드 → 출발 구역 직접 이동 + 진입
-        liftUp();              // 15cm 도달 시 반환 (배경에서 24cm까지 계속 상승)
-        exitZone(zone);        // 구역 탈출 (탈출 중 liftUpTick 호출)
-        liftUpWait();          // 24cm 도달 확인 후 이동
+        goToZoneDirect(zone);
+        liftUp();
+        exitZone(zone);
+        liftUpWait();
 
-        // ── 하차 ─────────────────────────────────────────
-        goToZoneDirect(dest);      // 현재 노드 → 목적 구역 직접 이동 + 진입
-        liftDownUntilClear();      // 10cm 이하 도달 시 즉시 반환
-        exitZone(dest);            // 구역 탈출 (리프트 계속 하강 중)
-        liftDownWait();            // 착지 완료 대기
+        goToZoneDirect(dest);
+        liftDownUntilClear();
+        exitZone(dest);
+        liftDownWait();
 
+        // ★ 상태 동기화 완벽 수정 (이중 관리 방지)
+        boxes[zone].present = false;
+        boxes[dest].present = true;
         isOccupied[zone] = false;
         isOccupied[dest] = true;
         delivered[zone] = true;
+
         deliveredCount++;
         movedThisTurn = true;
         break;
       }
     }
 
-    // 데드락 해소
     if (!movedThisTurn && deliveredCount < 4) {
       int stuckZone = 0, emptyZone = 0;
       for (int z = 1; z <= 6; z++) {
         if (boxes[z].found && boxes[z].present && !delivered[z]) stuckZone = z;
         if (!isOccupied[z]) emptyZone = z;
       }
-      if (stuckZone == 0 || emptyZone == 0) break;  // 안전 탈출
+      if (stuckZone == 0 || emptyZone == 0) break;
 
       DPRINTF("\n[DEADLOCK] ");
       DPRINT(stuckZone);
