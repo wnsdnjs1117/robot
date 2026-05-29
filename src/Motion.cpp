@@ -8,10 +8,13 @@
 // ── [1] 모터 기본 제어 ────────────────────────────────────────
 
 void drive(int l, int r) {
-  // 직진(같은 방향) 시에만 좌 모터 편향 보정 적용
-  if ((l > 0 && r > 0) || (l < 0 && r < 0)) {
+  // 전진: 좌↓ 우↑ / 후진: 부호 반전 (좌↑ 우↓) — DRIVE_BIAS > 0 이면 좌 감속
+  if (l > 0 && r > 0) {
     l -= DRIVE_BIAS;
     r += DRIVE_BIAS;
+  } else if (l < 0 && r < 0) {
+    l += DRIVE_BIAS;
+    r -= DRIVE_BIAS;
   }
   l = constrain(l, -100, 100);
   r = constrain(r, -100, 100);

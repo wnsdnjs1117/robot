@@ -133,21 +133,20 @@ void reverseEnterZone() {
     int lsp = -BACK_SPEED;
     int rsp = -BACK_SPEED;
 
-    // 후방 센서 라인 감지 시 무조건 조향 강제 활성화 (버그 수정 상태 유지)
     bool rearIsCrossing = ((RL && RC) || (RC && RR) || (RL && RR));
     if (rearHasLine && !rearIsCrossing) {
       if (RL && !RC && !RR) {
-        lsp = -(BACK_SPEED - 10);
-        rsp = -(BACK_SPEED + 10);
+        lsp = -(BACK_SPEED - BACK_STEER_STRONG);
+        rsp = -(BACK_SPEED + BACK_STEER_STRONG);
       } else if (!RL && !RC && RR) {
-        lsp = -(BACK_SPEED + 10);
-        rsp = -(BACK_SPEED - 10);
+        lsp = -(BACK_SPEED + BACK_STEER_STRONG);
+        rsp = -(BACK_SPEED - BACK_STEER_STRONG);
       } else if (RL && RC && !RR) {
-        lsp = -(BACK_SPEED - 5);
-        rsp = -(BACK_SPEED + 5);
+        lsp = -(BACK_SPEED - BACK_STEER_WEAK);
+        rsp = -(BACK_SPEED + BACK_STEER_WEAK);
       } else if (!RL && RC && RR) {
-        lsp = -(BACK_SPEED + 5);
-        rsp = -(BACK_SPEED - 5);
+        lsp = -(BACK_SPEED + BACK_STEER_WEAK);
+        rsp = -(BACK_SPEED - BACK_STEER_WEAK);
       }
     }
 
@@ -212,20 +211,19 @@ void reverseAcrossToOppositeZone() {
     int lsp = -BACK_SPEED;
     int rsp = -BACK_SPEED;
 
-    // 후방 센서 실시간 상시 조향 강제 연동 유지
     if (rearHasLine && !rearIsCrossing) {
       if (RL && !RC && !RR) {
-        lsp = -(BACK_SPEED - 10);
-        rsp = -(BACK_SPEED + 10);
+        lsp = -(BACK_SPEED - BACK_STEER_STRONG);
+        rsp = -(BACK_SPEED + BACK_STEER_STRONG);
       } else if (!RL && !RC && RR) {
-        lsp = -(BACK_SPEED + 10);
-        rsp = -(BACK_SPEED - 10);
+        lsp = -(BACK_SPEED + BACK_STEER_STRONG);
+        rsp = -(BACK_SPEED - BACK_STEER_STRONG);
       } else if (RL && RC && !RR) {
-        lsp = -(BACK_SPEED - 5);
-        rsp = -(BACK_SPEED + 5);
+        lsp = -(BACK_SPEED - BACK_STEER_WEAK);
+        rsp = -(BACK_SPEED + BACK_STEER_WEAK);
       } else if (!RL && RC && RR) {
-        lsp = -(BACK_SPEED + 5);
-        rsp = -(BACK_SPEED - 5);
+        lsp = -(BACK_SPEED + BACK_STEER_WEAK);
+        rsp = -(BACK_SPEED - BACK_STEER_WEAK);
       }
     }
 

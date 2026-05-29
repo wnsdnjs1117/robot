@@ -89,11 +89,12 @@ constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (
 //   (1·2구역 선길이 = 28cm, 나머지 = 30.5cm)
 constexpr float ZONE_LINE_LENGTH = 30.5f;      // 3·4·5·6구역 유도선 길이 (cm, 실측)
 constexpr float ZONE_LINE_LENGTH_Z12 = 28.0f;  // 1·2구역 유도선 길이 (cm)
-constexpr float ZONE_LIFT_DEPTH = 50.0f;       // ★ 실측값 (노드 → 리프트 정지점, cm)
+constexpr float ZONE_LIFT_DEPTH_FWD = 50.0f;   // ★ 전진 진입 깊이 (cm, 리프트 기준)
+constexpr float ZONE_LIFT_DEPTH_REV = 50.0f;   // ★ 후진 진입 깊이 (cm, 리프트 기준) — 너무 깊으면 줄일 것
 
-constexpr int ZONE_ENTER_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM);
-// = CM(50 - 30.5 + 7.5 + 11) = CM(38.0)
-constexpr int ZONE_DEPTH_EXTRA = CM(ZONE_LIFT_DEPTH - ZONE_LINE_LENGTH + REAR_SENSOR_OFFSET - AXLE_TO_LIFT_CM);
+constexpr int ZONE_ENTER_EXTRA = CM(ZONE_LIFT_DEPTH_FWD - ZONE_LINE_LENGTH + FRONT_SENSOR_OFFSET + AXLE_TO_LIFT_CM);
+// = CM(50 - 30.5 + 5 + 11) = CM(35.5)
+constexpr int ZONE_DEPTH_EXTRA = CM(ZONE_LIFT_DEPTH_REV - ZONE_LINE_LENGTH + REAR_SENSOR_OFFSET - AXLE_TO_LIFT_CM);
 // = CM(50 - 30.5 + 25 - 11) = CM(33.5)
 
 constexpr int ZONE_FOLLOW_MAX = CM(40.0f);  // 유도선 추적 안전 한계 (최대 이동 ~5cm << 40cm)
@@ -103,7 +104,7 @@ constexpr int NODE8_EXIT_QUAL = CM(AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);  // 후�
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
 constexpr float LIFT_UP_CLEAR_CM = 10.0f;   // 상승 중 주행 허가 높이 (cm)
 constexpr float LIFT_DOWN_CLEAR_CM = 0.0f;  // 하강 중 주행 허가 높이 (cm)
-constexpr int DRIVE_BIAS = 0;               // 좌 모터 가속 편향 보정: +값 → 좌↓ 우↑ (직진 우편향 시 양수)
+constexpr int DRIVE_BIAS = 0;               // 좌 모터 편향 보정: +값 → 좌 감속 (좌 모터가 강하면 양수)
 constexpr bool WEST_IS_LEFT = true;         // 서쪽 방향이 왼쪽인지 여부
 constexpr int CROSS_CONFIRM = 2;            // 교차로 인식 노이즈 필터링 카운트
 constexpr int ANGULAR_GAIN = 3;             // 전/후방 이중 센서 각도 교정 배율
@@ -113,6 +114,10 @@ constexpr int SPIN_BRAKE_LEAD = 15;         // turnAngle 관성 보정 선행 �
 // 라인 정렬 회전 (turnToLine)
 constexpr int TURN_LINE_ARM_DEG = 30;  // 이 각도 이상 회전 + 시작 라인 이탈 후부터 감지
 constexpr int TURN_LINE_MAX_DEG = 92;  // 라인 못 찾을 때 무한 회전 방지 한계각
+
+// ── 후진 라인 조향 강도 ─────────────────────────────────────
+constexpr int BACK_STEER_STRONG = 7;  // 한쪽 센서만 감지 시 조향량 (★ 줄이면 흔들림 감소)
+constexpr int BACK_STEER_WEAK   = 3;  // 2/3 센서 감지 시 조향량
 
 // ── [6] 방향 상수 (robotHeading) ───────────────────────────────
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향

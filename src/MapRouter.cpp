@@ -273,17 +273,17 @@ void exitZone(int zone) {
       if (!rearCrossFound) {
         if (rearHasLine && !rearIsCrossing) {
           if (RL && !RC && !RR) {
-            lsp = -(BACK_SPEED - 10);
-            rsp = -(BACK_SPEED + 10);
+            lsp = -(BACK_SPEED - BACK_STEER_STRONG);
+            rsp = -(BACK_SPEED + BACK_STEER_STRONG);
           } else if (!RL && !RC && RR) {
-            lsp = -(BACK_SPEED + 10);
-            rsp = -(BACK_SPEED - 10);
+            lsp = -(BACK_SPEED + BACK_STEER_STRONG);
+            rsp = -(BACK_SPEED - BACK_STEER_STRONG);
           } else if (RL && RC && !RR) {
-            lsp = -(BACK_SPEED - 5);
-            rsp = -(BACK_SPEED + 5);
+            lsp = -(BACK_SPEED - BACK_STEER_WEAK);
+            rsp = -(BACK_SPEED + BACK_STEER_WEAK);
           } else if (!RL && RC && RR) {
-            lsp = -(BACK_SPEED + 5);
-            rsp = -(BACK_SPEED - 5);
+            lsp = -(BACK_SPEED + BACK_STEER_WEAK);
+            rsp = -(BACK_SPEED - BACK_STEER_WEAK);
           }
         } else if (!rearHasLine) {
           lsp = -BACK_SPEED;
