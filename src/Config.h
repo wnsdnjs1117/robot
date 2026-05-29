@@ -74,7 +74,8 @@ constexpr int SPIN_90_COUNTS = 1200;  // 90도 회전 엔코더 카운트 (회�
 constexpr int CROSS_ALIGN_COUNTS = CM(FRONT_SENSOR_OFFSET + LINE_THICKNESS / 2.0f);  // CM(8.5)
 constexpr int REAR_TO_AXLE_COUNTS = CM(REAR_SENSOR_OFFSET + LINE_THICKNESS / 2.0f);  // CM(26.0)
 
-constexpr float START_ESCAPE_AXLE_CM = 22.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
+// constexpr float START_ESCAPE_AXLE_CM = 22.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
+constexpr float START_ESCAPE_AXLE_CM = 200.5f;  // ★ 스타트 이탈 후 바퀴축 이동 거리 (cm)
 constexpr int START_ESCAPE_COUNTS = CM(FRONT_SENSOR_OFFSET + START_ESCAPE_AXLE_CM);
 
 constexpr int FINISH_ENTRY_COUNTS = CM(36.0f);  // FINISH 구역 진입 거리 (36cm)
@@ -106,7 +107,7 @@ constexpr int NODE8_EXIT_QUAL = CM(AXLE_TO_LIFT_CM + ZONE_LIFT_DEPTH);  // 후�
 // = CM(11 + 50) = CM(61.0)
 
 // ── [5] 제어 파라미터 (튜닝값) ──────────────────────────────
-constexpr float LIFT_UP_CLEAR_CM = 5.0f;    // 상승 중 주행 허가 높이 (cm)
+constexpr float LIFT_UP_CLEAR_CM = 10.0f;   // 상승 중 주행 허가 높이 (cm)
 constexpr float LIFT_DOWN_CLEAR_CM = 0.0f;  // 하강 중 주행 허가 높이 (cm)
 constexpr int DRIVE_BIAS = 0;               // 좌 모터 가속 편향 보정: +값 → 좌↓ 우↑ (직진 우편향 시 양수)
 constexpr bool WEST_IS_LEFT = true;         // 서쪽 방향이 왼쪽인지 여부
@@ -120,11 +121,11 @@ constexpr int TURN_LINE_ARM_DEG = 30;  // 이 각도 이상 회전 + 시작 라�
 constexpr int TURN_LINE_MAX_DEG = 92;  // 라인 못 찾을 때 무한 회전 방지 한계각
 
 // ── [6] 블라인드 구간 엔코더 차동 보정 파라미터 ────────────────
-constexpr int BLIND_CORR_DEADZONE = 3;  // 무시할 최소 엔코더 차이
-constexpr int BLIND_CORR_GAIN = 8;      // 보정 나눗수
-constexpr int BLIND_CORR_CAP = 6;       // 최대 보정량
-constexpr int BLIND_START_COUNTS = 200; // 시작 편향 적용 구간 (~4.7cm, ★ 튜닝값)
-constexpr int BLIND_START_BIAS = 4;     // 시작 시 왼쪽 감속량 (★ 튜닝값, 오른쪽 편향이면 양수)
+constexpr int BLIND_CORR_DEADZONE = 5;   // 무시할 최소 엔코더 차이
+constexpr int BLIND_CORR_GAIN = 4;       // 보정 나눗수
+constexpr int BLIND_CORR_CAP = 2;        // 최대 보정량
+constexpr int BLIND_START_COUNTS = 200;  // 시작 편향 적용 구간 (~4.7cm, ★ 튜닝값)
+constexpr int BLIND_START_BIAS = 4;      // 시작 시 왼쪽 감속량 (★ 튜닝값, 오른쪽 편향이면 양수)
 
 // ── [7] 방향 상수 (robotHeading) ───────────────────────────────
 constexpr int HDG_N = 0;  // 북 – 구역(1~6) 입구 방향
