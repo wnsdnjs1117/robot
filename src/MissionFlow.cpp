@@ -36,7 +36,7 @@ void executeStage1_Search() {
   goToZoneDirect(6);
   scanZone(6);
 
-  exitZone(6);
+  // exitZone(6); // ★ 6구역 탈출은 2단계 배송 시에 허브로 이동하면서 자동으로 이루어지므로 생략
 
   DPRINTLNF(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!");
   DPRINTLNF("========================================\n");

@@ -3,8 +3,8 @@
  * ============================================================ */
 #include "Motion.h"
 #include "Config.h"
+#include "MapRouter.h" 
 
-// 엣지 조향 허용 플래그 (기본값 꺼짐)
 bool enableEdgeSteering = false;
 
 // ── [1] 모터 구동 및 정지 ────────────────────────────────────────
@@ -97,11 +97,26 @@ bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   int lsp = SPEED, rsp = SPEED;
 
-  if ((FL && FC && FR) || (!enableEdgeSteering && ((FL && FC) || (FC && FR)))) {
-    lsp = SPEED;
-    rsp = SPEED;
-    lastSensorState = 0;
+  bool ignoreLeftEdge = true;
+  bool ignoreRightEdge = true;
+
+  if (enableEdgeSteering) {
+    if (robotHeading == 0 || robotHeading == 360) {
+      ignoreLeftEdge = false; 
+    } else if (robotHeading == 180) {
+      ignoreRightEdge = false; 
+    }
+  }
+
+  if (FL && FC && FR) {
+    lsp = SPEED; rsp = SPEED; lastSensorState = 0;
   } 
+  else if (ignoreLeftEdge && FL && FC) {
+    lsp = SPEED; rsp = SPEED; lastSensorState = 0;
+  }
+  else if (ignoreRightEdge && FC && FR) {
+    lsp = SPEED; rsp = SPEED; lastSensorState = 0;
+  }
   else if (FL && FC) {
     lsp = SPEED - 20; rsp = SPEED + 10;
     lastSensorState = 1;
@@ -132,7 +147,6 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
     }
   }
 
-  // 후방 융합 교정 (각도 삐뚤어짐 교정 - Config 변수 연동)
   bool frontIsCrossing = (FL && FC) || (FC && FR);
   bool rearIsCrossing = (RL && RC) || (RC && RR);
 
@@ -153,9 +167,26 @@ void reverseLineFollowStep(int RL, int RC, int RR) {
   int lsp = -BACK_SPEED;
   int rsp = -BACK_SPEED;
 
-  if ((RL && RC && RR) || (!enableEdgeSteering && ((RL && RC) || (RC && RR)))) {
+  bool ignoreLeftEdge = true;   
+  bool ignoreRightEdge = true;  
+
+  if (enableEdgeSteering) {
+    if (robotHeading == 0 || robotHeading == 360) {
+      ignoreRightEdge = false; 
+    } else if (robotHeading == 180) {
+      ignoreLeftEdge = false;  
+    }
+  }
+
+  if (RL && RC && RR) {
     lsp = -BACK_SPEED; rsp = -BACK_SPEED;
-  } 
+  }
+  else if (ignoreLeftEdge && RL && RC) {
+    lsp = -BACK_SPEED; rsp = -BACK_SPEED;
+  }
+  else if (ignoreRightEdge && RC && RR) {
+    lsp = -BACK_SPEED; rsp = -BACK_SPEED;
+  }
   else if (RL && RC) {
     lsp = -BACK_SPEED + BACK_STEER_WEAK; 
     rsp = -BACK_SPEED - BACK_STEER_WEAK; 

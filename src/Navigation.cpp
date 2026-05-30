@@ -53,7 +53,7 @@ void followToCrossing(bool stopAtEnd) {
 
 void followToCrossing() { followToCrossing(true); }
 
-// ── [2] 존(구역) 진입 및 횡단 (선 끊김 감지 + 기하학적 깊이 기동) ─────────────────
+// ── [2] 존(구역) 진입 및 횡단 ─────────────────────────────────────
 
 void enterZone() {
   DPRINTLNF(">> [NAV] 전진으로 존 진입 시작 (선 끊김 감지 대기)");
@@ -68,11 +68,9 @@ void enterZone() {
     delay(5);
   }
 
-  DPRINTLNF(">> [NAV] 전방 선 끊김 확인. 하드웨어 치수 보정 후 리프트 목표 깊이까지 직진합니다.");
+  DPRINTLNF(">> [NAV] 선 끊김 확인. 바퀴축 기준으로 리프트를 목표 깊이에 배치합니다.");
   prizm.resetEncoders();
-  
-  float forwardOffset = DIST_AXIS_TO_FRONT_SENSOR_CM + DIST_AXIS_TO_LIFT_CM;
-  long extraDist = CM(DIST_ZONE_DEPTH_CM + forwardOffset);
+  long extraDist = CM(DIST_ZONE_DEPTH_CM + DIST_AXIS_TO_LIFT_CM + DIST_AXIS_TO_FRONT_SENSOR_CM);
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(SPEED / 2, SPEED / 2); 
@@ -93,11 +91,9 @@ void reverseEnterZone() {
     delay(5);
   }
 
-  DPRINTLNF(">> [NAV] 후방 선 끊김 확인. 하드웨어 치수 보정 후 리프트 목표 깊이까지 후진합니다.");
+  DPRINTLNF(">> [NAV] 선 끊김 확인. 바퀴축 기준으로 리프트를 목표 깊이에 배치합니다.");
   prizm.resetEncoders();
-  
-  float reverseOffset = DIST_AXIS_TO_REAR_SENSOR_CM - DIST_AXIS_TO_LIFT_CM;
-  long extraDist = CM(DIST_ZONE_DEPTH_CM + reverseOffset);
+  long extraDist = CM(DIST_ZONE_DEPTH_CM - DIST_AXIS_TO_LIFT_CM + DIST_AXIS_TO_REAR_SENSOR_CM);
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(-BACK_SPEED / 2, -BACK_SPEED / 2); 
@@ -109,7 +105,8 @@ void reverseEnterZone() {
 void reverseAcrossToOppositeZone() {
   DPRINTLNF(">> [NAV] 반대편 존으로 횡단 (탈출 후 반대편 존 진입)");
   prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < CM(DIST_ZONE_EXIT_REV_CM)) {
+  
+  while (abs(prizm.readEncoderCount(1)) < CM(75.0f)) {
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
     reverseLineFollowStep(RL, RC, RR);
@@ -158,7 +155,6 @@ void goToMainLine() {
 void returnToFinish() {
   DPRINTLNF("\n========================================");
   
-  // ── [분기 1] 상단 복귀 (10, 11번 노드) ──
   if (currentNode == 10 || currentNode == 11) {
     DPRINTLNF(">> [FINISH] 복귀 기동 (상단): 11 -> START 다이렉트");
     moveToNode(11);
@@ -180,8 +176,11 @@ void returnToFinish() {
       delay(5);
     }
     stopAll();
+    delay(200);
+
+    DPRINTLNF(">> [FINISH] 박스 내 동쪽(90도) 정렬 기동");
+    turnToHeading(90);
   } 
-  // ── [분기 2] 하단 복귀 (7, 8, 9번 노드) ──
   else {
     DPRINTLNF(">> [FINISH] 복귀 기동 (하단): 9-3 -> 12 -> START");
     moveToNode(9);
@@ -209,6 +208,7 @@ void returnToFinish() {
     delay(100);
     
     turnToHeading(HEADING_12_TO_START);
+    
     while (true) {
       int L, C, R;
       readSensors(L, C, R);
@@ -223,8 +223,13 @@ void returnToFinish() {
       delay(5);
     }
     stopAll();
+    delay(200);
+
+    DPRINTLNF(">> [FINISH] 박스 내 동쪽(90도) 정렬 확인 기동");
+    turnToHeading(90);
   }
 
+  stopAll();
   tone(BUZZER_PIN, 1000);
   delay(1500);
   noTone(BUZZER_PIN);
@@ -271,7 +276,6 @@ int qrSearchStage() {
   }
   DPRINTLNF("\n--- [3구역 탐색] ---");
   
-  // 1구역에서 3구역으로 넘어갈 때 엣지 스티어링 켜기
   enableEdgeSteering = true;
   reverseAcrossToOppositeZone();
   enableEdgeSteering = false;
@@ -283,7 +287,7 @@ int qrSearchStage() {
   return 3;
 }
 
-// ── [5] 일반 메인 복도 교차로 필터링 감지 (T자 즉각 반응) ─────────────────────
+// ── [5] 일반 메인 복도 교차로 필터링 감지 ─────────────────────
 
 bool detectCrossing(int L, int C, int R) {
   bool isCross = (L == 1 && R == 1);

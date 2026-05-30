@@ -6,7 +6,7 @@
 #include "Motion.h"
 #include "Navigation.h"
 
-int robotHeading = 0;  // 0=북, 90=동, 180=남, 270=서
+int robotHeading = 0;  
 int currentNode = 11;
 bool lastEntryWasForward = true;
 
@@ -125,18 +125,24 @@ void moveToNode(int toNode) {
   }
 }
 
+// ── [스마트 수학 탈출 로직 (바퀴축 기준 정밀 복귀 + 5/6구역 분리)] ─────────────────────
 void exitZone(int zone) {
   int targetNode = zoneToNode(zone); 
+  long targetEscapeDist;
 
   if (targetNode == 7) enableEdgeSteering = true;
   
-  long targetRevDist = CM((zone == 5 || zone == 6) ? DIST_ZONE56_EXIT_REV_CM : DIST_ZONE_EXIT_REV_CM);
-  long targetFwdDist = CM((zone == 5 || zone == 6) ? DIST_ZONE56_EXIT_FWD_CM : DIST_ZONE_EXIT_FWD_CM);
+  if (zone == 5 || zone == 6) {
+    targetEscapeDist = CM(DIST_ZONE56_EXIT_CM);
+  } else {
+    float lineLen = (zone == 1 || zone == 2) ? LINE_LEN_ZONE_12_CM : LINE_LEN_ZONE_34_CM;
+    targetEscapeDist = CM(lineLen + DIST_ZONE_DEPTH_CM);
+  }
 
   if (lastEntryWasForward) {
-    DPRINTLNF(">> [NAV] 후진으로 존 탈출 시작");
+    DPRINTLNF(">> [NAV] 후진으로 존 탈출 시작 (바퀴축 기준 정밀 복귀)");
     prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < targetRevDist) {
+    while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
       int RL, RC, RR;
       readRearSensors(RL, RC, RR);
       reverseLineFollowStep(RL, RC, RR); 
@@ -144,9 +150,9 @@ void exitZone(int zone) {
     }
     stopAll();
   } else {
-    DPRINTLNF(">> [NAV] 전진으로 존 탈출 시작");
+    DPRINTLNF(">> [NAV] 전진으로 존 탈출 시작 (바퀴축 기준 정밀 복귀)");
     prizm.resetEncoders();
-    while (abs(prizm.readEncoderCount(1)) < targetFwdDist) {
+    while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
       int L, C, R, RL, RC, RR;
       readSensors(L, C, R);
       readRearSensors(RL, RC, RR);
