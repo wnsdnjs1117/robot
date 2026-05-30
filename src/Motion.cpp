@@ -97,7 +97,6 @@ bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   int lsp = SPEED, rsp = SPEED;
 
-  // 전방 가로선(교차로) 무시 및 T자 대응 로직
   if ((FL && FC && FR) || (!enableEdgeSteering && ((FL && FC) || (FC && FR)))) {
     lsp = SPEED;
     rsp = SPEED;
@@ -154,7 +153,6 @@ void reverseLineFollowStep(int RL, int RC, int RR) {
   int lsp = -BACK_SPEED;
   int rsp = -BACK_SPEED;
 
-  // 후진 가로선(교차로) 무시 및 T자 대응 로직
   if ((RL && RC && RR) || (!enableEdgeSteering && ((RL && RC) || (RC && RR)))) {
     lsp = -BACK_SPEED; rsp = -BACK_SPEED;
   } 

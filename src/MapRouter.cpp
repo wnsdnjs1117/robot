@@ -125,11 +125,9 @@ void moveToNode(int toNode) {
   }
 }
 
-// ── [스마트 탈출 로직] ─────────────────────
 void exitZone(int zone) {
   int targetNode = zoneToNode(zone); 
 
-  // 1, 3구역(7번 T자 노드) 탈출 시 엣지 스티어링 켜기
   if (targetNode == 7) enableEdgeSteering = true;
   
   long targetRevDist = CM((zone == 5 || zone == 6) ? DIST_ZONE56_EXIT_REV_CM : DIST_ZONE_EXIT_REV_CM);
@@ -175,7 +173,6 @@ void goToZoneDirect(int zone) {
     turnToHeading(zoneSide);
   }
 
-  // 1, 3구역(7번 T자 노드) 진입 직전 엣지 스티어링 켜기
   if (targetNode == 7) enableEdgeSteering = true;
 
   bool enterForward = (robotHeading == zoneSide);
