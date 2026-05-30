@@ -85,32 +85,14 @@ constexpr int   HEADING_10_TO_11 = 90;
 constexpr int   HEADING_11_TO_10 = 270;      
 
 // ── [6] 듀얼 리프트 모터 제어 파라미터 ─────────────────────────────
-constexpr float LIFT_COUNTS_PER_CM = 200.0f;
-constexpr float LIFT_UP_CLEAR_CM = 5.0f;     
-constexpr float LIFT_DOWN_CLEAR_CM = 1.0f;   
-
-constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;   
-constexpr float LIFT_RIGHT_OFFSET_CM = 0.6f;    
-
-// ★ [수정 완료] 목표 속도 하나를 기준으로 모든 속도가 비율로 자동 연동됩니다.
-constexpr int LIFT_TARGET_SPEED = 150;                  
-constexpr int LIFT_MAX_POWER = 40;              
-
-constexpr float LIFT_CRUISE_SPEED_RATIO = 0.80f;  
-constexpr float LIFT_STALL_SPEED_RATIO  = 0.60f;
-constexpr float LIFT_EMERGENCY_SPEED_RATIO = 0.60f;
-
-constexpr int LIFT_DOWN_STALL_THRESHOLD = (int)(LIFT_TARGET_SPEED * LIFT_STALL_SPEED_RATIO);  
-constexpr int LIFT_EMERGENCY_SPEED = (int)(LIFT_TARGET_SPEED * LIFT_EMERGENCY_SPEED_RATIO);        
-
-constexpr int LIFT_CRUISE_CONFIRM_COUNT = 20;     
-constexpr unsigned long LIFT_TICK_INTERVAL_MS = 10;   
-constexpr unsigned long LIFT_GRACE_PERIOD_MS = 200;   
-constexpr unsigned long LIFT_HARD_JAM_PHASE_MS = 600; 
-constexpr int LIFT_HARD_JAM_THRESHOLD = 5;      
-constexpr int LIFT_HARD_JAM_CONFIRM_COUNT = 20; 
-constexpr int LIFT_UP_EMERGENCY_COUNT = 50;     
-constexpr int LIFT_DOWN_EMERGENCY_COUNT = 30;   
+constexpr float LIFT_COUNTS_PER_CM        = 200.0f;
+constexpr float LIFT_MAX_HEIGHT_CM        = 20.0f;   // 상승 정지 높이 (cm)
+constexpr float LIFT_FLOOR_CM             = -2.0f;   // 하강 정지 높이 (cm)
+constexpr float LIFT_UP_CLEAR_CM          = 5.0f;    // liftUp() 블로킹 해제 높이
+constexpr float LIFT_DOWN_CLEAR_CM        = 1.0f;    // liftDownUntilClear() 해제 높이
+constexpr int   LIFT_UP_POWER             = 35;      // 상승 모터 파워
+constexpr int   LIFT_DOWN_POWER           = 25;      // 하강 모터 파워
+constexpr unsigned long LIFT_TICK_INTERVAL_MS = 10;
 // ─────────────────────────────────────────────────────────────
 
 extern PRIZM prizm;
