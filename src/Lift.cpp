@@ -1,7 +1,7 @@
 /* ============================================================
  * Lift.cpp - 듀얼 리프트 높이 기반 제어
- *   상승: heightL 또는 heightR >= LIFT_MAX_HEIGHT_CM(20cm) 시 정지
- *   하강: heightL 또는 heightR <= LIFT_FLOOR_CM(-2cm) 시 정지
+ *   상승: heightL 또는 heightR >= 20cm 시 정지
+ *   하강: height <= 5cm 진입 후 LIFT_FLOOR_TIME_MS 경과 시 정지
  * ============================================================ */
 #include "Lift.h"
 #include "Config.h"
@@ -17,8 +17,10 @@ const int LIFT_R = 2;
 float heightL = 0;
 float heightR = 0;
 
-static bool liftUpRunning   = false;
-static bool liftDownRunning = false;
+static bool liftUpRunning    = false;
+static bool liftDownRunning  = false;
+static bool nearFloorMode    = false;   // 5cm 이하 진입 후 타이머 하강 중
+static unsigned long nearFloorStartTime = 0;
 
 static long prevEncL = 0;
 static long prevEncR = 0;
@@ -97,6 +99,7 @@ void liftDown() {
 
 void liftDownStart() {
   resetState();
+  nearFloorMode = false;
   liftDownRunning = true;
   DPRINTLNF(">> [LIFT] 하강 시작");
 }
@@ -105,7 +108,15 @@ void liftDownTick() {
   if (!liftDownRunning) return;
   updateHeight();
 
-  if (heightL <= LIFT_FLOOR_CM || heightR <= LIFT_FLOOR_CM) {
+  // [1단계] 5cm 이하 진입 시 타이머 시작
+  if (!nearFloorMode && (heightL <= LIFT_NEAR_FLOOR_CM || heightR <= LIFT_NEAR_FLOOR_CM)) {
+    nearFloorMode = true;
+    nearFloorStartTime = millis();
+    DPRINTLNF(">> [LIFT] 바닥 근접 — 타이머 하강 시작");
+  }
+
+  // [2단계] 타이머 만료 시 정지
+  if (nearFloorMode && (millis() - nearFloorStartTime >= LIFT_FLOOR_TIME_MS)) {
     exc.setMotorPowers(EXP_ID, 0, 0);
     exc.resetEncoder(EXP_ID, LIFT_L);
     exc.resetEncoder(EXP_ID, LIFT_R);
@@ -115,6 +126,7 @@ void liftDownTick() {
     DPRINTLNF(">> [LIFT] 하강 완료");
     return;
   }
+
   exc.setMotorPowers(EXP_ID, -LIFT_DOWN_POWER, LIFT_DOWN_POWER);
 }
 
