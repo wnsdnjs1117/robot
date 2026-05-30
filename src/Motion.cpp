@@ -43,11 +43,11 @@ void turnAngle(int degrees, bool isRight) {
       readSensors(L, C, R);
 
       if (isRight && L == 1) {
-        Serial.println(F(">> [TURN] 우회전 오버슈트 방지! (좌센서 감지)"));
+        DPRINTLNF(">> [TURN] 우회전 오버슈트 방지! (좌센서 감지)");
         break;
       }
       if (!isRight && R == 1) {
-        Serial.println(F(">> [TURN] 좌회전 오버슈트 방지! (우센서 감지)"));
+        DPRINTLNF(">> [TURN] 좌회전 오버슈트 방지! (우센서 감지)");
         break;
       }
     }

@@ -63,7 +63,9 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
     delay(5);
   }
   if (stopAtEnd) stopAll();
-  if (alignHeading != -1) {
+  // 다음 구간이 있을 때만 수평 방향 정렬
+  // (최종 목적지라면 goToZoneDirect가 존 방향으로 회전하므로 불필요)
+  if (alignHeading != -1 && !stopAtEnd) {
     turnToHeading(alignHeading);
   }
 }
