@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "Motion.h"
 #include "Navigation.h"
+#include "Lift.h" // ★ 논블로킹 리프트 제어를 위해 추가
 
 int robotHeading = 0;  
 int currentNode = 11;
@@ -49,6 +50,11 @@ static void blindDriveUntilLine() {
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     drive(BLIND_SPEED, BLIND_SPEED);
+    
+    // ★ [논블로킹 제어]
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
 }
@@ -59,6 +65,11 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    
+    // ★ [논블로킹 제어]
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
   if (stopAtEnd) stopAll();
@@ -80,6 +91,11 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       int RL, RC, RR;
       readRearSensors(RL, RC, RR);
       lineFollowStepFull(L, C, R, RL, RC, RR);
+      
+      // ★ [논블로킹 제어]
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
   } else if (from == 9 && to == 8) {
@@ -90,6 +106,11 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       readSensors(L, C, R);
       if (anyLine(L, C, R)) break;
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      
+      // ★ [논블로킹 제어]
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     followToCrossing(stopAtEnd);
@@ -146,6 +167,11 @@ void exitZone(int zone) {
       int RL, RC, RR;
       readRearSensors(RL, RC, RR);
       reverseLineFollowStep(RL, RC, RR); 
+      
+      // ★ [논블로킹 제어]
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     stopAll();
@@ -157,6 +183,11 @@ void exitZone(int zone) {
       readSensors(L, C, R);
       readRearSensors(RL, RC, RR);
       lineFollowStepFull(L, C, R, RL, RC, RR); 
+      
+      // ★ [논블로킹 제어]
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     stopAll();

@@ -19,10 +19,19 @@ void followToCrossing(bool stopAtEnd) {
         readSensors(L, C, R);
         if (!(L == 1 && C == 1 && R == 1)) break;
         drive(SPEED, SPEED);
+        
+        // ★ [논블로킹 제어]
+        liftUpTick();
+        liftDownTick();
+        
         delay(5);
       }
       for (int i = 0; i < 10; i++) {
         drive(SPEED, SPEED);
+        
+        liftUpTick();
+        liftDownTick();
+        
         delay(5);
       }
     }
@@ -38,6 +47,10 @@ void followToCrossing(bool stopAtEnd) {
       prizm.resetEncoders();
       while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
         drive(SPEED, SPEED);
+        
+        liftUpTick();
+        liftDownTick();
+        
         delay(5);
       }
       if (stopAtEnd) stopAll();
@@ -47,6 +60,11 @@ void followToCrossing(bool stopAtEnd) {
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
     lineFollowStepFull(L, C, R, RL, RC, RR);
+    
+    // ★ [논블로킹 제어]
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);  
   }
 }
@@ -65,6 +83,10 @@ void enterZone() {
     
     readRearSensors(RL, RC, RR);
     lineFollowStepFull(L, C, R, RL, RC, RR);
+    
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
 
@@ -74,6 +96,10 @@ void enterZone() {
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(SPEED / 2, SPEED / 2); 
+    
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
   stopAll();
@@ -88,6 +114,10 @@ void reverseEnterZone() {
     if (!anyRearLine(RL, RC, RR)) break; 
     
     reverseLineFollowStep(RL, RC, RR); 
+    
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
 
@@ -97,6 +127,10 @@ void reverseEnterZone() {
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(-BACK_SPEED / 2, -BACK_SPEED / 2); 
+    
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
   stopAll();
@@ -110,6 +144,10 @@ void reverseAcrossToOppositeZone() {
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
     reverseLineFollowStep(RL, RC, RR);
+    
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
   stopAll();
@@ -126,7 +164,10 @@ void goToMainLine() {
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_START_TO_12_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    
+    liftUpTick();
     liftDownTick();  
+    
     delay(5);
   }
   stopAll();
@@ -137,11 +178,19 @@ void goToMainLine() {
     readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     drive(BLIND_SPEED, BLIND_SPEED);
+    
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
   prizm.resetEncoders();
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    
+    liftUpTick();
+    liftDownTick();
+    
     delay(5);
   }
   stopAll();
@@ -167,12 +216,20 @@ void returnToFinish() {
       readSensors(L, C, R);
       if (anyLine(L, C, R)) break;
       drive(BLIND_SPEED, BLIND_SPEED);
+      
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_FINISH_ENTRY_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     stopAll();
@@ -193,6 +250,10 @@ void returnToFinish() {
       int RL, RC, RR;
       readRearSensors(RL, RC, RR);
       lineFollowStepFull(L, C, R, RL, RC, RR);
+      
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     stopAll();
@@ -202,6 +263,10 @@ void returnToFinish() {
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_9_3_TO_12_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     stopAll();
@@ -214,12 +279,20 @@ void returnToFinish() {
       readSensors(L, C, R);
       if (anyLine(L, C, R)) break;
       drive(BLIND_SPEED, BLIND_SPEED);
+      
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     
     prizm.resetEncoders();
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_FINISH_ENTRY_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      
+      liftUpTick();
+      liftDownTick();
+      
       delay(5);
     }
     stopAll();

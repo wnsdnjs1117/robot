@@ -2,10 +2,12 @@
  * main.cpp - 로봇 자율주행 마스터 시스템 진입점
  * 제어기: Arduino UNO + TETRIX PRIZM
  * ============================================================ */
+#include <Arduino.h>
+#include <PRIZM.h>
 #include "BoxMap.h"
 #include "Config.h"
-#include "Lift.h"  // (기존 작성하신 리프트 제어 헤더 유지)
-#include "LiftTest.h"
+#include "Lift.h"
+#include "LiftTest.h" // ★ LiftTest.h 삭제하지 않고 여기서 정상 호출
 #include "MissionFlow.h"
 #include "Motion.h"
 #include "Navigation.h"
@@ -16,12 +18,14 @@ int lastSensorState = 0;
 bool crossingArmed = true;
 int crossingStable = 0;
 
+// Config.h에서 LIFT_TEST_MODE 가 0일 때만 아래 실전 코드가 컴파일됩니다.
 #if !LIFT_TEST_MODE
 void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();
 
-  // EXPANSION 리프트 컨트롤러 초기화 (exc, EXP_ID, LIFT_L, LIFT_R: Lift.h extern)
+  // EXPANSION 리프트 컨트롤러 초기화
+  extern const int EXP_ID;
   exc.controllerEnable(EXP_ID);
   delay(10);
   exc.resetEncoder(EXP_ID, LIFT_L);
@@ -57,7 +61,7 @@ void loop() {
   // [2단계] 배송: 멈춘 위치(존)에서부터 다이나믹하게 최단 거리 배송 수행!
   executeStage2_Delivery();
 
-  // 모든 임무 완료 시 FINISH 구역 복귀 → 부저 → 시스템 락다운
+  // 모든 임무 완료 시 FINISH 구역 복귀 → 시스템 락다운
   returnToFinish();
   while (true);
 }

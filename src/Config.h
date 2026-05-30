@@ -9,7 +9,7 @@
 
 // ── [0] 디버그 모드 및 단위 변환 공식 ──────────────────────────────────────
 #define ROBOT_DEBUG    1
-#define LIFT_TEST_MODE 1  // 1로 바꾸면 리프트 단독 테스트 모드 (s/u/d 키 제어)
+#define LIFT_TEST_MODE 0  // 1로 바꾸면 리프트 단독 테스트 모드 (s/u/d 키 제어)
 
 #if ROBOT_DEBUG
 #define DPRINT(x) Serial.print(x)
@@ -46,7 +46,7 @@ constexpr float DIST_AXIS_TO_REAR_SENSOR_CM = 24.0f;
 // ── [3] 모터 구동 속도 설정 (0 ~ 100) ────────────────────────────────
 constexpr int STRAIGHT_SPEED = 30; 
 constexpr int SPEED = 30;          
-constexpr int BACK_SPEED = 20;     
+constexpr int BACK_SPEED = 30;     
 constexpr int SPIN_SPEED = 30;     
 constexpr int BLIND_SPEED = 30;    
 
@@ -80,36 +80,33 @@ constexpr int   HEADING_12_TO_START = 90;
 constexpr int   HEADING_11_TO_START = 170;   
 constexpr float DIST_FINISH_ENTRY_CM = 20.0f; 
 
-constexpr int   HEADING_9_TO_10 = 40;        
-constexpr int   HEADING_10_TO_9 = 265;       
+constexpr int   HEADING_9_TO_10 = 88;        
+constexpr int   HEADING_10_TO_9 = 268;       
 constexpr int   HEADING_10_TO_11 = 90;       
 constexpr int   HEADING_11_TO_10 = 270;      
 
 // ── [6] 듀얼 리프트 모터 제어 파라미터 ─────────────────────────────
-constexpr float LIFT_COUNTS_PER_CM        = 190.0f;
+constexpr float LIFT_COUNTS_PER_CM        = 200.0f;
 constexpr float LIFT_MAX_HEIGHT_CM        = 24.0f;   // 상승 정지 높이 (cm)
 constexpr float LIFT_NEAR_FLOOR_CM        = 5.0f;    // 타이머 하강 전환 높이 (cm)
 constexpr float LIFT_UP_CLEAR_CM          = 5.0f;    // liftUp() 블로킹 해제 높이
 constexpr float LIFT_DOWN_CLEAR_CM        = 0.0f;    // liftDownUntilClear() 해제 높이
 
-constexpr int   LIFT_UP_POWER             = 100;      // 기본 상승 모터 파워
-constexpr int   LIFT_DOWN_POWER           = 100;      // 기본 하강 모터 파워
+constexpr int   LIFT_UP_POWER             = 100;     // 기본 상승 모터 파워
+constexpr int   LIFT_DOWN_POWER           = 100;     // 기본 하강 모터 파워
 
-// == 신규 감속 및 속도 동기화 설정 파라미터 ==
+// == 감속 구간 진입 시 좌/우 독립 속도 파라미터 ==
 constexpr float LIFT_UP_SLOW_ZONE_CM      = 20.0f;   // 상승 시 감속 시작 기준 높이 (cm)
-constexpr int   LIFT_UP_SLOW_POWER        = 20;      // 상승 감속 속도 파워
+constexpr int   LIFT_UP_SLOW_POWER_L      = 20;      // 상승 감속 속도 파워 (왼쪽)
+constexpr int   LIFT_UP_SLOW_POWER_R      = 25;      // 상승 감속 속도 파워 (오른쪽)
 
-constexpr float LIFT_DOWN_SLOW_ZONE_CM    = 10.0f;    // 하강 시 감속 시작 기준 높이 (cm)
-constexpr int   LIFT_DOWN_SLOW_POWER      = 15;      // 하강 감속 속도 파워
+constexpr float LIFT_DOWN_SLOW_ZONE_CM    = 10.0f;   // 하강 시 감속 시작 기준 높이 (cm)
+constexpr int   LIFT_DOWN_SLOW_POWER_L    = 15;      // 하강 감속 속도 파워 (왼쪽)
+constexpr int   LIFT_DOWN_SLOW_POWER_R    = 20;      // 하강 감속 속도 파워 (오른쪽)
 
 constexpr float LIFT_SYNC_GAIN            = 5.0f;    // 좌우 높이 편차 동기화 게인 (테스트 후 가감 조절)
 constexpr unsigned long LIFT_TICK_INTERVAL_MS  = 10;
 constexpr unsigned long LIFT_FLOOR_TIME_MS     = 2000; // 5cm 이하 진입 후 추가 하강 시간 (ms)
-
-// == 모터 자체 하드웨어 출력 편차 수동 보정 비율 ==
-// 힘이 자체적으로 약한 쪽 모터의 비율을 1.0보다 조금씩 높여서 밸런스를 맞추세요. (예: 1.05, 1.12 등)
-constexpr float LIFT_LEFT_MOTOR_RATIO     = 1.00f;   // 왼쪽 모터 파워 고유 보정 비율
-constexpr float LIFT_RIGHT_MOTOR_RATIO    = 1.2f;   // 오른쪽 모터 파워 고유 보정 비율
 // ─────────────────────────────────────────────────────────────
 
 extern PRIZM prizm;

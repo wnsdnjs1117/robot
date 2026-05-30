@@ -1,9 +1,9 @@
 /* ============================================================
  * Lift.cpp - 듀얼 리프트 높이 기반 제어 (좌우 독립 정지 및 실시간 동기화)
- * 상승: 각 모터가 24cm 도달 시 개별 정지 (20cm 이상 시 파워 20으로 감속)
- * 하강: 각 모터가 5cm 이하 진입 후 비례 타이머 만료 시 개별 정지 (파워 10으로 감속)
- * 동기화: 양쪽이 모두 구동 중일 때 높이 편차를 기반으로 파워를 실시간 보정, 한쪽 정지 시 해제
- * 보정: 리프트 계산 높이가 음수(< 0)가 될 경우 0으로 강제 클램핑 처리 및 모터별 수동 밸런스 비율 적용
+ * 상승: 각 모터가 24cm 도달 시 개별 정지 (20cm 이상 시 좌/우 독립 감속)
+ * 하강: 각 모터가 설정 이하 진입 후 비례 타이머 만료 시 개별 정지 (좌/우 독립 감속)
+ * 동기화: 양쪽 구동 중일 때 높이 편차를 기반으로 파워 실시간 보정
+ * 보정: 리프트 계산 높이가 음수(< 0)가 될 경우 0으로 강제 클램핑 처리
  * ============================================================ */
 #include "Lift.h"
 #include "Config.h"
@@ -70,37 +70,24 @@ void liftUp() {
   resetState();
   liftUpRunning = false;
 
-  // LIFT_UP_CLEAR_CM 까지 블로킹 — 먼저 도달한 쪽은 그 자리서 대기
   do {
-    // 1. 높이에 따른 독립 기본 타겟 파워 결정
-    int basePwrL = (heightL >= LIFT_UP_CLEAR_CM) ? 0 : ((heightL >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER : LIFT_UP_POWER);
-    int basePwrR = (heightR >= LIFT_UP_CLEAR_CM) ? 0 : ((heightR >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER : LIFT_UP_POWER);
+    int basePwrL = (heightL >= LIFT_UP_CLEAR_CM) ? 0 : ((heightL >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_L : LIFT_UP_POWER);
+    int basePwrR = (heightR >= LIFT_UP_CLEAR_CM) ? 0 : ((heightR >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_R : LIFT_UP_POWER);
 
-    // 2. 동기화 보정량 계산 (둘 다 살아있을 때만 적용, 한쪽 정지 시 0)
     int syncOffset = 0;
     if (basePwrL > 0 && basePwrR > 0) {
       syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
     }
 
-    // 3. 최종 출력 파워 산출 (왼쪽이 더 높으면 왼쪽 파워 감속, 오른쪽 가속)
     int pwrL = basePwrL - syncOffset;
     int pwrR = basePwrR + syncOffset;
 
-    // 모터 멈춤 및 역회전 방지용 최소 파워 클램핑 제한
     if (basePwrL > 0 && pwrL < 5) pwrL = 5;
     if (basePwrR > 0 && pwrR < 5) pwrR = 5;
     if (basePwrL == 0) pwrL = 0;
     if (basePwrR == 0) pwrR = 0;
 
-    // 모터 자체의 하드웨어 출력 한계 비율 추가 보정
-    int finalPwrL = (int)(pwrL * LIFT_LEFT_MOTOR_RATIO);
-    int finalPwrR = (int)(pwrR * LIFT_RIGHT_MOTOR_RATIO);
-    if (basePwrL > 0 && finalPwrL < 5) finalPwrL = 5;
-    if (basePwrR > 0 && finalPwrR < 5) finalPwrR = 5;
-    if (basePwrL == 0) finalPwrL = 0;
-    if (basePwrR == 0) finalPwrR = 0;
-
-    exc.setMotorPowers(EXP_ID, finalPwrL, -finalPwrR);
+    exc.setMotorPowers(EXP_ID, pwrL, -pwrR);
     delay(LIFT_TICK_INTERVAL_MS);
     updateHeight();
   } while (heightL < LIFT_UP_CLEAR_CM || heightR < LIFT_UP_CLEAR_CM);
@@ -116,35 +103,23 @@ void liftUpTick() {
   bool doneL = (heightL >= LIFT_MAX_HEIGHT_CM);
   bool doneR = (heightR >= LIFT_MAX_HEIGHT_CM);
 
-  // 1. 높이에 따른 독립 기본 타겟 파워 결정 (20cm 이상 진입 시 파워 감속)
-  int basePwrL = doneL ? 0 : ((heightL >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER : LIFT_UP_POWER);
-  int basePwrR = doneR ? 0 : ((heightR >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER : LIFT_UP_POWER);
+  int basePwrL = doneL ? 0 : ((heightL >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_L : LIFT_UP_POWER);
+  int basePwrR = doneR ? 0 : ((heightR >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_R : LIFT_UP_POWER);
 
-  // 2. 동기화 보정량 계산 (둘 다 구동 중일 때만 동작, 한쪽 정지 시 자동 해제)
   int syncOffset = 0;
   if (basePwrL > 0 && basePwrR > 0) {
     syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
   }
 
-  // 3. 최종 출력 파워 계산
   int pwrL = basePwrL - syncOffset;
   int pwrR = basePwrR + syncOffset;
 
-  // 최소 파워 하한선 제한 처리
   if (basePwrL > 0 && pwrL < 5) pwrL = 5;
   if (basePwrR > 0 && pwrR < 5) pwrR = 5;
   if (basePwrL == 0) pwrL = 0;
   if (basePwrR == 0) pwrR = 0;
 
-  // 모터 자체의 하드웨어 출력 한계 비율 추가 보정
-  int finalPwrL = (int)(pwrL * LIFT_LEFT_MOTOR_RATIO);
-  int finalPwrR = (int)(pwrR * LIFT_RIGHT_MOTOR_RATIO);
-  if (basePwrL > 0 && finalPwrL < 5) finalPwrL = 5;
-  if (basePwrR > 0 && finalPwrR < 5) finalPwrR = 5;
-  if (basePwrL == 0) finalPwrL = 0;
-  if (basePwrR == 0) finalPwrR = 0;
-
-  exc.setMotorPowers(EXP_ID, finalPwrL, -finalPwrR);
+  exc.setMotorPowers(EXP_ID, pwrL, -pwrR);
 
   if (doneL && doneR) {
     liftUpRunning = false;
@@ -184,14 +159,12 @@ void liftDownTick() {
 
   unsigned long now = millis();
 
-  // 좌측 — 5cm 이하 진입 시 타이머 시작
   if (!nearFloorL && heightL <= LIFT_NEAR_FLOOR_CM) {
     nearFloorL      = true;
     nearFloorDurL   = calcNearFloorDur(heightL);
     nearFloorStartL = now;
     DPRINTLNF(">> [LIFT-L] 바닥 근접 — 타이머 시작");
   }
-  // 우측 — 5cm 이하 진입 시 타이머 시작
   if (!nearFloorR && heightR <= LIFT_NEAR_FLOOR_CM) {
     nearFloorR      = true;
     nearFloorDurR   = calcNearFloorDur(heightR);
@@ -199,7 +172,6 @@ void liftDownTick() {
     DPRINTLNF(">> [LIFT-R] 바닥 근접 — 타이머 시작");
   }
 
-  // 타이머 만료 → 개별 정지
   if (nearFloorL && !stoppedL && (now - nearFloorStartL >= nearFloorDurL)) {
     stoppedL = true;
     DPRINTLNF(">> [LIFT-L] 하강 완료");
@@ -209,37 +181,24 @@ void liftDownTick() {
     DPRINTLNF(">> [LIFT-R] 하강 완료");
   }
 
-  // 1. 높이에 따른 독립 기본 타겟 파워 결정 (5cm 이하 진입 시 파워 감속)
-  int basePwrL = stoppedL ? 0 : ((heightL <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER : LIFT_DOWN_POWER);
-  int basePwrR = stoppedR ? 0 : ((heightR <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER : LIFT_DOWN_POWER);
+  int basePwrL = stoppedL ? 0 : ((heightL <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER_L : LIFT_DOWN_POWER);
+  int basePwrR = stoppedR ? 0 : ((heightR <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER_R : LIFT_DOWN_POWER);
 
-  // 2. 동기화 보정량 계산 (하강 제어)
   int syncOffset = 0;
   if (basePwrL > 0 && basePwrR > 0) {
     syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
   }
 
-  // 3. 최종 출력 파워 계산 (하강 부호는 최종 구동 함수 인자에서 처리)
   int pwrL = basePwrL + syncOffset;
   int pwrR = basePwrR - syncOffset;
 
-  // 최소 파워 하한선 제한 처리
   if (basePwrL > 0 && pwrL < 5) pwrL = 5;
   if (basePwrR > 0 && pwrR < 5) pwrR = 5;
   if (basePwrL == 0) pwrL = 0;
   if (basePwrR == 0) pwrR = 0;
 
-  // 모터 자체의 하드웨어 출력 한계 비율 추가 보정
-  int finalPwrL = (int)(pwrL * LIFT_LEFT_MOTOR_RATIO);
-  int finalPwrR = (int)(pwrR * LIFT_RIGHT_MOTOR_RATIO);
-  if (basePwrL > 0 && finalPwrL < 5) finalPwrL = 5;
-  if (basePwrR > 0 && finalPwrR < 5) finalPwrR = 5;
-  if (basePwrL == 0) finalPwrL = 0;
-  if (basePwrR == 0) finalPwrR = 0;
+  exc.setMotorPowers(EXP_ID, -pwrL, pwrR);
 
-  exc.setMotorPowers(EXP_ID, -finalPwrL, finalPwrR);
-
-  // 양쪽 모두 완료
   if (stoppedL && stoppedR) {
     exc.resetEncoder(EXP_ID, LIFT_L);
     exc.resetEncoder(EXP_ID, LIFT_R);
@@ -269,3 +228,88 @@ void liftDownUntilClear() {
   }
   DPRINTLNF(">> [LIFT] 주행 허가 기준 높이 도달 (배경 하강 계속)");
 }
+
+
+// ── [신규 추가] 내장형 리프트 단독 테스트 모드 ───────────────────
+#if LIFT_TEST_MODE
+
+// 이름 있는 enum으로 선언 (문법 호환성 강화)
+enum LiftTestState { LT_IDLE, LT_UP, LT_DOWN };
+static LiftTestState _ltState = LT_IDLE;
+
+static long          _ltPrevEncL  = 0, _ltPrevEncR  = 0;
+static long          _ltSpdL      = 0, _ltSpdR      = 0;
+static unsigned long _ltLastTick  = 0;
+static unsigned long _ltLastPrint = 0;
+
+// 메인 main.cpp 등에서 이 모드가 활성화되었을 때 호출하여 강제 루프를 돌릴 수 있는 함수입니다.
+void runLiftTestMode() {
+  // 최초 1회 초기화 시뮬레이션
+  static bool initDone = false;
+  if (!initDone) {
+    Serial.begin(9600);
+    exc.controllerEnable(EXP_ID);
+    delay(10);
+    exc.resetEncoder(EXP_ID, LIFT_L);
+    exc.resetEncoder(EXP_ID, LIFT_R);
+    Serial.println(F("=== LIFT INTERNAL TEST MODE ACTIVE ==="));
+    Serial.println(F("u=상승  d=하강  s=정지"));
+    Serial.println(F("encL/R | spdL/R(tick/10ms) | hL/R(cm)"));
+    initDone = true;
+  }
+
+  // ── 키 입력 처리 ──
+  if (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c == 'u' || c == 'U') {
+      Serial.println(F("[UP]"));
+      _ltState = LT_UP;
+      liftUp(); 
+    }
+    else if (c == 'd' || c == 'D') {
+      Serial.println(F("[DOWN]"));
+      _ltState = LT_DOWN;
+      liftDownStart();
+    }
+    else if (c == 's' || c == 'S') {
+      Serial.println(F("[STOP]"));
+      _ltState = LT_IDLE;
+      liftUpRunning = false;
+      liftDownRunning = false;
+      exc.setMotorPowers(EXP_ID, 0, 0);
+    }
+  }
+
+  // ── 리프트 상태 업데이트 ──
+  if (_ltState == LT_UP)   liftUpTick();
+  if (_ltState == LT_DOWN) liftDownTick();
+
+  unsigned long now = millis();
+
+  // ── 10ms 주기: 속도 계산 ──
+  if (now - _ltLastTick >= LIFT_TICK_INTERVAL_MS) {
+    long encL = exc.readEncoderCount(EXP_ID, LIFT_L);
+    long encR = exc.readEncoderCount(EXP_ID, LIFT_R);
+    _ltSpdL   = encL - _ltPrevEncL;
+    _ltSpdR   = encR - _ltPrevEncR;
+    _ltPrevEncL = encL;
+    _ltPrevEncR = encR;
+    _ltLastTick = now;
+  }
+
+  // ── 200ms 주기: 시리얼 모니터 실시간 출력 ──
+  if (now - _ltLastPrint >= 200) {
+    long encL = exc.readEncoderCount(EXP_ID, LIFT_L);
+    long encR = exc.readEncoderCount(EXP_ID, LIFT_R);
+
+    Serial.print(F("enc:"));  Serial.print(encL);
+    Serial.print(F("/"));     Serial.print(encR);
+    Serial.print(F(" spd:")); Serial.print(_ltSpdL);
+    Serial.print(F("/"));     Serial.print(_ltSpdR);
+    Serial.print(F(" h:"));   Serial.print(heightL, 2);
+    Serial.print(F("/"));     Serial.println(heightR, 2);
+
+    _ltLastPrint = now;
+  }
+}
+#endif

@@ -4,6 +4,7 @@
 #include "Motion.h"
 #include "Config.h"
 #include "MapRouter.h" 
+#include "Lift.h" // ★ 논블로킹 리프트 제어를 위해 추가
 
 bool enableEdgeSteering = false;
 
@@ -68,6 +69,10 @@ void turnAngle(int degrees, bool isRight) {
 
     if (isRight) drive(spd, -spd);
     else drive(-spd, spd);
+
+    // ★ [논블로킹 제어] 회전 중에도 리프트의 상태를 지속 감시 및 감속/정지 처리
+    liftUpTick();
+    liftDownTick();
 
     delay(5);
   }
