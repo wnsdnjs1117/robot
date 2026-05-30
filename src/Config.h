@@ -93,6 +93,7 @@ constexpr float LIFT_UP_CLEAR_CM          = 5.0f;    // liftUp() 블로킹 해�
 constexpr float LIFT_DOWN_CLEAR_CM        = 1.0f;    // liftDownUntilClear() 해제 높이
 constexpr int   LIFT_UP_POWER             = 35;      // 상승 모터 파워
 constexpr int   LIFT_DOWN_POWER           = 25;      // 하강 모터 파워
+constexpr float LIFT_SYNC_GAIN            = 0.05f;   // 좌우 속도 동기화 게인 ← 튜닝
 constexpr unsigned long LIFT_TICK_INTERVAL_MS  = 10;
 constexpr unsigned long LIFT_FLOOR_TIME_MS     = 500; // 5cm 이하 진입 후 추가 하강 시간 (ms) ← 튜닝
 // ─────────────────────────────────────────────────────────────
