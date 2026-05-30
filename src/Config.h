@@ -86,8 +86,8 @@ constexpr int ANGULAR_GAIN = 3;
 constexpr int REAR_ALIGN_GAIN = 3;          
 
 // [후진 정렬 강도] 꼬리가 긴 로봇이 후진할 때 S자로 흔들리는(피시테일) 현상 방지용 조향 힘
-constexpr int BACK_STEER_STRONG = 7;        // 센서가 선을 완전히 한쪽으로 크게 벗어났을 때 복귀하는 힘
-constexpr int BACK_STEER_WEAK   = 3;        // 센서가 중심과 바깥쪽에 걸쳐서 미세하게 벗어났을 때 복귀하는 힘
+constexpr int BACK_STEER_STRONG = 3;        // 센서가 선을 완전히 한쪽으로 크게 벗어났을 때 복귀하는 힘
+constexpr int BACK_STEER_WEAK   = 2;        // 센서가 중심과 바깥쪽에 걸쳐서 미세하게 벗어났을 때 복귀하는 힘
 
 
 // ── [5] 거리 및 방위각 시나리오 설정 (cm 및 degree 단위) ──────────────────────────────────
@@ -112,12 +112,12 @@ constexpr float DIST_ZONE_DEPTH_CM = 15.0f;
 // ★ [존(Zone) 탈출 총 거리 설정]
 constexpr float DIST_ZONE_EXIT_FWD_CM = 45.0f;   // 1~4구역에서 전진으로 빠져나올 때 목표 거리
 constexpr float DIST_ZONE_EXIT_REV_CM = 45.0f;   // 1~4구역에서 후진으로 빠져나올 때 목표 거리
-constexpr float DIST_ZONE56_EXIT_FWD_CM = 20.0f; // 5, 6구역에서 전진으로 탈출할 때 거리 (교차로가 가까우므로 짧게 설정)
-constexpr float DIST_ZONE56_EXIT_REV_CM = 20.0f; // 5, 6구역에서 후진으로 탈출할 때 거리 (짧게 설정)
+constexpr float DIST_ZONE56_EXIT_FWD_CM = 35.0f; // 5, 6구역에서 전진으로 탈출할 때 거리 (교차로가 가까우므로 짧게 설정)
+constexpr float DIST_ZONE56_EXIT_REV_CM = 35.0f; // 5, 6구역에서 후진으로 탈출할 때 거리 (짧게 설정)
 
 // 특수 구간 노드 이동 방위(Degree: 0=북, 90=동, 180=남, 270=서) 및 허공 직진 거리
 constexpr float DIST_START_TO_12_CM = 45.0f; // START -> 12번 노드(빈 공간) 전진 거리
-constexpr int   HEADING_12_TO_9 = 315;       // 12번 -> 9-2번 방향(북서쪽) 방위각
+constexpr int   HEADING_12_TO_9 = 290;       // 12번 -> 9-2번 방향(북서쪽) 방위각
 constexpr int   HEADING_9_3_TO_12 = 135;     // 9-3번 -> 12번 방향(남동쪽) 방위각
 constexpr float DIST_9_3_TO_12_CM = 45.0f;   // 9-3번 -> 12번 복귀 허공 직진 거리
 constexpr int   HEADING_12_TO_START = 90;    // 12번 -> START 방향(동쪽) 방위각
