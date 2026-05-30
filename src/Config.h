@@ -86,23 +86,24 @@ constexpr int   HEADING_11_TO_10 = 270;
 
 // ── [6] 듀얼 리프트 모터 제어 파라미터 ─────────────────────────────
 constexpr float LIFT_COUNTS_PER_CM = 200.0f;
-
-// ★ [수정 완료] 주행 허용 기준 높이 변경
-constexpr float LIFT_UP_CLEAR_CM = 5.0f;     // 상승 시 리프트가 5cm만 올라가도 주행 시작 허용
-constexpr float LIFT_DOWN_CLEAR_CM = 1.0f;   // 하강 시 리프트가 1cm 이하로 내려오면 주행 시작 허용
+constexpr float LIFT_UP_CLEAR_CM = 5.0f;     
+constexpr float LIFT_DOWN_CLEAR_CM = 1.0f;   
 
 constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;   
 constexpr float LIFT_RIGHT_OFFSET_CM = 0.6f;    
 
-constexpr int LIFT_TARGET_SPEED = 200;          
-constexpr int LIFT_DOWN_STALL_THRESHOLD = 140;  
-constexpr int LIFT_MAX_POWER = 50;              
-constexpr int LIFT_EMERGENCY_SPEED = 60;        
+// ★ [수정 완료] 목표 속도 하나를 기준으로 모든 속도가 비율로 자동 연동됩니다.
+constexpr int LIFT_TARGET_SPEED = 150;                  
+constexpr int LIFT_MAX_POWER = 40;              
 
-// ★ [신규 추가] 하강 시 정상 속도(Cruise) 판정 변수 분리
-constexpr float LIFT_CRUISE_SPEED_RATIO = 0.90f;  // 목표 속도의 몇 %에 도달해야 정상 하강으로 볼 것인가 (현재 90%)
-constexpr int LIFT_CRUISE_CONFIRM_COUNT = 20;     // 정상 속도를 몇 번(10ms 당 1번) 유지해야 바닥 탐지를 시작할 것인가 (20 = 0.2초)
+constexpr float LIFT_CRUISE_SPEED_RATIO = 0.80f;  
+constexpr float LIFT_STALL_SPEED_RATIO  = 0.60f;
+constexpr float LIFT_EMERGENCY_SPEED_RATIO = 0.60f;
 
+constexpr int LIFT_DOWN_STALL_THRESHOLD = (int)(LIFT_TARGET_SPEED * LIFT_STALL_SPEED_RATIO);  
+constexpr int LIFT_EMERGENCY_SPEED = (int)(LIFT_TARGET_SPEED * LIFT_EMERGENCY_SPEED_RATIO);        
+
+constexpr int LIFT_CRUISE_CONFIRM_COUNT = 20;     
 constexpr unsigned long LIFT_TICK_INTERVAL_MS = 10;   
 constexpr unsigned long LIFT_GRACE_PERIOD_MS = 200;   
 constexpr unsigned long LIFT_HARD_JAM_PHASE_MS = 600; 
