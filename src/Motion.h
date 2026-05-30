@@ -10,10 +10,11 @@
 extern PRIZM prizm;
 extern int lastSensorState;
 
-// 모터 기본 제어
+// 모터 기본 제어 및 Non-blocking 유틸리티
 void drive(int l, int r);
 void stopAll();
 void turnAngle(int degrees, bool isRight);
+void safeDelay(unsigned long ms); // ★ 시스템 전체 Non-blocking 딜레이 함수
 
 // 센서 입력
 void readSensors(int& L, int& C, int& R);

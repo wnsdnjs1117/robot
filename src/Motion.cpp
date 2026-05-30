@@ -8,65 +8,105 @@
 
 bool enableEdgeSteering = false;
 
-// 직진 동기화 상태 저장을 위한 정적 변수
-static bool wasStraight = false;
-static long offsetL = 0;
-static long offsetR = 0;
+// ── [0] Non-Blocking 비동기 대기 함수 ───────────────────────────
 
-// ── [1] 모터 구동 및 정지 ────────────────────────────────────────
+void safeDelay(unsigned long ms) {
+  unsigned long start = millis();
+  while (millis() - start < ms) {
+    liftUpTick();
+    liftDownTick();
+    delay(5); // 백그라운드 스케줄링 최소 양보
+  }
+}
+
+// ── [1] 모터 구동 및 정지 (전 구간 엔코더 독립 속도 제어 적용) ──
 
 void drive(int l, int r) {
-  int reqL = l;
-  int reqR = r;
-
-  // ★ 논블로킹 실시간 직진 보정 (P 제어)
-  // Config.h의 DRIVE_SYNC_KP 와 DRIVE_SYNC_MAX_CORRECTION 파라미터 사용
-  if (reqL == reqR && reqL != 0) {
-    if (!wasStraight) {
-      offsetL = prizm.readEncoderCount(1);
-      offsetR = prizm.readEncoderCount(2);
-      wasStraight = true;
-    }
-    
-    long rawL = prizm.readEncoderCount(1) - offsetL;
-    long rawR = prizm.readEncoderCount(2) - offsetR;
-    long distL = abs(rawL);
-    long distR = abs(rawR);
-    
-    int correction = (distL - distR) * DRIVE_SYNC_KP;
-    
-    // 오버슈팅 방지를 위한 최대/최소 보정값 제한
-    correction = constrain(correction, -DRIVE_SYNC_MAX_CORRECTION, DRIVE_SYNC_MAX_CORRECTION);
-    
-    if (reqL > 0) { // 전진 시
-      l -= correction;
-      r += correction;
-    } else {        // 후진 시
-      l += correction;
-      r -= correction;
-    }
-  } else {
-    wasStraight = false; 
+  // 명령값이 0이면 즉시 전력 차단
+  if (l == 0 && r == 0) {
+    prizm.setMotorSpeeds(0, 0);
+    return;
   }
 
-  // 기존 바이어스 로직
-  if (l > 0 && r > 0) {
-    l -= DRIVE_BIAS;
-    r += DRIVE_BIAS;
-  } else if (l < 0 && r < 0) {
-    l += DRIVE_BIAS;
-    r -= DRIVE_BIAS;
+  static unsigned long lastTime = 0;
+  static long lastEncL = 0;
+  static long lastEncR = 0;
+  
+  static int outL = 0;
+  static int outR = 0;
+  static int lastReqL = 0;
+  static int lastReqR = 0;
+
+  unsigned long now = millis();
+  unsigned long dt = now - lastTime;
+
+  // 사용자의 방향/속도 명령(예: 직진->회전)이 바뀌면 보정값을 리셋하여 즉각 반응
+  if (l != lastReqL || r != lastReqR) {
+    outL = l;
+    outR = r;
+  }
+  lastReqL = l;
+  lastReqR = r;
+
+  // 20ms 주기 샘플링 제어
+  if (dt >= 20) { 
+    long encL = prizm.readEncoderCount(1);
+    long encR = prizm.readEncoderCount(2);
+
+    // 20ms 동안의 틱 변화량(속도) 절댓값 산출 (엔코더 부호 꼬임 완벽 방지)
+    long curVelL_mag = abs(encL - lastEncL);
+    long curVelR_mag = abs(encR - lastEncR);
+
+    // 목표 속도 크기
+    float targetVelL_mag = abs(l) * VELOCITY_TARGET_FACTOR;
+    float targetVelR_mag = abs(r) * VELOCITY_TARGET_FACTOR;
+
+    // 목표와의 오차
+    float errL = targetVelL_mag - curVelL_mag;
+    float errR = targetVelR_mag - curVelR_mag;
+
+    // Feed-Forward(기본 출력) + P 제어 (오차 보정)
+    int outL_mag = abs(l) + (int)(errL * VELOCITY_KP);
+    int outR_mag = abs(r) + (int)(errR * VELOCITY_KP);
+
+    // 주행 원래의 방향(부호) 복원
+    outL = (l >= 0) ? outL_mag : -outL_mag;
+    outR = (r >= 0) ? outR_mag : -outR_mag;
+
+    // 최대 한계 제한(안전장치)
+    outL = constrain(outL, l - VELOCITY_MAX_CORRECTION, l + VELOCITY_MAX_CORRECTION);
+    outR = constrain(outR, r - VELOCITY_MAX_CORRECTION, r + VELOCITY_MAX_CORRECTION);
+
+    lastTime = now;
+    lastEncL = encL;
+    lastEncR = encR;
+  }
+
+  // ★ 하드웨어 기계적 직진 오차 개별 오프셋 적용
+  int finalL = outL;
+  int finalR = outR;
+  
+  if (finalL > 0 && finalR > 0) {
+    // 전진할 때는 속도를 더해줌
+    finalL += MOTOR_OFFSET_L; 
+    finalR += MOTOR_OFFSET_R;
+  } else if (finalL < 0 && finalR < 0) {
+    // 후진할 때는 (음수이므로) 속도를 빼서 절댓값을 키워줌
+    finalL -= MOTOR_OFFSET_L; 
+    finalR -= MOTOR_OFFSET_R;
   }
   
-  l = constrain(l, -100, 100);
-  r = constrain(r, -100, 100);
-  prizm.setMotorSpeeds(-(l * 7), r * 7);
+  finalL = constrain(finalL, -100, 100);
+  finalR = constrain(finalR, -100, 100);
+  
+  prizm.setMotorSpeeds(-(finalL * 7), (finalR * 7));
 }
 
 void stopAll() {
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
-  delay(50);
+  
+  safeDelay(50);
 }
 
 // ── [2] 거리 기반 제자리 회전 ──────────────────────────────────────
@@ -94,16 +134,12 @@ void turnAngle(int degrees, bool isRight) {
       }
     }
 
-    // ★ 스무스 회전 제거, 고정 속도 사용
     int spd = SPIN_SPEED;
-
     if (isRight) drive(spd, -spd);
     else drive(-spd, spd);
 
-    // ★ [논블로킹 제어] 회전 중에도 리프트의 상태를 지속 감시
     liftUpTick();
     liftDownTick();
-
     delay(5);
   }
   stopAll();

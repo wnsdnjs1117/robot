@@ -51,16 +51,21 @@ constexpr int SPIN_SPEED = 30;
 constexpr int BLIND_SPEED = 30;    
 
 // ── [4] 조향(Steering) 및 자세 교정 파라미터 (미세 튜닝용) ─────────────
-constexpr int DRIVE_BIAS = 0;               
+
+// ★ 하드웨어 기계적 편차 보정 (항상 적용되는 기본 추가 속도)
+constexpr int MOTOR_OFFSET_L = 0;           // 왼쪽 모터 추가 속도
+constexpr int MOTOR_OFFSET_R = 0;           // 오른쪽 모터 추가 속도 (오른쪽이 약하면 올려주세요)
+
 constexpr int SPIN_BRAKE_LEAD = 15;         
 constexpr int ANGULAR_GAIN = 3;             
 constexpr int REAR_ALIGN_GAIN = 3;          
 constexpr int BACK_STEER_STRONG = 7;        
 constexpr int BACK_STEER_WEAK   = 3;        
 
-// ★ 양바퀴 속도 동기화 (직진 보정) 파라미터
-constexpr float DRIVE_SYNC_KP = 0.05f;             // 보정 강도 (0.02 ~ 0.1 권장, 흔들리면 낮출 것)
-constexpr int   DRIVE_SYNC_MAX_CORRECTION = 10;    // 한 번에 들어가는 최대 보정 속도 (급격한 꺾임 방지)
+// ★ [라인트레이싱 겸용] 모터 독립 속도 제어 파라미터 
+constexpr float VELOCITY_KP = 0.2f;               // 속도 오차 보정 강도 (0.2 ~ 0.8)
+constexpr float VELOCITY_TARGET_FACTOR = 0.5f;    // 모터 속도 명령값(0~100) 대비 엔코더 변화량(20ms당) 변환 비율
+constexpr int   VELOCITY_MAX_CORRECTION = 10;     // 기본명령 대비 최대 가감 한계 (너무 튀는 것 방지)
 
 // ── [5] 거리 및 방위각 시나리오 설정 ──────────────────────────────────
 constexpr bool WEST_IS_LEFT = true;         
@@ -75,7 +80,7 @@ constexpr float LINE_LEN_ZONE_12_CM = 28.0f;
 constexpr float LINE_LEN_ZONE_34_CM = 30.0f;   
 constexpr float DIST_ZONE56_EXIT_CM = 40.0f; 
 
-constexpr float DIST_START_TO_12_CM = 1000.0f; 
+constexpr float DIST_START_TO_12_CM = 60.0f; 
 constexpr int   HEADING_12_TO_9 = 290;       
 constexpr int   HEADING_9_3_TO_12 = 110;     
 constexpr float DIST_9_3_TO_12_CM = 60.0f;   
