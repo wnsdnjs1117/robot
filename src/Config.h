@@ -23,7 +23,7 @@
 #endif
 
 // ── [0] 단위 변환 공식 ──────────────────────────────────────────
-constexpr float COUNTS_PER_CM = 1000.0f / 23.0f; // 23cm 전진 시 약 1000카운트 발생 (실측 기준 비율)
+constexpr float COUNTS_PER_CM = 1000.0f / 24.0f; // 24cm 전진 시 약 1000카운트 발생 (실측 기준 비율)
 constexpr int CM(float cm) { return (int)(cm * COUNTS_PER_CM + 0.5f); } // cm 단위를 엔코더 카운트로 자동 변환
 
 // ── [1] 핀(Pin) 번호 및 하드웨어 설정 ───────────────────────────
@@ -78,19 +78,17 @@ constexpr int BACK_STEER_WEAK   = 3;        // 후진 라인트레이싱 중 조
 // ── [5] 특수 구간(대각선 및 빈 공간) 주행 설정 ──────────────────
 // ★ 절대 각도 기준: 0(북쪽), 90(동쪽), 180(남쪽), 270(서쪽)
 
-constexpr float DIST_START_TO_12_CM = 45.0f;                 // START 박스에서 12번 위치(빈 공간)까지 직진하는 거리
+constexpr float DIST_START_TO_12_CM = 80.0f;                 // START 박스에서 12번 위치(빈 공간)까지 직진하는 거리
 constexpr int   DIST_START_TO_12_COUNTS = CM(DIST_START_TO_12_CM);
-constexpr int   HEADING_12_TO_9 = 315;                       // 12번 위치 도착 후 9-2번 노드를 향해 꺾는 절대 각도 (북서쪽)
+constexpr int   HEADING_12_TO_9 = 290;                       // 12번 위치 도착 후 9-2번 노드를 향해 꺾는 절대 각도 (북서쪽)
 
-constexpr float DIST_9_TO_9_3_CM = 15.0f;                    // 9-2 교차점에서 9-3 지점까지 전진하는 거리
-constexpr int   DIST_9_TO_9_3_COUNTS = CM(DIST_9_TO_9_3_CM);
 constexpr int   HEADING_9_3_TO_12 = 135;                     // 9-3 지점에서 12번 노드를 향해 꺾는 절대 각도 (남동쪽)
 constexpr float DIST_9_3_TO_12_CM = 45.0f;                   // 9-3 지점에서 12번 노드까지 맹주행 돌파하는 거리
 constexpr int   DIST_9_3_TO_12_COUNTS = CM(DIST_9_3_TO_12_CM);
 constexpr int   HEADING_12_TO_START = 90;                    // 12번 노드에서 START 박스를 향해 꺾는 절대 각도 (동쪽)
 
-constexpr int   HEADING_9_TO_10 = 45;                        // 9-3번에서 10-2번으로 진입할 때의 절대 각도 (북동쪽)
-constexpr int   HEADING_10_TO_9 = 225;                       // 10-2번에서 9-2번으로 진입할 때의 절대 각도 (남서쪽)
+constexpr int   HEADING_9_TO_10 = 80;                        // 9-3번에서 10-2번으로 진입할 때의 절대 각도 (북동쪽)
+constexpr int   HEADING_10_TO_9 = 260;                       // 10-2번에서 9-2번으로 진입할 때의 절대 각도 (남서쪽)
 constexpr int   HEADING_10_TO_11 = 90;                       // 10-2번에서 11-2번으로 수평 이동할 때의 각도 (동쪽)
 constexpr int   HEADING_11_TO_10 = 270;                      // 11-2번에서 10-2번으로 수평 이동할 때의 각도 (서쪽)
 

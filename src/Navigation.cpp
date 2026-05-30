@@ -143,12 +143,24 @@ void returnToFinish() {
 
   moveToNode(9);
 
+  // 9번 노드에서 9-3 지점(동쪽)을 향해 턴
   turnToHeading(90);
-  prizm.resetEncoders();
-  while (abs(prizm.readEncoderCount(1)) < DIST_9_TO_9_3_COUNTS) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+
+  // 센서가 선이 끊어짐을 감지할 때까지 라인을 타고 전진
+  while (true) {
+    int L, C, R;
+    readSensors(L, C, R);
+    
+    // 전방 센서가 모두 바닥(흰색/허공)을 인식하면 라인의 끝이므로 즉시 탈출
+    if (!anyLine(L, C, R)) break;
+    
+    // 차체 정렬 안정성을 위해 라인트레이싱 적용
+    int RL, RC, RR;
+    readRearSensors(RL, RC, RR);
+    lineFollowStepFull(L, C, R, RL, RC, RR);
     delay(5);
   }
+  
   stopAll();
   delay(100);
 
@@ -194,6 +206,10 @@ int qrSearchStage() {
 
   // 동선 최적화를 위해 위(2구역) -> 아래(4구역) 횡단 -> 이동 -> 위(1구역) -> 아래(3구역) 순서로 탐색
   DPRINTLNF("\n--- [2구역 탐색] ---");
+  
+  // 8번 노드 도착 시 서쪽(270도)을 보고 있으므로, 2구역이 있는 북쪽(0도)으로 90도 우회전시킵니다.
+  turnToHeading(0); 
+
   enterZone();
   lastEntryWasForward = true;
   if (scanZone(2)) randomFound++;
