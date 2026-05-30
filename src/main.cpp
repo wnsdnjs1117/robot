@@ -5,6 +5,7 @@
 #include "BoxMap.h"
 #include "Config.h"
 #include "Lift.h"  // (기존 작성하신 리프트 제어 헤더 유지)
+#include "LiftTest.h"
 #include "MissionFlow.h"
 #include "Motion.h"
 #include "Navigation.h"
@@ -15,6 +16,7 @@ int lastSensorState = 0;
 bool crossingArmed = true;
 int crossingStable = 0;
 
+#if !LIFT_TEST_MODE
 void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();
@@ -59,3 +61,4 @@ void loop() {
   returnToFinish();
   while (true);
 }
+#endif // !LIFT_TEST_MODE

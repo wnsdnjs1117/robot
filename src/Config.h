@@ -8,7 +8,8 @@
 #include <PRIZM.h>
 
 // ── [0] 디버그 모드 및 단위 변환 공식 ──────────────────────────────────────
-#define ROBOT_DEBUG 1 
+#define ROBOT_DEBUG    1
+#define LIFT_TEST_MODE 0  // 1로 바꾸면 리프트 단독 테스트 모드 (s/u/d 키 제어)
 
 #if ROBOT_DEBUG
 #define DPRINT(x) Serial.print(x)
