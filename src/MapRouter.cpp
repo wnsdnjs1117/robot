@@ -57,14 +57,11 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
   turnToHeading(targetHeading);
   blindDriveUntilLine();
   prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     delay(5);
   }
   if (stopAtEnd) stopAll();
-  // 다음 구간이 있을 때만 수평 방향 정렬
-  // (최종 목적지라면 goToZoneDirect가 존 방향으로 회전하므로 불필요)
   if (alignHeading != -1 && !stopAtEnd) {
     turnToHeading(alignHeading);
   }
@@ -128,18 +125,19 @@ void moveToNode(int toNode) {
   }
 }
 
-// ── [스마트 탈출 로직: 구역에 따른 탈출 거리 분기] ─────────────────────
+// ── [스마트 탈출 로직] ─────────────────────
 void exitZone(int zone) {
   int targetNode = zoneToNode(zone); 
+
+  // 1, 3구역(7번 T자 노드) 탈출 시 엣지 스티어링 켜기
+  if (targetNode == 7) enableEdgeSteering = true;
   
-  // ★ 거리를 불러와 여기서 직접 CM()으로 변환합니다.
   long targetRevDist = CM((zone == 5 || zone == 6) ? DIST_ZONE56_EXIT_REV_CM : DIST_ZONE_EXIT_REV_CM);
   long targetFwdDist = CM((zone == 5 || zone == 6) ? DIST_ZONE56_EXIT_FWD_CM : DIST_ZONE_EXIT_FWD_CM);
 
   if (lastEntryWasForward) {
-    DPRINTLNF(">> [NAV] 후진으로 존 탈출 시작 (상수 거리 + 라인 유지)");
+    DPRINTLNF(">> [NAV] 후진으로 존 탈출 시작");
     prizm.resetEncoders();
-    
     while (abs(prizm.readEncoderCount(1)) < targetRevDist) {
       int RL, RC, RR;
       readRearSensors(RL, RC, RR);
@@ -148,9 +146,8 @@ void exitZone(int zone) {
     }
     stopAll();
   } else {
-    DPRINTLNF(">> [NAV] 전진으로 존 탈출 시작 (상수 거리 + 라인 유지)");
+    DPRINTLNF(">> [NAV] 전진으로 존 탈출 시작");
     prizm.resetEncoders();
-    
     while (abs(prizm.readEncoderCount(1)) < targetFwdDist) {
       int L, C, R, RL, RC, RR;
       readSensors(L, C, R);
@@ -160,6 +157,8 @@ void exitZone(int zone) {
     }
     stopAll();
   }
+
+  if (targetNode == 7) enableEdgeSteering = false;
 
   currentNode = targetNode;
   DPRINTF(">> [NAV] exitZone "); DPRINT(zone); DPRINTF(" -> node "); DPRINTLN(currentNode);
@@ -176,6 +175,9 @@ void goToZoneDirect(int zone) {
     turnToHeading(zoneSide);
   }
 
+  // 1, 3구역(7번 T자 노드) 진입 직전 엣지 스티어링 켜기
+  if (targetNode == 7) enableEdgeSteering = true;
+
   bool enterForward = (robotHeading == zoneSide);
   if (enterForward) {
     enterZone();
@@ -184,4 +186,6 @@ void goToZoneDirect(int zone) {
     reverseEnterZone();
     lastEntryWasForward = false;
   }
+
+  if (targetNode == 7) enableEdgeSteering = false;
 }

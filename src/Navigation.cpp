@@ -36,7 +36,6 @@ void followToCrossing(bool stopAtEnd) {
 
     if (detectCrossing(L, C, R)) {
       prizm.resetEncoders();
-      // ★ 실시간 카운트 변환 적용
       while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
         drive(SPEED, SPEED);
         delay(5);
@@ -54,39 +53,64 @@ void followToCrossing(bool stopAtEnd) {
 
 void followToCrossing() { followToCrossing(true); }
 
-// ── [2] 존(구역) 진입 및 횡단 (상수 거리 + 라인 유지) ─────────────────
+// ── [2] 존(구역) 진입 및 횡단 (선 끊김 감지 + 기하학적 깊이 기동) ─────────────────
 
 void enterZone() {
-  DPRINTLNF(">> [NAV] 전진으로 존 진입 시작 (상수 거리 + 라인 유지)");
-  prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
-  while (abs(prizm.readEncoderCount(1)) < CM(DIST_ZONE_ENTER_FWD_CM)) {
+  DPRINTLNF(">> [NAV] 전진으로 존 진입 시작 (선 끊김 감지 대기)");
+  
+  while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R);
+    if (!anyLine(L, C, R)) break; 
+    
     readRearSensors(RL, RC, RR);
     lineFollowStepFull(L, C, R, RL, RC, RR);
+    delay(5);
+  }
+
+  DPRINTLNF(">> [NAV] 전방 선 끊김 확인. 하드웨어 치수 보정 후 리프트 목표 깊이까지 직진합니다.");
+  prizm.resetEncoders();
+  
+  // 전방센서 ~ 리프트 간격 자동 보정 (6 + 11 = 17cm 추가 직진)
+  float forwardOffset = DIST_AXIS_TO_FRONT_SENSOR_CM + DIST_AXIS_TO_LIFT_CM;
+  long extraDist = CM(DIST_ZONE_DEPTH_CM + forwardOffset);
+  
+  while (abs(prizm.readEncoderCount(1)) < extraDist) {
+    drive(SPEED / 2, SPEED / 2); 
     delay(5);
   }
   stopAll();
 }
 
 void reverseEnterZone() {
-  DPRINTLNF(">> [NAV] 후진으로 존 진입 시작 (상수 거리 + 라인 유지)");
-  prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
-  while (abs(prizm.readEncoderCount(1)) < CM(DIST_ZONE_ENTER_REV_CM)) {
+  DPRINTLNF(">> [NAV] 후진으로 존 진입 시작 (후방 선 끊김 감지 대기)");
+  
+  while (true) {
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
+    if (!anyRearLine(RL, RC, RR)) break; 
+    
     reverseLineFollowStep(RL, RC, RR); 
+    delay(5);
+  }
+
+  DPRINTLNF(">> [NAV] 후방 선 끊김 확인. 하드웨어 치수 보정 후 리프트 목표 깊이까지 후진합니다.");
+  prizm.resetEncoders();
+  
+  // 후방센서 ~ 리프트 간격 자동 보정 (24 - 11 = 13cm 추가 후진)
+  float reverseOffset = DIST_AXIS_TO_REAR_SENSOR_CM - DIST_AXIS_TO_LIFT_CM;
+  long extraDist = CM(DIST_ZONE_DEPTH_CM + reverseOffset);
+  
+  while (abs(prizm.readEncoderCount(1)) < extraDist) {
+    drive(-BACK_SPEED / 2, -BACK_SPEED / 2); 
     delay(5);
   }
   stopAll();
 }
 
 void reverseAcrossToOppositeZone() {
-  DPRINTLNF(">> [NAV] 반대편 존으로 횡단 (상수 거리 + 라인 유지)");
+  DPRINTLNF(">> [NAV] 반대편 존으로 횡단 (탈출 후 반대편 존 진입)");
   prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_ZONE_EXIT_REV_CM)) {
     int RL, RC, RR;
     readRearSensors(RL, RC, RR);
@@ -105,7 +129,6 @@ void goToMainLine() {
   DPRINTLNF(">>> [START-RUN] 서향 출발 -> 12번 노드(빈 공간) -> 9-2 노드 -> 8번 노드");
   robotHeading = 270;
   prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_START_TO_12_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftDownTick();  
@@ -122,7 +145,6 @@ void goToMainLine() {
     delay(5);
   }
   prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     delay(5);
@@ -154,7 +176,6 @@ void returnToFinish() {
   delay(100);
   turnToHeading(HEADING_9_3_TO_12);
   prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_9_3_TO_12_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     delay(5);
@@ -170,7 +191,6 @@ void returnToFinish() {
     delay(5);
   }
   prizm.resetEncoders();
-  // ★ 실시간 카운트 변환 적용
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_FINISH_ENTRY_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     delay(5);
@@ -221,7 +241,12 @@ int qrSearchStage() {
     return 1;
   }
   DPRINTLNF("\n--- [3구역 탐색] ---");
+  
+  // 1구역에서 3구역으로 넘어갈 때 엣지 스티어링 켜기
+  enableEdgeSteering = true;
   reverseAcrossToOppositeZone();
+  enableEdgeSteering = false;
+
   lastEntryWasForward = false;
   scanZone(3);
   stopAll();

@@ -23,7 +23,10 @@ bool anyRearLine(int RL, int RC, int RR);
 
 // 라인 트레이싱 및 교차로 판정
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR);
-void reverseLineFollowStep(int RL, int RC, int RR); // ★ 추가된 후진 라인 트레이싱
+void reverseLineFollowStep(int RL, int RC, int RR);
 bool detectCrossing(int L, int C, int R);
+
+// T자 사거리 등에서 1 1 0 / 0 1 1 조향을 허용할지 결정하는 스위치
+extern bool enableEdgeSteering; 
 
 #endif

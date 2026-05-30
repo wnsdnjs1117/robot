@@ -1,9 +1,11 @@
 /* ============================================================
  * Motion.cpp - 하드웨어 구동 및 비례식 각도 제어 구현부
- * - T자/십자가 가로선 통과 시 궤도 비뚤어짐 오감지 방지 로직 적용
  * ============================================================ */
 #include "Motion.h"
 #include "Config.h"
+
+// 엣지 조향 허용 플래그 (기본값 꺼짐)
+bool enableEdgeSteering = false;
 
 // ── [1] 모터 구동 및 정지 ────────────────────────────────────────
 
@@ -26,7 +28,7 @@ void stopAll() {
   delay(50);
 }
 
-// ── [2] 거리 기반 제자리 회전 (오버슈팅 방지 탑재) ────────────────
+// ── [2] 거리 기반 제자리 회전 ──────────────────────────────────────
 
 void turnAngle(int degrees, bool isRight) {
   prizm.resetEncoders();
@@ -95,49 +97,51 @@ bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   int lsp = SPEED, rsp = SPEED;
 
-  // 전방 가로선(교차로) 무시 로직
-  if ((FL && FC) || (FC && FR)) {
+  // 전방 가로선(교차로) 무시 및 T자 대응 로직
+  if ((FL && FC && FR) || (!enableEdgeSteering && ((FL && FC) || (FC && FR)))) {
     lsp = SPEED;
     rsp = SPEED;
     lastSensorState = 0;
   } 
+  else if (FL && FC) {
+    lsp = SPEED - 20; rsp = SPEED + 10;
+    lastSensorState = 1;
+  } 
+  else if (FC && FR) {
+    lsp = SPEED + 10; rsp = SPEED - 20;
+    lastSensorState = 2;
+  } 
   else if (FL && !FC && !FR) {
-    lsp = SPEED - 20;
-    rsp = SPEED + 10;
+    lsp = SPEED - 20; rsp = SPEED + 10;
     lastSensorState = 1;
   } 
   else if (!FL && !FC && FR) {
-    lsp = SPEED + 10;
-    rsp = SPEED - 20;
+    lsp = SPEED + 10; rsp = SPEED - 20;
     lastSensorState = 2;
   } 
   else if (FC) {
-    lsp = SPEED;
-    rsp = SPEED;
+    lsp = SPEED; rsp = SPEED;
     lastSensorState = 0;
   } 
   else {
     if (lastSensorState == 1) {
-      lsp = SPEED - 20;
-      rsp = SPEED + 6;
+      lsp = SPEED - 20; rsp = SPEED + 6;
     } else if (lastSensorState == 2) {
-      lsp = SPEED + 6;
-      rsp = SPEED - 20;
+      lsp = SPEED + 6; rsp = SPEED - 20;
     } else {
-      lsp = SPEED / 2;
-      rsp = SPEED / 2;
+      lsp = SPEED / 2; rsp = SPEED / 2;
     }
   }
 
-  // 후방 융합 교정 (각도 삐뚤어짐 교정)
+  // 후방 융합 교정 (각도 삐뚤어짐 교정 - Config 변수 연동)
   bool frontIsCrossing = (FL && FC) || (FC && FR);
   bool rearIsCrossing = (RL && RC) || (RC && RR);
 
   if (!frontIsCrossing && !rearIsCrossing) {
     if (RL && !RC && !RR) {
-      lsp += 3; rsp -= 3;
+      lsp += REAR_ALIGN_GAIN; rsp -= REAR_ALIGN_GAIN;
     } else if (!RL && !RC && RR) {
-      lsp -= 3; rsp += 3;
+      lsp -= REAR_ALIGN_GAIN; rsp += REAR_ALIGN_GAIN;
     }
   }
 
@@ -150,26 +154,31 @@ void reverseLineFollowStep(int RL, int RC, int RR) {
   int lsp = -BACK_SPEED;
   int rsp = -BACK_SPEED;
 
-  // 후진 가로선(교차로) 무시 로직
-  if ((RL && RC) || (RC && RR)) {
-    lsp = -BACK_SPEED;
-    rsp = -BACK_SPEED;
+  // 후진 가로선(교차로) 무시 및 T자 대응 로직
+  if ((RL && RC && RR) || (!enableEdgeSteering && ((RL && RC) || (RC && RR)))) {
+    lsp = -BACK_SPEED; rsp = -BACK_SPEED;
+  } 
+  else if (RL && RC) {
+    lsp = -BACK_SPEED + BACK_STEER_WEAK; 
+    rsp = -BACK_SPEED - BACK_STEER_WEAK; 
+  } 
+  else if (RC && RR) {
+    lsp = -BACK_SPEED - BACK_STEER_WEAK;
+    rsp = -BACK_SPEED + BACK_STEER_WEAK;
   } 
   else if (RL && !RC && !RR) {
-    lsp = -BACK_SPEED + 20; 
-    rsp = -BACK_SPEED - 10; 
+    lsp = -BACK_SPEED + BACK_STEER_STRONG; 
+    rsp = -BACK_SPEED - BACK_STEER_STRONG; 
   } 
   else if (!RL && !RC && RR) {
-    lsp = -BACK_SPEED - 10;
-    rsp = -BACK_SPEED + 20;
+    lsp = -BACK_SPEED - BACK_STEER_STRONG;
+    rsp = -BACK_SPEED + BACK_STEER_STRONG;
   } 
   else if (RC) {
-    lsp = -BACK_SPEED;
-    rsp = -BACK_SPEED;
+    lsp = -BACK_SPEED; rsp = -BACK_SPEED;
   }
   else {
-    lsp = -BACK_SPEED / 2;
-    rsp = -BACK_SPEED / 2;
+    lsp = -BACK_SPEED / 2; rsp = -BACK_SPEED / 2;
   }
   
   drive(constrain(lsp, -100, 100), constrain(rsp, -100, 100));
