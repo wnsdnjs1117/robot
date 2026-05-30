@@ -1,21 +1,29 @@
 /* ============================================================
- * Motion.h - 저수준 모터 및 센서 제어 함수 선언
+ * Motion.h - 하드웨어 구동 및 라인 트레이싱 제어 헤더
  * ============================================================ */
 #ifndef MOTION_H
 #define MOTION_H
 
+#include <Arduino.h>
+#include <PRIZM.h>
+
+extern PRIZM prizm;
+extern int lastSensorState;
+
+// 모터 기본 제어
 void drive(int l, int r);
 void stopAll();
+void turnAngle(int degrees, bool isRight);
 
-void turnAngle(int degrees, bool isRight);  // 사다리꼴 프로파일 + 오버슈팅 방지
-
+// 센서 입력
 void readSensors(int& L, int& C, int& R);
 void readRearSensors(int& RL, int& RC, int& RR);
 bool anyLine(int L, int C, int R);
 bool anyRearLine(int RL, int RC, int RR);
 
+// 라인 트레이싱 및 교차로 판정
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR);
-
+void reverseLineFollowStep(int RL, int RC, int RR); // ★ 추가된 후진 라인 트레이싱
 bool detectCrossing(int L, int C, int R);
 
 #endif
