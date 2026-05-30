@@ -9,7 +9,7 @@
 
 // ── [0] 디버그 모드 및 단위 변환 공식 ──────────────────────────────────────
 #define ROBOT_DEBUG    1
-#define LIFT_TEST_MODE 0  // 1로 바꾸면 리프트 단독 테스트 모드 (s/u/d 키 제어)
+#define LIFT_TEST_MODE 1  // 1로 바꾸면 리프트 단독 테스트 모드 (s/u/d 키 제어)
 
 #if ROBOT_DEBUG
 #define DPRINT(x) Serial.print(x)
@@ -87,15 +87,15 @@ constexpr int   HEADING_11_TO_10 = 270;
 
 // ── [6] 듀얼 리프트 모터 제어 파라미터 ─────────────────────────────
 constexpr float LIFT_COUNTS_PER_CM        = 200.0f;
-constexpr float LIFT_MAX_HEIGHT_CM        = 20.0f;   // 상승 정지 높이 (cm)
+constexpr float LIFT_MAX_HEIGHT_CM        = 24.0f;   // 상승 정지 높이 (cm)
 constexpr float LIFT_NEAR_FLOOR_CM        = 5.0f;    // 타이머 하강 전환 높이 (cm)
 constexpr float LIFT_UP_CLEAR_CM          = 5.0f;    // liftUp() 블로킹 해제 높이
 constexpr float LIFT_DOWN_CLEAR_CM        = 1.0f;    // liftDownUntilClear() 해제 높이
-constexpr int   LIFT_UP_POWER             = 35;      // 상승 모터 파워
-constexpr int   LIFT_DOWN_POWER           = 25;      // 하강 모터 파워
-constexpr float LIFT_SYNC_GAIN            = 0.05f;   // 좌우 속도 동기화 게인 ← 튜닝
+constexpr int   LIFT_UP_POWER             = 40;      // 상승 모터 파워
+constexpr int   LIFT_DOWN_POWER           = 40;      // 하강 모터 파워
+constexpr float LIFT_SYNC_GAIN            = 0.0;   // 좌우 속도 동기화 게인 ← 튜닝
 constexpr unsigned long LIFT_TICK_INTERVAL_MS  = 10;
-constexpr unsigned long LIFT_FLOOR_TIME_MS     = 500; // 5cm 이하 진입 후 추가 하강 시간 (ms) ← 튜닝
+constexpr unsigned long LIFT_FLOOR_TIME_MS     = 800; // 5cm 이하 진입 후 추가 하강 시간 (ms) ← 튜닝
 // ─────────────────────────────────────────────────────────────
 
 extern PRIZM prizm;
