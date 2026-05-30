@@ -19,8 +19,9 @@ float heightR = 0;
 
 static bool liftUpRunning    = false;
 static bool liftDownRunning  = false;
-static bool nearFloorMode    = false;   // 5cm 이하 진입 후 타이머 하강 중
+static bool nearFloorMode        = false;
 static unsigned long nearFloorStartTime = 0;
+static unsigned long nearFloorDuration  = 0;
 
 static long prevEncL = 0;
 static long prevEncR = 0;
@@ -99,8 +100,9 @@ void liftDown() {
 
 void liftDownStart() {
   resetState();
-  nearFloorMode = false;
-  liftDownRunning = true;
+  nearFloorMode     = false;
+  nearFloorDuration = 0;
+  liftDownRunning   = true;
   DPRINTLNF(">> [LIFT] 하강 시작");
 }
 
@@ -108,15 +110,20 @@ void liftDownTick() {
   if (!liftDownRunning) return;
   updateHeight();
 
-  // [1단계] 5cm 이하 진입 시 타이머 시작
+  // [1단계] 5cm 이하 진입 시 현재 높이 기반 시간 계산 후 타이머 시작
   if (!nearFloorMode && (heightL <= LIFT_NEAR_FLOOR_CM || heightR <= LIFT_NEAR_FLOOR_CM)) {
     nearFloorMode = true;
+    // 진입 높이에서 -2cm까지 남은 거리 / 기준거리(7cm) 비례로 지속 시간 산출
+    float entryH    = max(heightL, heightR);
+    float remaining = entryH - (-2.0f);               // 남은 이동 거리 (cm)
+    float refDist   = LIFT_NEAR_FLOOR_CM - (-2.0f);   // 기준 거리 = 7cm
+    nearFloorDuration  = (unsigned long)(remaining / refDist * LIFT_FLOOR_TIME_MS);
     nearFloorStartTime = millis();
     DPRINTLNF(">> [LIFT] 바닥 근접 — 타이머 하강 시작");
   }
 
   // [2단계] 타이머 만료 시 정지
-  if (nearFloorMode && (millis() - nearFloorStartTime >= LIFT_FLOOR_TIME_MS)) {
+  if (nearFloorMode && (millis() - nearFloorStartTime >= nearFloorDuration)) {
     exc.setMotorPowers(EXP_ID, 0, 0);
     exc.resetEncoder(EXP_ID, LIFT_L);
     exc.resetEncoder(EXP_ID, LIFT_R);
