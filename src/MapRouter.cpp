@@ -73,6 +73,8 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
     delay(5);
   }
   if (stopAtEnd) stopAll();
+  
+  // ★ 원상복구: 최종 목적지라면 복도를 타기 위한 직각(90도 등) 정렬을 생략하고 종료합니다.
   if (alignHeading != -1 && !stopAtEnd) {
     turnToHeading(alignHeading);
   }
@@ -206,9 +208,10 @@ void goToZoneDirect(int zone) {
   moveToNode(targetNode);
 
   int zoneSide = (zone == 3 || zone == 4) ? 180 : 0;
-  if (robotHeading == 90 || robotHeading == 270) {
-    turnToHeading(zoneSide);
-  }
+  
+  // ★ 진정한 해결책: 로봇의 현재 Heading 검사 조건을 없애고 도착 직후 무조건 구역 방향으로 회전시킵니다.
+  // 10-2에 대각선 각도로 도착하더라도 딜레이 없이 바로 0도(북쪽)로 회전하게 됩니다.
+  turnToHeading(zoneSide);
 
   if (targetNode == 7) enableEdgeSteering = true;
 

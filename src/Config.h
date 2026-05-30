@@ -58,6 +58,10 @@ constexpr int REAR_ALIGN_GAIN = 3;
 constexpr int BACK_STEER_STRONG = 7;        
 constexpr int BACK_STEER_WEAK   = 3;        
 
+// ★ 양바퀴 속도 동기화 (직진 보정) 파라미터
+constexpr float DRIVE_SYNC_KP = 0.05f;             // 보정 강도 (0.02 ~ 0.1 권장, 흔들리면 낮출 것)
+constexpr int   DRIVE_SYNC_MAX_CORRECTION = 10;    // 한 번에 들어가는 최대 보정 속도 (급격한 꺾임 방지)
+
 // ── [5] 거리 및 방위각 시나리오 설정 ──────────────────────────────────
 constexpr bool WEST_IS_LEFT = true;         
 constexpr int SPIN_90_COUNTS = 1200;        
@@ -71,7 +75,7 @@ constexpr float LINE_LEN_ZONE_12_CM = 28.0f;
 constexpr float LINE_LEN_ZONE_34_CM = 30.0f;   
 constexpr float DIST_ZONE56_EXIT_CM = 40.0f; 
 
-constexpr float DIST_START_TO_12_CM = 45.0f; 
+constexpr float DIST_START_TO_12_CM = 1000.0f; 
 constexpr int   HEADING_12_TO_9 = 290;       
 constexpr int   HEADING_9_3_TO_12 = 110;     
 constexpr float DIST_9_3_TO_12_CM = 60.0f;   

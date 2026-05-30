@@ -8,9 +8,48 @@
 
 bool enableEdgeSteering = false;
 
+// 직진 동기화 상태 저장을 위한 정적 변수
+static bool wasStraight = false;
+static long offsetL = 0;
+static long offsetR = 0;
+
 // ── [1] 모터 구동 및 정지 ────────────────────────────────────────
 
 void drive(int l, int r) {
+  int reqL = l;
+  int reqR = r;
+
+  // ★ 논블로킹 실시간 직진 보정 (P 제어)
+  // Config.h의 DRIVE_SYNC_KP 와 DRIVE_SYNC_MAX_CORRECTION 파라미터 사용
+  if (reqL == reqR && reqL != 0) {
+    if (!wasStraight) {
+      offsetL = prizm.readEncoderCount(1);
+      offsetR = prizm.readEncoderCount(2);
+      wasStraight = true;
+    }
+    
+    long rawL = prizm.readEncoderCount(1) - offsetL;
+    long rawR = prizm.readEncoderCount(2) - offsetR;
+    long distL = abs(rawL);
+    long distR = abs(rawR);
+    
+    int correction = (distL - distR) * DRIVE_SYNC_KP;
+    
+    // 오버슈팅 방지를 위한 최대/최소 보정값 제한
+    correction = constrain(correction, -DRIVE_SYNC_MAX_CORRECTION, DRIVE_SYNC_MAX_CORRECTION);
+    
+    if (reqL > 0) { // 전진 시
+      l -= correction;
+      r += correction;
+    } else {        // 후진 시
+      l += correction;
+      r -= correction;
+    }
+  } else {
+    wasStraight = false; 
+  }
+
+  // 기존 바이어스 로직
   if (l > 0 && r > 0) {
     l -= DRIVE_BIAS;
     r += DRIVE_BIAS;
@@ -18,6 +57,7 @@ void drive(int l, int r) {
     l += DRIVE_BIAS;
     r -= DRIVE_BIAS;
   }
+  
   l = constrain(l, -100, 100);
   r = constrain(r, -100, 100);
   prizm.setMotorSpeeds(-(l * 7), r * 7);
@@ -35,7 +75,6 @@ void turnAngle(int degrees, bool isRight) {
   prizm.resetEncoders();
   long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * degrees);
   long brakePoint = targetCounts - SPIN_BRAKE_LEAD;
-  const int minSpd = 10;
 
   while (true) {
     long pos = (abs(prizm.readEncoderCount(1)) + abs(prizm.readEncoderCount(2))) / 2;
@@ -55,22 +94,13 @@ void turnAngle(int degrees, bool isRight) {
       }
     }
 
-    float ratio = (float)pos / (float)targetCounts;
-    int spd;
-    if (ratio < 0.25f) {
-      spd = minSpd + (int)((SPIN_SPEED - minSpd) * (ratio / 0.25f));
-    } else if (ratio < 0.70f) {
-      spd = SPIN_SPEED;
-    } else if (ratio < 0.90f) {
-      spd = minSpd + (int)((SPIN_SPEED - minSpd) * ((0.90f - ratio) / 0.20f));
-    } else {
-      spd = minSpd;
-    }
+    // ★ 스무스 회전 제거, 고정 속도 사용
+    int spd = SPIN_SPEED;
 
     if (isRight) drive(spd, -spd);
     else drive(-spd, spd);
 
-    // ★ [논블로킹 제어] 회전 중에도 리프트의 상태를 지속 감시 및 감속/정지 처리
+    // ★ [논블로킹 제어] 회전 중에도 리프트의 상태를 지속 감시
     liftUpTick();
     liftDownTick();
 
