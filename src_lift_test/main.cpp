@@ -19,6 +19,7 @@ static const unsigned long TICK_MS  = 10;
 static const unsigned long PRINT_MS = 200;
 
 // ── 상태 변수 ────────────────────────────────────────────────
+PRIZM     prizm;
 EXPANSION exc;
 
 int   power = 30;         // 현재 출력 (10~100)
@@ -45,7 +46,9 @@ static void applyMode() {
 // ─────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(9600);
-  exc.PrizmBegin();
+  prizm.PrizmBegin();
+  exc.controllerEnable(EXP_ID);
+  delay(10);
   exc.resetEncoder(EXP_ID, LIFT_L);
   exc.resetEncoder(EXP_ID, LIFT_R);
 
