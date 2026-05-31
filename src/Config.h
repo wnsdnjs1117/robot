@@ -23,8 +23,7 @@
 #define DPRINTLNF(x)
 #endif
 
-// ★ 사용자가 실측한 엔코더 카운트 비율 적용
-constexpr float COUNTS_PER_CM = 1000.0f / 20.0f; // cm값만 변경할 것. 예상보다 짧게 이동한다면, cm값을 줄여보세요.
+constexpr float COUNTS_PER_CM = 3650.0f / 80.0f; 
 constexpr int CM(float cm) { return (int)(cm * COUNTS_PER_CM + 0.5f); } 
 
 // ── [1] 핀 번호 및 하드웨어 센서 ────────────────────────────────────
@@ -40,12 +39,12 @@ constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 128; 
 
 // ── [2] 로봇 하드웨어 물리적 치수 ────────────────────────────────────
-constexpr float ROBOT_LENGTH_CM = 35.0f;              // 전체 세로 길이
-constexpr float DIST_AXIS_TO_FRONT_SENSOR_CM = 6.0f;  // 바퀴축 ~ 전방센서
-constexpr float DIST_AXIS_TO_REAR_SENSOR_CM = 4.0f;   // 바퀴축 ~ 후방센서
-constexpr float DIST_AXIS_TO_LIFT_CM = 11.5f;         // 바퀴축 ~ 리프트 (로봇 중앙)
+constexpr float ROBOT_LENGTH_CM = 35.0f;              
+constexpr float DIST_AXIS_TO_FRONT_SENSOR_CM = 6.0f;  
+constexpr float DIST_AXIS_TO_REAR_SENSOR_CM = 4.0f;   
+constexpr float DIST_AXIS_TO_LIFT_CM = 11.5f;         
 
-// ── [3] 존(Zone) 진입/탈출 수치 ─────────────────────────────────────
+// ── [3] 존(Zone) 진입/탈출 수치 (★사용자 계산치 100% 반영) ────────────
 constexpr float DIST_ZONE_DEPTH_CM = 20.0f;           
 constexpr float LINE_LEN_ZONE_12_CM = 28.0f;          
 constexpr float LINE_LEN_ZONE_3456_CM = 30.0f;        
@@ -59,11 +58,11 @@ constexpr float EXIT_FWD_EXTRA_12_CM = 35.0f;     // 전진 1/2 탈출 (28 + 1 +
 constexpr float EXIT_FWD_EXTRA_3456_CM = 37.0f;   // 전진 3/4/5/6 탈출 (30 + 1 + 6)
 constexpr float EXIT_REV_SPECIAL_56_CM = 30.0f;   // 특수 5/6 탈출 (30 + 1 + 4 - 5)
 
-// ★ 선 두께 2cm 반영: 끝단 감지 후 정중앙(1cm)까지 더 가도록 +1cm 적용 (유지됨)
-constexpr float ALIGN_AXIS_FRONT_CM = 7.0f; // 전방 1.1.1 감지 후 이동: 원래 6 + 1(선 절반)
-constexpr float ALIGN_AXIS_REAR_CM = 5.0f;  // 후방 1.1.1 감지 후 이동: 원래 4 + 1(선 절반)
+// 8번 코너 1.1.1 감지 후 바퀴축 정렬 거리 (사용자 요청치 그대로)
+constexpr float ALIGN_AXIS_FRONT_CM = 6.0f; 
+constexpr float ALIGN_AXIS_REAR_CM = 4.0f;  
 
-// ── [4] 조향 및 모터 속도 파라미터 (원본 복구) ──────────────────────────
+// ── [4] 조향 및 모터 속도 파라미터 ──────────────────────────────────
 constexpr int STRAIGHT_SPEED = 30; 
 constexpr int SPEED = 30;          
 constexpr int BACK_SPEED = 30;     
@@ -72,21 +71,20 @@ constexpr int BLIND_SPEED = 30;
 
 constexpr int MOTOR_OFFSET_L = 0;           
 constexpr int MOTOR_OFFSET_R = 0;           
+constexpr float RIGHT_MOTOR_MULTIPLIER = 1.2f; 
 
 constexpr float VELOCITY_KP = 0.2f;               
 constexpr float VELOCITY_TARGET_FACTOR = 0.5f;    
 constexpr int   VELOCITY_MAX_CORRECTION = 10; 
-constexpr int   SPIN_BRAKE_LEAD = 15; // 회전 정지 오프셋
+constexpr int   SPIN_BRAKE_LEAD = 15; 
 
-constexpr int   REAR_ALIGN_GAIN = 5; // 일직선 보정 강도
+constexpr int   REAR_ALIGN_GAIN = 5; 
 constexpr bool  WEST_IS_LEFT = true;         
 constexpr int   SPIN_90_COUNTS = 1200;        
 constexpr int   CROSS_CONFIRM = 2;            
+constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM; 
 
-// ★ 일반 교차로 정착 시 축 정렬 (전방 센서 기준 6cm + 선 절반 1cm = 7.0cm 적용 유지)
-constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM + 1.0f; 
-
-// ── [5] 13번 노드 및 특수 방위각 (사용자 실측 데이터 적용됨) ───────────────
+// ── [5] 13번 노드 및 특수 방위각 ─────────────────────────────────────
 constexpr float DIST_10_TO_13_CM = 40.0f;    
 constexpr int   HEADING_13_TO_9_2 = 225;     
 

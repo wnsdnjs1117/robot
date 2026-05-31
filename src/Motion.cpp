@@ -1,5 +1,5 @@
 /* ============================================================
- * Motion.cpp - 하드웨어 구동 및 제어 (정렬 최우선 감속 시스템 적용)
+ * Motion.cpp - 하드웨어 구동 및 제어 (원본 딱딱한 움직임 완벽 복구)
  * ============================================================ */
 #include "Motion.h"
 #include "Config.h"
@@ -12,18 +12,14 @@ bool enableEdgeSteering = false;
 void safeDelay(unsigned long ms) {
   unsigned long start = millis();
   while (millis() - start < ms) {
-    liftUpTick();
-    liftDownTick();
-    delay(5); 
+    liftUpTick(); liftDownTick(); delay(5); 
   }
 }
 
-// ── [1] 모터 구동 ──────────────────────────────────────────
+// ── [1] 모터 구동 (사용자 원본 코드 완벽 동일 복원) ────────────────
 void drive(int l, int r) {
-  if (l == 0 && r == 0) {
-    prizm.setMotorSpeeds(0, 0);
-    return;
-  }
+  if (l == 0 && r == 0) { prizm.setMotorSpeeds(0, 0); return; }
+  
   static unsigned long lastTime = 0;
   static long lastEncL = 0;
   static long lastEncR = 0;
@@ -32,9 +28,7 @@ void drive(int l, int r) {
   unsigned long now = millis();
   unsigned long dt = now - lastTime;
 
-  if (l != lastReqL || r != lastReqR) { 
-    outL = l; outR = r; 
-  }
+  if (l != lastReqL || r != lastReqR) { outL = l; outR = r; }
   lastReqL = l; lastReqR = r;
 
   if (dt >= 20) { 
@@ -62,14 +56,10 @@ void drive(int l, int r) {
     lastTime = now; lastEncL = encL; lastEncR = encR;
   }
 
-  int finalL = outL;
-  int finalR = outR;
+  int finalL = outL; int finalR = outR;
   
-  if (finalL > 0 && finalR > 0) {
-    finalL += MOTOR_OFFSET_L; finalR += MOTOR_OFFSET_R;
-  } else if (finalL < 0 && finalR < 0) {
-    finalL -= MOTOR_OFFSET_L; finalR -= MOTOR_OFFSET_R;
-  }
+  if (finalL > 0 && finalR > 0) { finalL += MOTOR_OFFSET_L; finalR += MOTOR_OFFSET_R; } 
+  else if (finalL < 0 && finalR < 0) { finalL -= MOTOR_OFFSET_L; finalR -= MOTOR_OFFSET_R; }
   
   prizm.setMotorSpeeds(-(constrain(finalL, -100, 100) * 7), constrain(finalR, -100, 100) * 7);
 }
@@ -80,10 +70,10 @@ void stopAll() {
   safeDelay(50);
 }
 
-// ── [2] 제자리 칼각 회전 ──────────────────────────────────────
+// ── [2] ★ 제자리 칼각 회전 (원본 감속 없는 하드브레이크 복원) ★ ───────────
 void turnAngle(int degrees, bool isRight) {
   prizm.resetEncoders();
-  safeDelay(30);
+  safeDelay(40);
   
   long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * degrees);
   long brakePoint = targetCounts - SPIN_BRAKE_LEAD;
@@ -104,8 +94,7 @@ void turnAngle(int degrees, bool isRight) {
 
     liftUpTick(); liftDownTick(); delay(5);
   }
-  stopAll();
-  delay(100);
+  stopAll(); delay(100);
 }
 
 // ── [3] 센서 읽기 ──────────────────────────────────────────
@@ -121,12 +110,11 @@ void readRearSensors(int& RL, int& RC, int& RR) {
 bool anyLine(int L, int C, int R) { return (L == 1 || C == 1 || R == 1); }
 bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 
-// ── [4] 전진 라인 트레이싱 (일직선 정렬 최우선 감속 시스템) ─────────────
+// ── [4] 전진 라인 트레이싱 (전후방 센서 상태 완벽 동기화) ────────────────────
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   int lsp = SPEED, rsp = SPEED;
 
   int posF = 0, posR = 0;
-  
   if (FL && !FC && !FR) { posF = -2; lastSensorState = 1; }
   else if (FL && FC && !FR) { posF = -1; lastSensorState = 1; }
   else if (!FL && FC && !FR) { posF = 0; lastSensorState = 0; }
@@ -144,37 +132,29 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
 
   // 1. 기본 전방 주도 조향
   if (posF == -2) { lsp -= 20; rsp += 10; }
-  else if (posF == -1) { lsp -= 10; rsp += 5; } 
-  else if (posF == 1) { lsp += 5; rsp -= 10; }  
+  else if (posF == -1) { lsp -= 10; rsp += 5; } // 110
+  else if (posF == 1) { lsp += 5; rsp -= 10; }  // 011
   else if (posF == 2) { lsp += 20; rsp -= 10; }
   else if (posF == -3) { lsp -= 20; rsp += 6; } 
   else if (posF == 3) { lsp += 6; rsp -= 20; }  
 
-  // 2. ★ 전후방 일직선 동기화 보정 및 자동 감속
+  // 2. ★ 전후방 일직선 동기화 보정 (목표: posF == posR)
   if ((FL || FC || FR) && (RL || RC || RR)) {
     if (!(FL && FC && FR) && !(RL && RC && RR)) { 
       int diff = posF - posR;
-      if (diff != 0) {
-        // ★ 차체가 틀어졌을 때 앞으로 가는 베이스 속도를 대폭 줄여 정렬될 시간을 극대화
-        int slowDown = abs(diff) * 7; 
-        lsp -= slowDown;
-        rsp -= slowDown;
-
-        lsp += (diff * REAR_ALIGN_GAIN); 
-        rsp -= (diff * REAR_ALIGN_GAIN);
-      }
+      lsp += (diff * REAR_ALIGN_GAIN); 
+      rsp -= (diff * REAR_ALIGN_GAIN);
     }
   }
 
   drive(lsp, rsp);
 }
 
-// ── [5] 후진 라인 트레이싱 (일직선 정렬 최우선 감속 시스템) ─────────────
+// ── [5] 후진 라인 트레이싱 (전후방 센서 상태 완벽 동기화) ────────────────────
 void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
   int posR = 0, posF = 0;
-  
   if (RL && !RC && !RR) { posR = -2; lastSensorState = 1; }
   else if (RL && RC && !RR) { posR = -1; lastSensorState = 1; }
   else if (!RL && RC && !RR) { posR = 0; lastSensorState = 0; }
@@ -198,19 +178,12 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   else if (posR == -3) { lsp += 20; rsp -= 6; } 
   else if (posR == 3) { lsp -= 6; rsp += 20; } 
 
-  // 2. ★ 전후방 일직선 동기화 보정 및 자동 감속
+  // 2. ★ 전후방 일직선 동기화 보정 (목표: posR == posF)
   if ((RL || RC || RR) && (FL || FC || FR)) {
     if (!(RL && RC && RR) && !(FL && FC && FR)) {
       int diff = posR - posF;
-      if (diff != 0) {
-        // ★ 후진 중 차체가 틀어졌을 때 베이스 속도를 줄여 정렬 최우선화
-        int slowDown = abs(diff) * 7;
-        lsp += slowDown; // lsp/rsp는 음수이므로 +를 해주면 0에 가까워짐(감속)
-        rsp += slowDown;
-
-        lsp -= (diff * REAR_ALIGN_GAIN); 
-        rsp += (diff * REAR_ALIGN_GAIN);
-      }
+      lsp -= (diff * REAR_ALIGN_GAIN); 
+      rsp += (diff * REAR_ALIGN_GAIN);
     }
   }
 

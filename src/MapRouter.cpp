@@ -43,7 +43,7 @@ void turnToHeading(int targetAngle) {
 }
 
 static void blindDriveUntilLine() {
-  prizm.resetEncoders(); safeDelay(30);
+  prizm.resetEncoders(); safeDelay(40);
   lastSensorState = 0; 
   while (true) {
     int L, C, R; readSensors(L, C, R);
@@ -56,9 +56,8 @@ static void blindDriveUntilLine() {
 static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd) {
   turnToHeading(targetHeading);
   blindDriveUntilLine();
-  prizm.resetEncoders(); safeDelay(30);
+  prizm.resetEncoders(); safeDelay(40);
   
-  // 라인트레이싱 대신 오직 직진으로 축 정렬
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
@@ -79,7 +78,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     }
   } else if (from == 9 && to == 8) {
     turnToHeading(270);
-    prizm.resetEncoders(); safeDelay(30);
+    prizm.resetEncoders(); safeDelay(40);
     lastSensorState = 0;
     while (true) {
       int L, C, R; readSensors(L, C, R);
@@ -95,18 +94,16 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   } else if (from == 11 && to == 10) {
     executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd);
   } else if (from == 10 && to == 9) {
-    // 13번 노드 경유 (11-2 -> 10-2 -> 13 -> 9-2)
     turnToHeading(270);
-    prizm.resetEncoders(); safeDelay(30);
+    prizm.resetEncoders(); safeDelay(40);
     while(abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_13_CM)) {
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
        liftUpTick(); liftDownTick(); delay(5);
     }
     turnToHeading(HEADING_13_TO_9_2); 
     blindDriveUntilLine();
-    prizm.resetEncoders(); safeDelay(30);
+    prizm.resetEncoders(); safeDelay(40);
     
-    // 라인트레이싱 대신 직진으로 축 정렬
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
@@ -123,7 +120,6 @@ static void stepNode(int from, int to, bool stopAtEnd) {
 
 void moveToNode(int toNode) {
   if (currentNode == toNode) return;
-  
   static const int nodes[] = {7, 8, 9, 10, 11};
   int cur = nodeIndex(currentNode);
   int tgt = nodeIndex(toNode);
@@ -136,14 +132,14 @@ void moveToNode(int toNode) {
   }
 }
 
-// ── [스마트 탈출 로직 (8번 사거리 정착 시 맹목적 직진/후진 적용)] ─────────────────────
+// ── [스마트 탈출 로직 (★탈출 시 절대 조향 없이 완벽한 맹목적 주행 적용)] ──
 void exitZone(int zone) {
   int targetNode = zoneToNode(zone); 
   if (targetNode == 7) enableEdgeSteering = true;
 
-  lastSensorState = 0; // 이전 조향 상태를 날려버림
+  lastSensorState = 0; 
 
-  // 1. 존 안에서 빈 땅 맹목적 주행
+  // 1. 공통: 라인을 찾을 때까지 절대 조향 없이 '맹목적 직진/후진' 구동
   if (lastEntryWasForward) {
     while (true) {
        int L, C, R, RL, RC, RR;
@@ -162,9 +158,9 @@ void exitZone(int zone) {
     }
   }
 
-  prizm.resetEncoders(); safeDelay(30);
+  prizm.resetEncoders(); safeDelay(40); 
 
-  // 2. 목적지에 따른 바퀴축 정렬 주행
+  // 2. 탈출 및 바퀴축 정렬 주행
   if (lastEntryWasForward) {
     if (targetNode == 8) {
        while (true) {
@@ -174,18 +170,18 @@ void exitZone(int zone) {
           reverseLineFollowStep(RL, RC, RR, L, C, R);
           liftUpTick(); liftDownTick(); delay(5);
        }
-       prizm.resetEncoders(); safeDelay(30);
+       prizm.resetEncoders(); safeDelay(40);
        
-       // ★ 라인트레이싱 빼고 '오직 후진'만 하여 바퀴축 정렬! 뒤뚱거림 불가
+       // ★ 사용자 수치(4.0) 적용
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_REAR_CM)) {
           drive(-BACK_SPEED, -BACK_SPEED);
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {
        long targetEscapeDist;
-       if (zone == 5 || zone == 6) targetEscapeDist = CM(EXIT_REV_SPECIAL_56_CM);
-       else if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_REV_EXTRA_12_CM);
-       else targetEscapeDist = CM(EXIT_REV_EXTRA_3456_CM);
+       if (zone == 5 || zone == 6) targetEscapeDist = CM(EXIT_REV_SPECIAL_56_CM); // 30.0
+       else if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_REV_EXTRA_12_CM); // 33.0
+       else targetEscapeDist = CM(EXIT_REV_EXTRA_3456_CM); // 35.0
        
        while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
           int L, C, R, RL, RC, RR;
@@ -203,17 +199,17 @@ void exitZone(int zone) {
           lineFollowStepFull(L, C, R, RL, RC, RR);
           liftUpTick(); liftDownTick(); delay(5);
        }
-       prizm.resetEncoders(); safeDelay(30);
+       prizm.resetEncoders(); safeDelay(40);
        
-       // ★ 라인트레이싱 빼고 '오직 직진'만 하여 바퀴축 정렬! 뒤뚱거림 불가
+       // ★ 사용자 수치(6.0) 적용
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_FRONT_CM)) {
           drive(SPEED, SPEED);
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {
        long targetEscapeDist;
-       if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_FWD_EXTRA_12_CM);
-       else targetEscapeDist = CM(EXIT_FWD_EXTRA_3456_CM);
+       if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_FWD_EXTRA_12_CM); // 35.0
+       else targetEscapeDist = CM(EXIT_FWD_EXTRA_3456_CM); // 37.0
 
        while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
           int L, C, R, RL, RC, RR;

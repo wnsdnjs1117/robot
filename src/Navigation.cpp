@@ -8,7 +8,7 @@
 #include "MapRouter.h"
 #include "Motion.h"
 
-// ── [1] 가로축 교차로 추종 (뒤뚱거림 완벽 차단: 축정렬 시 오직 직진) ─────
+// ── [1] 가로축 교차로 추종 ─────
 void followToCrossing(bool stopAtEnd) {
   {
     int L, C, R;
@@ -33,16 +33,14 @@ void followToCrossing(bool stopAtEnd) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
 
-    // 교차로 감지는 무조건 앞 센서 기준
     bool isCross = (L == 1 && C == 1 && R == 1);
     if (isCross) crossingStable++; else crossingStable = 0;
     if (!isCross) crossingArmed = true;
 
     if (crossingArmed && crossingStable >= CROSS_CONFIRM) {
       crossingArmed = false;
-      prizm.resetEncoders(); safeDelay(30); 
+      prizm.resetEncoders(); safeDelay(40); 
       
-      // ★ 라인트레이싱(조향)을 끄고 '오직 직진'만 해서 축 거리를 채웁니다. 후진/뒤뚱거림 절대 발생 안함.
       while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
         drive(SPEED, SPEED); 
         liftUpTick(); liftDownTick(); delay(5);
@@ -56,19 +54,21 @@ void followToCrossing(bool stopAtEnd) {
 }
 void followToCrossing() { followToCrossing(true); }
 
-// ── [2] 존(구역) 진입 ─────────────────────────────────────
+// ── [2] 존(구역) 진입 (★라인 위에서는 라인트레이싱 수행) ────────────────
 void enterZone() {
   lastSensorState = 0;
+  
+  // ★ 빈 땅이 감지될 때까지 무조건 라인을 따라 들어감
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     if (!anyLine(L, C, R)) break; 
-    lineFollowStepFull(L, C, R, RL, RC, RR);
+    lineFollowStepFull(L, C, R, RL, RC, RR); 
     liftUpTick(); liftDownTick(); delay(5);
   }
 
-  prizm.resetEncoders(); safeDelay(30); 
-  long extraDist = CM(ENTRY_FWD_EXTRA_CM); // 37.5cm 
+  prizm.resetEncoders(); safeDelay(40); 
+  long extraDist = CM(ENTRY_FWD_EXTRA_CM); // 사용자 공식: 37.5cm 
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(SPEED, SPEED); 
@@ -79,6 +79,8 @@ void enterZone() {
 
 void reverseEnterZone() {
   lastSensorState = 0;
+  
+  // ★ 빈 땅이 감지될 때까지 무조건 라인을 따라 들어감
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -87,8 +89,8 @@ void reverseEnterZone() {
     liftUpTick(); liftDownTick(); delay(5);
   }
 
-  prizm.resetEncoders(); safeDelay(30); 
-  long extraDist = CM(ENTRY_REV_EXTRA_CM); // 27.5cm
+  prizm.resetEncoders(); safeDelay(40); 
+  long extraDist = CM(ENTRY_REV_EXTRA_CM); // 사용자 공식: 27.5cm
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(-BACK_SPEED, -BACK_SPEED); 
@@ -99,7 +101,7 @@ void reverseEnterZone() {
 
 void reverseAcrossToOppositeZone() {
   lastSensorState = 0;
-  // 빈 땅 맹목적 직진 (후진)
+  // 1. 라인을 만날 때까지 오직 맹목적 후진 (조향 금지)
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -108,8 +110,8 @@ void reverseAcrossToOppositeZone() {
     liftUpTick(); liftDownTick(); delay(5);
   }
   
-  // 반대편 빈땅이 나올때까지 라인 추종
-  prizm.resetEncoders(); safeDelay(30);
+  // 2. 반대편 빈땅이 나올때까지 라인 추종
+  prizm.resetEncoders(); safeDelay(40);
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -118,8 +120,8 @@ void reverseAcrossToOppositeZone() {
     liftUpTick(); liftDownTick(); delay(5);
   }
   
-  // 반대편 존 정착
-  prizm.resetEncoders(); safeDelay(30);
+  // 3. 반대편 존 정착
+  prizm.resetEncoders(); safeDelay(40);
   long extraDist = CM(ENTRY_REV_EXTRA_CM); // 27.5cm
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
@@ -133,7 +135,6 @@ void reverseAcrossToOppositeZone() {
 void goToMainLine() {
   robotHeading = 270; 
 
-  // ★ 1. 출발 후 START 박스의 검은 선을 밟을 때까지 전진
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
@@ -141,8 +142,7 @@ void goToMainLine() {
     liftUpTick(); liftDownTick(); delay(5);
   }
 
-  // ★ 2. 선을 밟은 시점부터 12번 노드까지 거리 측정 시작
-  prizm.resetEncoders(); safeDelay(30);
+  prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_START_TO_12_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
@@ -155,7 +155,7 @@ void goToMainLine() {
     drive(BLIND_SPEED, BLIND_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
-  prizm.resetEncoders(); safeDelay(30);
+  prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
@@ -174,7 +174,7 @@ void returnToFinish() {
       drive(BLIND_SPEED, BLIND_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
     }
-    prizm.resetEncoders(); safeDelay(30);
+    prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_FINISH_ENTRY_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
@@ -190,7 +190,7 @@ void returnToFinish() {
       liftUpTick(); liftDownTick(); delay(5);
     }
     stopAll(); delay(100); turnToHeading(HEADING_9_3_TO_12);
-    prizm.resetEncoders(); safeDelay(30);
+    prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_9_3_TO_12_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
@@ -202,7 +202,7 @@ void returnToFinish() {
       drive(BLIND_SPEED, BLIND_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
     }
-    prizm.resetEncoders(); safeDelay(30);
+    prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_FINISH_ENTRY_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
