@@ -18,7 +18,6 @@
 
 // ── 상태 ─────────────────────────────────────────────────────
 static enum { LT_IDLE, LT_UP, LT_DOWN } _ltState = LT_IDLE;
-
 static long          _ltPrevEncL  = 0, _ltPrevEncR  = 0;
 static long          _ltSpdL      = 0, _ltSpdR      = 0;
 static unsigned long _ltLastTick  = 0;
