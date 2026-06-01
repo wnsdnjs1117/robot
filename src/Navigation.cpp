@@ -70,7 +70,7 @@ void enterZone() {
   long extraDist = CM(ENTRY_FWD_EXTRA_CM); 
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
-    drive(SPEED, SPEED); 
+    drive(ZONE_ENTRY_BLIND_SPEED, ZONE_ENTRY_BLIND_SPEED); 
     liftUpTick(); liftDownTick(); delay(5);
   }
   stopAll();
@@ -91,7 +91,7 @@ void reverseEnterZone() {
   long extraDist = CM(ENTRY_REV_EXTRA_CM);
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
-    drive(-BACK_SPEED, -BACK_SPEED); 
+    drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED); 
     liftUpTick(); liftDownTick(); delay(5);
   }
   stopAll();
@@ -103,7 +103,7 @@ void reverseAcrossToOppositeZone() {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     if (anyRearLine(RL, RC, RR)) break;
-    drive(-BACK_SPEED, -BACK_SPEED);
+    drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
   
@@ -120,7 +120,7 @@ void reverseAcrossToOppositeZone() {
   long extraDist = CM(ENTRY_REV_EXTRA_CM); 
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
-    drive(-BACK_SPEED, -BACK_SPEED);
+    drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
   stopAll();

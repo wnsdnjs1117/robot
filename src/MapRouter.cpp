@@ -33,9 +33,29 @@ void turnToHeading(int targetAngle) {
   stopAll(); delay(200);  
 }
 
-static void blindDriveUntilLine() {
+// ★ [추가] 맹목 이동 시: 이전 노드 출발점 선을 완벽히 벗어나기 위해 무시거리를 눈감고 밀고 나감
+static void ignoreNodeBlind() {
   prizm.resetEncoders(); safeDelay(40);
+  while (abs(prizm.readEncoderCount(1)) < CM(DIST_IGNORE_NODE_CM)) {
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    liftUpTick(); liftDownTick(); delay(5);
+  }
+}
+
+// ★ [추가] 라인트레이싱 이동 시: 이전 노드 교차로를 벗어나기 위해 무시거리 동안 교차로 감지 무시
+static void ignoreNodeTrace() {
+  prizm.resetEncoders(); safeDelay(40);
+  while (abs(prizm.readEncoderCount(1)) < CM(DIST_IGNORE_NODE_CM)) {
+    int L, C, R, RL, RC, RR;
+    readSensors(L, C, R); readRearSensors(RL, RC, RR);
+    lineFollowStepFull(L, C, R, RL, RC, RR);
+    liftUpTick(); liftDownTick(); delay(5);
+  }
+}
+
+static void blindDriveUntilLine() {
   lastSensorState = 0; 
+  prizm.resetEncoders(); safeDelay(40);
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
@@ -46,9 +66,11 @@ static void blindDriveUntilLine() {
 
 static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd) {
   turnToHeading(targetHeading);
-  blindDriveUntilLine();
-  prizm.resetEncoders(); safeDelay(40);
   
+  ignoreNodeBlind(); // ★ 방향 전환 후 무조건 10cm 강제 탈출
+  blindDriveUntilLine(); // 이후 새로운 선 탐색
+  
+  prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
@@ -57,10 +79,12 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
   if (alignHeading != -1 && !stopAtEnd) turnToHeading(alignHeading);
 }
 
-// ★ 새로운 맞춤형 노드 간 이동 로직
+// ── [모든 경우 공통 무시 규칙이 적용된 이동 로직] ──
 static void stepNode(int from, int to, bool stopAtEnd) {
   if (from == 8 && to == 9) {
     turnToHeading(90);
+    ignoreNodeTrace(); // ★ 8번에서 출발할 때 10cm 동안 교차로 무시하며 라인트레이싱
+
     while (true) {
       int L, C, R, RL, RC, RR;
       readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -71,7 +95,8 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   } 
   else if (from == 9 && to == 8) {
     turnToHeading(270);
-    prizm.resetEncoders(); safeDelay(40);
+    ignoreNodeBlind(); // ★ 9번에서 출발할 때 10cm 동안 선 감지 무시 (완벽 이탈)
+    
     lastSensorState = 0;
     while (true) {
       int L, C, R; readSensors(L, C, R);
@@ -82,23 +107,16 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     followToCrossing(stopAtEnd);
   } 
   else if (from == 9 && to == 10) { 
-    executeBlindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd);
+    executeBlindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd); // (내부에 10cm 이탈 로직 포함)
   } 
-  else if (from == 9 && to == 11) { // ★ 9->11 다이렉트 전용 로직
+  else if (from == 9 && to == 11) { 
     turnToHeading(HEADING_9_TO_11); 
     
-    // 1. 첫 번째 10번 선 만날 때까지 주행
-    blindDriveUntilLine();
+    ignoreNodeBlind();     // ★ 9번에서 10cm 탈출
+    blindDriveUntilLine(); // 10번 만남
     
-    // 2. 10번 선을 무시하고 강제로 일정 거리 돌파
-    prizm.resetEncoders(); safeDelay(40);
-    while (abs(prizm.readEncoderCount(1)) < CM(DIST_IGNORE_10_CM)) { 
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
-    }
-    
-    // 3. 두 번째 진짜 11번 선 만날 때까지 주행
-    blindDriveUntilLine();
+    ignoreNodeBlind();     // ★ 10번 선을 밟은 상태에서 10cm 다시 탈출 (10번 무시)
+    blindDriveUntilLine(); // 비로소 11번 만남
     
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
@@ -108,20 +126,22 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     if (stopAtEnd) stopAll();
   } 
   else if (from == 10 && to == 11) { 
-    executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd);
+    executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd); // (내부에 10cm 이탈 포함)
   } 
   else if (from == 11 && to == 10) { 
-    executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd);
+    executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd); // (내부에 10cm 이탈 포함)
   } 
   else if (from == 10 && to == 9) { 
     turnToHeading(HEADING_10_TO_12); 
     prizm.resetEncoders(); safeDelay(40);
-    while(abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_12_CM)) {
+    // [예외적 기하학] 10번 -> 12번 이동. 
+    while(abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_12_CM)) { 
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
        liftUpTick(); liftDownTick(); delay(5);
     }
     turnToHeading(HEADING_12_TO_9_2); 
-    blindDriveUntilLine();
+    // 12번은 허공 경유지이므로 빠져나올 선이 없음. 바로 선 탐색 개시!
+    blindDriveUntilLine(); 
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
@@ -133,12 +153,13 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   else if (from == 11 && to == 9) { 
     turnToHeading(HEADING_11_TO_12); 
     prizm.resetEncoders(); safeDelay(40);
-    while(abs(prizm.readEncoderCount(1)) < CM(DIST_11_TO_12_CM)) {
+    // [예외적 기하학] 11번 -> 12번.
+    while(abs(prizm.readEncoderCount(1)) < CM(DIST_11_TO_12_CM)) { 
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
        liftUpTick(); liftDownTick(); delay(5);
     }
     turnToHeading(HEADING_12_TO_9_2); 
-    blindDriveUntilLine();
+    blindDriveUntilLine(); // 허공이므로 바로 탐색 개시
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
@@ -150,6 +171,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   else {
     int dir = (to > from) ? 90 : 270;
     turnToHeading(dir);
+    ignoreNodeTrace(); // ★ 7, 8번 등 메인 가로선 이동 시 출발 직후 10cm 강제 주행 (교차로 무시)
     followToCrossing(stopAtEnd);
   }
   currentNode = to;
@@ -187,7 +209,7 @@ void exitZone(int zone) {
        int L, C, R, RL, RC, RR;
        readSensors(L, C, R); readRearSensors(RL, RC, RR);
        if (anyRearLine(RL, RC, RR)) break; // 후진하다 라인을 만남!
-       drive(-BACK_SPEED, -BACK_SPEED);
+       drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
        liftUpTick(); liftDownTick(); delay(5);
     }
   } else {
@@ -195,7 +217,7 @@ void exitZone(int zone) {
        int L, C, R, RL, RC, RR;
        readSensors(L, C, R); readRearSensors(RL, RC, RR);
        if (anyLine(L, C, R)) break; // 전진하다 라인을 만남!
-       drive(SPEED, SPEED);
+       drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
        liftUpTick(); liftDownTick(); delay(5);
     }
   }
@@ -215,7 +237,7 @@ void exitZone(int zone) {
        prizm.resetEncoders(); safeDelay(40);
        // 후진 시 (4+1 = 5cm) 주행
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_REAR_CM)) {
-          drive(-BACK_SPEED, -BACK_SPEED);
+          drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {
@@ -244,7 +266,7 @@ void exitZone(int zone) {
        prizm.resetEncoders(); safeDelay(40);
        // 전진 시 (6+1 = 7cm) 주행
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_FRONT_CM)) {
-          drive(SPEED, SPEED);
+          drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {

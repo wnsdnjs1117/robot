@@ -1,5 +1,5 @@
 /* ============================================================
- * Motion.cpp - 하드웨어 구동 및 제어 (원본 딱딱한 움직임 완벽 복구)
+ * Motion.cpp - 하드웨어 구동 및 제어 (가장자리 평행 이탈 방지 조향 적용)
  * ============================================================ */
 #include "Motion.h"
 #include "Config.h"
@@ -16,7 +16,7 @@ void safeDelay(unsigned long ms) {
   }
 }
 
-// ── [1] 모터 구동 (사용자 원본 코드 완벽 동일 복원) ────────────────
+// ── [1] 모터 구동 ──────────────────────────────────────────
 void drive(int l, int r) {
   if (l == 0 && r == 0) { prizm.setMotorSpeeds(0, 0); return; }
   
@@ -70,7 +70,7 @@ void stopAll() {
   safeDelay(50);
 }
 
-// ── [2] ★ 제자리 칼각 회전 (원본 감속 없는 하드브레이크 복원) ★ ───────────
+// ── [2] ★ 제자리 칼각 회전 ─────────────────────────────────
 void turnAngle(int degrees, bool isRight) {
   prizm.resetEncoders();
   safeDelay(40);
@@ -82,7 +82,6 @@ void turnAngle(int degrees, bool isRight) {
     long pos = (abs(prizm.readEncoderCount(1)) + abs(prizm.readEncoderCount(2))) / 2;
     if (pos >= brakePoint) break; 
 
-    // ★ 수정: 90도 조건 삭제, 목표 회전량의 60% 이상 진행 시 라인을 만나면 즉시 멈춤 (모든 스핀에 적용)
     if (pos > (targetCounts * 0.6f)) {
       int L, C, R; readSensors(L, C, R);
       if (isRight && L == 1) break;
@@ -111,7 +110,7 @@ void readRearSensors(int& RL, int& RC, int& RR) {
 bool anyLine(int L, int C, int R) { return (L == 1 || C == 1 || R == 1); }
 bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
 
-// ── [4] 전진 라인 트레이싱 (전후방 센서 상태 완벽 동기화) ────────────────────
+// ── [4] 전진 라인 트레이싱 ─────────────────────────────────
 void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   int lsp = SPEED, rsp = SPEED;
 
@@ -133,13 +132,13 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
 
   // 1. 기본 전방 주도 조향
   if (posF == -2) { lsp -= 20; rsp += 10; }
-  else if (posF == -1) { lsp -= 10; rsp += 5; } // 110
-  else if (posF == 1) { lsp += 5; rsp -= 10; }  // 011
+  else if (posF == -1) { lsp -= 10; rsp += 5; }
+  else if (posF == 1) { lsp += 5; rsp -= 10; }  
   else if (posF == 2) { lsp += 20; rsp -= 10; }
   else if (posF == -3) { lsp -= 20; rsp += 6; } 
   else if (posF == 3) { lsp += 6; rsp -= 20; }  
 
-  // 2. ★ 전후방 일직선 동기화 보정 (목표: posF == posR)
+  // 2. 전후방 일직선 동기화 보정
   if ((FL || FC || FR) && (RL || RC || RR)) {
     if (!(FL && FC && FR) && !(RL && RC && RR)) { 
       int diff = posF - posR;
@@ -148,10 +147,20 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
     }
   }
 
+  // 3. ★ 극단적 가장자리 평행 (100-100 / 001-001) 이탈 방지 조향
+  if (FL == 1 && FC == 0 && FR == 0 && RL == 1 && RC == 0 && RR == 0) {
+    lsp -= EDGE_SYNC_GAIN;
+    rsp += EDGE_SYNC_GAIN;
+  }
+  else if (FL == 0 && FC == 0 && FR == 1 && RL == 0 && RC == 0 && RR == 1) {
+    lsp += EDGE_SYNC_GAIN;
+    rsp -= EDGE_SYNC_GAIN;
+  }
+
   drive(lsp, rsp);
 }
 
-// ── [5] 후진 라인 트레이싱 (전후방 센서 상태 완벽 동기화) ────────────────────
+// ── [5] 후진 라인 트레이싱 ─────────────────────────────────
 void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   int lsp = -BACK_SPEED, rsp = -BACK_SPEED;
 
@@ -179,13 +188,23 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   else if (posR == -3) { lsp += 20; rsp -= 6; } 
   else if (posR == 3) { lsp -= 6; rsp += 20; } 
 
-  // 2. ★ 전후방 일직선 동기화 보정 (목표: posR == posF)
+  // 2. 전후방 일직선 동기화 보정
   if ((RL || RC || RR) && (FL || FC || FR)) {
     if (!(RL && RC && RR) && !(FL && FC && FR)) {
       int diff = posR - posF;
       lsp -= (diff * REAR_ALIGN_GAIN); 
       rsp += (diff * REAR_ALIGN_GAIN);
     }
+  }
+
+  // 3. ★ 극단적 가장자리 평행 (100-100 / 001-001) 이탈 방지 조향
+  if (RL == 1 && RC == 0 && RR == 0 && FL == 1 && FC == 0 && FR == 0) {
+    lsp += EDGE_SYNC_GAIN;
+    rsp -= EDGE_SYNC_GAIN;
+  }
+  else if (RL == 0 && RC == 0 && RR == 1 && FL == 0 && FC == 0 && FR == 1) {
+    lsp -= EDGE_SYNC_GAIN;
+    rsp += EDGE_SYNC_GAIN;
   }
 
   drive(lsp, rsp);
