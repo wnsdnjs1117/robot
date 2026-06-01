@@ -52,14 +52,14 @@ constexpr float DIST_ZONE_DEPTH_CM = 20.0f;
 constexpr float LINE_LEN_ZONE_12_CM = 28.0f;          
 constexpr float LINE_LEN_ZONE_3456_CM = 30.0f;        
 
-constexpr float ENTRY_FWD_EXTRA_CM = 37.5f;           // 전진 진입 시 추가 거리
-constexpr float ENTRY_REV_EXTRA_CM = 12.5f;           // 후진 진입 시 추가 거리
+constexpr float ENTRY_FWD_EXTRA_CM = 36.5f;           // 전진 진입 시 추가 거리
+constexpr float ENTRY_REV_EXTRA_CM = 10.5f;           // 후진 진입 시 추가 거리
 
 // 1번, 3번 구역 탈출 추가 주행 거리 (라인 두께 1cm 포함)
 constexpr float EXIT_REV_EXTRA_1_CM = 33.0f;          // 1번 후진 탈출 (28+4+1)
-constexpr float EXIT_FWD_EXTRA_1_CM = 35.0f;          // 1번 전진 탈출 (28+6+1)
+constexpr float EXIT_FWD_EXTRA_1_CM = 34.0f;          // 1번 전진 탈출 (28+6+1)
 constexpr float EXIT_REV_EXTRA_3_CM = 35.0f;          // 3번 후진 탈출 (30+4+1)
-constexpr float EXIT_FWD_EXTRA_3_CM = 37.0f;          // 3번 전진 탈출 (30+6+1)
+constexpr float EXIT_FWD_EXTRA_3_CM = 36.0f;          // 3번 전진 탈출 (30+6+1)
 
 // 5, 6번 구역 맹목적 탈출 시 파라미터 
 constexpr float EXIT_REV_SPECIAL_56_CM = 29.0f;  
@@ -71,30 +71,30 @@ constexpr float ALIGN_AXIS_REAR_CM = 4.0f;            // 후진 교차로 정렬
 // ── [4] 속도 및 조향 제어 ─────────────────────────────────────────
 
 // [4-1] 기본 라인트레이싱 속도
-constexpr int SPEED = 35;                // 전진 라인트레이싱 속도
+constexpr int SPEED = 40;                // 전진 라인트레이싱 속도
 constexpr int BACK_SPEED = 30;           // 후진 라인트레이싱 속도
 
 // [4-2] 맹목적 주행 속도 (선이 없는 허공 구간)
-constexpr int STRAIGHT_SPEED = 40;       // 인코더 지정 거리 직진 속도
-constexpr int BLIND_SPEED = 40;          // 선을 만날 때까지 달리는 속도
+constexpr int STRAIGHT_SPEED = 60;       // 인코더 지정 거리 직진 속도
+constexpr int BLIND_SPEED = 60;          // 선을 만날 때까지 달리는 속도
 
 // [4-3] 존(Zone) 진출입 특수 맹목 구간 속도
-constexpr int ZONE_ENTRY_BLIND_SPEED = 40;       // 진입 시 전진 속도
-constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 40;  // 진입 시 후진 속도
-constexpr int ZONE_EXIT_BLIND_SPEED = 40;        // 탈출 시 전진 속도 (선을 찾을때까지)
-constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;   // 탈출 시 후진 속도 (선을 찾을때까지)
+constexpr int ZONE_ENTRY_BLIND_SPEED = 60;       // 진입 시 전진 속도
+constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 60;  // 진입 시 후진 속도
+constexpr int ZONE_EXIT_BLIND_SPEED = 50;        // 탈출 시 전진 속도 (선을 찾을때까지)
+constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 50;   // 탈출 시 후진 속도 (선을 찾을때까지)
 
 // [4-4] 제자리 회전(스핀) 속도 및 각도 제어
-constexpr int SPIN_SPEED = 40;           // 제자리 턴 기본 속도
+constexpr int SPIN_SPEED = 30;           // 제자리 턴 기본 속도
 constexpr int SPIN_90_COUNTS = 1100;     // ★ 90도 회전 시 기준 엔코더 값 (모든 각도의 기준)
-constexpr int SPIN_BRAKE_LEAD = 30;      // 회전 목표 도달 전 미리 브레이크 잡는 수치
+constexpr int SPIN_BRAKE_LEAD = 20;      // 회전 목표 도달 전 미리 브레이크 잡는 수치
 
 // [4-5] 조향(PID/동기화) 게인값
 constexpr float VELOCITY_KP = 0.2f;               
 constexpr float VELOCITY_TARGET_FACTOR = 0.5f;    
 constexpr int   VELOCITY_MAX_CORRECTION = 10; 
 constexpr int   REAR_ALIGN_GAIN = 5;         // 전/후방 센서 오차 시 조향 강도
-constexpr int   EDGE_SYNC_GAIN = 5;         // 가장자리(100/001) 아슬아슬할 때 안으로 밀어넣는 힘
+constexpr int   EDGE_SYNC_GAIN = 1;         // 가장자리(100/001) 아슬아슬할 때 안으로 밀어넣는 힘
 
 // [4-6] 모터/기타 설정
 constexpr int MOTOR_OFFSET_L = 0;           
@@ -116,8 +116,8 @@ constexpr int   HEADING_12_TO_9_2 = 310;
 // [5-2] START <-> 9번, 13번 노드 간 이동
 constexpr float DIST_START_TO_13_CM = 90.0f; 
 constexpr int   HEADING_13_TO_9 = 305.0;     // 실측 각도 반영
-constexpr int   HEADING_9_TO_13 = 150;     
-constexpr float DIST_9_TO_13_CM = 40.0f;   
+constexpr int   HEADING_9_TO_13 = 120;     
+constexpr float DIST_9_TO_13_CM = 90.0f;   
 constexpr int   HEADING_10_TO_13 = 180;    
 constexpr float DIST_10_TO_13_CM = 55.0f;  
 constexpr int   HEADING_13_TO_START = 90;  
@@ -138,13 +138,13 @@ constexpr float LIFT_UP_CLEAR_CM          = 5.0f;
 constexpr float LIFT_DOWN_CLEAR_CM        = 0.0f;    
 
 // 리프트 모터 속도 (실측 반영)
-constexpr int   LIFT_UP_POWER             = 50;      // 기본 상승 파워
+constexpr int   LIFT_UP_POWER             = 40;      // 기본 상승 파워
 constexpr int   LIFT_DOWN_POWER           = 100;      // 기본 하강 파워
 
 constexpr float LIFT_UP_SLOW_ZONE_CM      = 20.0f;   
-constexpr int   LIFT_UP_SLOW_POWER_L      = 40;      
-constexpr int   LIFT_UP_SLOW_POWER_R      = 40;      
-constexpr float LIFT_DOWN_SLOW_ZONE_CM    = 8.0f;    
+constexpr int   LIFT_UP_SLOW_POWER_L      = 30;      
+constexpr int   LIFT_UP_SLOW_POWER_R      = 30;      
+constexpr float LIFT_DOWN_SLOW_ZONE_CM    = 10.0f;    
 constexpr int   LIFT_DOWN_SLOW_POWER_L    = 25;      
 constexpr int   LIFT_DOWN_SLOW_POWER_R    = 25;      
 constexpr float LIFT_SYNC_GAIN            = 3.0f;    
