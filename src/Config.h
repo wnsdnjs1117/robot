@@ -25,7 +25,7 @@
 #endif
 
 // ★ [엔코더 실측값 반영] 80cm 이동 시 3450 카운트
-constexpr float COUNTS_PER_CM = 3450.0f / 80.0f;
+constexpr float COUNTS_PER_CM = 3420.0f / 80.0f; // 나눈 결과값이 적어지면 로봇도 조금 갑니다.
 constexpr int CM(float cm) { return (int)(cm * COUNTS_PER_CM + 0.5f); } 
 
 // ── [1] 핀 번호 및 하드웨어 센서 ─────────────────────────────────────
@@ -38,7 +38,7 @@ constexpr int BUZZER_PIN = 5;
 constexpr int SENSOR_REAR_LEFT = A1;    
 constexpr int SENSOR_REAR_CENTER = A2;  
 constexpr int SENSOR_REAR_RIGHT = A3;   
-constexpr int REAR_SENSOR_THRESHOLD = 128; 
+constexpr int REAR_SENSOR_THRESHOLD = 200; 
 
 // ── [2] 로봇 하드웨어 물리적 치수 ────────────────────────────────────
 constexpr float ROBOT_LENGTH_CM = 35.0f;              // 로봇의 전체 길이
@@ -71,30 +71,30 @@ constexpr float ALIGN_AXIS_REAR_CM = 4.0f;            // 후진 교차로 정렬
 // ── [4] 속도 및 조향 제어 ─────────────────────────────────────────
 
 // [4-1] 기본 라인트레이싱 속도
-constexpr int SPEED = 40;                // 전진 라인트레이싱 속도
-constexpr int BACK_SPEED = 35;           // 후진 라인트레이싱 속도
+constexpr int SPEED = 35;                // 전진 라인트레이싱 속도
+constexpr int BACK_SPEED = 30;           // 후진 라인트레이싱 속도
 
 // [4-2] 맹목적 주행 속도 (선이 없는 허공 구간)
-constexpr int STRAIGHT_SPEED = 60;       // 인코더 지정 거리 직진 속도
-constexpr int BLIND_SPEED = 60;          // 선을 만날 때까지 달리는 속도
+constexpr int STRAIGHT_SPEED = 40;       // 인코더 지정 거리 직진 속도
+constexpr int BLIND_SPEED = 40;          // 선을 만날 때까지 달리는 속도
 
 // [4-3] 존(Zone) 진출입 특수 맹목 구간 속도
-constexpr int ZONE_ENTRY_BLIND_SPEED = 100;       // 진입 시 전진 속도
-constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 100;  // 진입 시 후진 속도
-constexpr int ZONE_EXIT_BLIND_SPEED = 100;        // 탈출 시 전진 속도 (선을 찾을때까지)
-constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 100;   // 탈출 시 후진 속도 (선을 찾을때까지)
+constexpr int ZONE_ENTRY_BLIND_SPEED = 40;       // 진입 시 전진 속도
+constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 40;  // 진입 시 후진 속도
+constexpr int ZONE_EXIT_BLIND_SPEED = 40;        // 탈출 시 전진 속도 (선을 찾을때까지)
+constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;   // 탈출 시 후진 속도 (선을 찾을때까지)
 
 // [4-4] 제자리 회전(스핀) 속도 및 각도 제어
-constexpr int SPIN_SPEED = 35;           // 제자리 턴 기본 속도
-constexpr int SPIN_90_COUNTS = 1180;     // ★ 90도 회전 시 기준 엔코더 값 (모든 각도의 기준)
-constexpr int SPIN_BRAKE_LEAD = 15;      // 회전 목표 도달 전 미리 브레이크 잡는 수치
+constexpr int SPIN_SPEED = 40;           // 제자리 턴 기본 속도
+constexpr int SPIN_90_COUNTS = 1100;     // ★ 90도 회전 시 기준 엔코더 값 (모든 각도의 기준)
+constexpr int SPIN_BRAKE_LEAD = 30;      // 회전 목표 도달 전 미리 브레이크 잡는 수치
 
 // [4-5] 조향(PID/동기화) 게인값
 constexpr float VELOCITY_KP = 0.2f;               
 constexpr float VELOCITY_TARGET_FACTOR = 0.5f;    
 constexpr int   VELOCITY_MAX_CORRECTION = 10; 
-constexpr int   REAR_ALIGN_GAIN = 6;         // 전/후방 센서 오차 시 조향 강도
-constexpr int   EDGE_SYNC_GAIN = 10;         // 가장자리(100/001) 아슬아슬할 때 안으로 밀어넣는 힘
+constexpr int   REAR_ALIGN_GAIN = 5;         // 전/후방 센서 오차 시 조향 강도
+constexpr int   EDGE_SYNC_GAIN = 5;         // 가장자리(100/001) 아슬아슬할 때 안으로 밀어넣는 힘
 
 // [4-6] 모터/기타 설정
 constexpr int MOTOR_OFFSET_L = 0;           
@@ -111,7 +111,7 @@ constexpr int   HEADING_10_TO_12 = 210;
 constexpr float DIST_10_TO_12_CM = 50.0f; 
 constexpr int   HEADING_11_TO_12 = 250;      // 실측 턴 각도 반영
 constexpr float DIST_11_TO_12_CM = 110.0f;    // 실측 거리 반영
-constexpr int   HEADING_12_TO_9_2 = 300;  
+constexpr int   HEADING_12_TO_9_2 = 310;  
 
 // [5-2] START <-> 9번, 13번 노드 간 이동
 constexpr float DIST_START_TO_13_CM = 90.0f; 
@@ -119,14 +119,14 @@ constexpr int   HEADING_13_TO_9 = 305.0;     // 실측 각도 반영
 constexpr int   HEADING_9_TO_13 = 150;     
 constexpr float DIST_9_TO_13_CM = 40.0f;   
 constexpr int   HEADING_10_TO_13 = 180;    
-constexpr float DIST_10_TO_13_CM = 40.0f;  
+constexpr float DIST_10_TO_13_CM = 55.0f;  
 constexpr int   HEADING_13_TO_START = 90;  
 constexpr float DIST_FINISH_ENTRY_CM = 40.0f; 
 
 // [5-3] 9, 10, 11번 등 상호 노드 이동 방위 및 공통 무시 규칙
 constexpr int   HEADING_9_TO_10 = 83;        
 constexpr int   HEADING_9_TO_11 = 87;         
-constexpr float DIST_IGNORE_NODE_CM = 10.0f;  // ★ 공통: 노드 이동 시 출발 직후 선(교차로)을 무시하고 강제로 밀고 나갈 최소 거리 (10cm)
+constexpr float DIST_IGNORE_NODE_CM = 5.0f;  // ★ 공통: 노드 이동 시 출발 직후 선(교차로)을 무시하고 강제로 밀고 나갈 최소 거리 (10cm)
 constexpr int   HEADING_10_TO_11 = 90;       
 constexpr int   HEADING_11_TO_10 = 270;      
 

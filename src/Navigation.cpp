@@ -73,6 +73,7 @@ void enterZone() {
     drive(ZONE_ENTRY_BLIND_SPEED, ZONE_ENTRY_BLIND_SPEED); 
     liftUpTick(); liftDownTick(); delay(5);
   }
+  // 존 진입 완료 후 멈춤 (허용 구간)
   stopAll();
 }
 
@@ -126,11 +127,10 @@ void reverseAcrossToOppositeZone() {
   stopAll();
 }
 
-// ── [3] 탐색 및 시작/종료 처리 (★ 새로 수정된 규칙 적용) ────────────────
+// ── [3] 탐색 및 시작/종료 처리 ────────────────
 void goToMainLine() {
   robotHeading = 270; 
 
-  // 1. START의 감싸는 네모 선을 빠져나갈 때까지 전진
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
@@ -138,17 +138,15 @@ void goToMainLine() {
     liftUpTick(); liftDownTick(); delay(5);
   }
 
-  // 2. START -> 13 이동
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_START_TO_13_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
   
-  // 3. 13에서 9-2 방향 턴
-  stopAll(); delay(100); turnToHeading(HEADING_13_TO_9);
+  // 회전 전 관성만 제어, 무의미한 delay 삭제
+  stopAll(); turnToHeading(HEADING_13_TO_9);
   
-  // 4. 9-2 선(검은선)을 만날 때까지 주행
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
@@ -156,30 +154,29 @@ void goToMainLine() {
     liftUpTick(); liftDownTick(); delay(5);
   }
   
-  // 5. 선 넘어가서 십자 교차로 정렬
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
-  stopAll(); delay(100); turnToHeading(270);
-  followToCrossing(true); // 9-2에서 8로 이동
+  
+  // 회전 전 관성 제어, 딜레이 삭제
+  stopAll(); turnToHeading(270);
+  followToCrossing(true); 
   currentNode = 8;
 }
 
 void returnToFinish() {
   if (currentNode == 11) {
-    // [규칙] 11번노드에서 START노드로 이동 : 11-3 에서 160도 방향 바라보고 이동 -> START
     turnToHeading(160);
     while (true) {
       int L, C, R; readSensors(L, C, R);
-      if (anyLine(L, C, R)) break; // START 네모 만남
+      if (anyLine(L, C, R)) break; 
       drive(BLIND_SPEED, BLIND_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
     }
   } 
   else if (currentNode == 10) {
-    // [규칙] 10번노드에서 START노드로 이동 : 10-3 -> 13 -> START
     turnToHeading(HEADING_10_TO_13); 
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_13_CM)) {
@@ -189,15 +186,13 @@ void returnToFinish() {
     turnToHeading(HEADING_13_TO_START);
     while (true) {
       int L, C, R; readSensors(L, C, R);
-      if (anyLine(L, C, R)) break; // START 네모 만남
+      if (anyLine(L, C, R)) break; 
       drive(BLIND_SPEED, BLIND_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
     }
   } 
   else { 
-    // 7, 8, 9번에 있을 경우 먼저 9번으로 복귀
     moveToNode(9); 
-    // [규칙] 9번노드에서 START노드로 이동 : 9-3 -> 13 -> START
     turnToHeading(HEADING_9_TO_13); 
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_9_TO_13_CM)) {
@@ -207,21 +202,20 @@ void returnToFinish() {
     turnToHeading(HEADING_13_TO_START);
     while (true) {
       int L, C, R; readSensors(L, C, R);
-      if (anyLine(L, C, R)) break; // START 네모 만남
+      if (anyLine(L, C, R)) break; 
       drive(BLIND_SPEED, BLIND_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
     }
   }
 
-  // [공통] 네모 라인 안쪽으로 살짝 진입
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_FINISH_ENTRY_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
   
-  // 정면(90도)을 보고 세리머니
-  stopAll(); delay(200); turnToHeading(90); 
+  // 종료 지점 세레모니
+  stopAll(); turnToHeading(90); 
   stopAll(); tone(BUZZER_PIN, 1000); delay(1500); noTone(BUZZER_PIN); prizm.setGreenLED(HIGH);
 }
 

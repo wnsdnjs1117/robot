@@ -16,7 +16,7 @@ void safeDelay(unsigned long ms) {
   }
 }
 
-// ── [1] 모터 구동 ──────────────────────────────────────────
+// ── [1] 모터 구동 및 급정지(Brake & Release) ───────────────
 void drive(int l, int r) {
   if (l == 0 && r == 0) { prizm.setMotorSpeeds(0, 0); return; }
   
@@ -65,9 +65,15 @@ void drive(int l, int r) {
 }
 
 void stopAll() {
+  // 1. 모터에 125(급정지/Brake) 명령 전달하여 관성을 칼같이 잡음
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
-  safeDelay(50);
+  
+  // 2. 급정지가 물리적으로 걸릴 아주 짧은 시간만 대기 (60ms)
+  safeDelay(60); 
+  
+  // 3. 바로 제동을 풀고 자연스러운 상태(Coast)로 전환 (다음 동작으로 즉각 이어짐)
+  prizm.setMotorSpeeds(0, 0);
 }
 
 // ── [2] ★ 제자리 칼각 회전 ─────────────────────────────────
@@ -94,7 +100,8 @@ void turnAngle(int degrees, bool isRight) {
 
     liftUpTick(); liftDownTick(); delay(5);
   }
-  stopAll(); delay(100);
+  // 스핀 턴 완료 후 1회 급제동 및 즉각 해제 (추가 딜레이 완전히 삭제)
+  stopAll(); 
 }
 
 // ── [3] 센서 읽기 ──────────────────────────────────────────
@@ -130,7 +137,6 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   else if (!RL && !RC && RR) posR = 2;
   else posR = 0; 
 
-  // 1. 기본 전방 주도 조향
   if (posF == -2) { lsp -= 20; rsp += 10; }
   else if (posF == -1) { lsp -= 10; rsp += 5; }
   else if (posF == 1) { lsp += 5; rsp -= 10; }  
@@ -138,7 +144,6 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
   else if (posF == -3) { lsp -= 20; rsp += 6; } 
   else if (posF == 3) { lsp += 6; rsp -= 20; }  
 
-  // 2. 전후방 일직선 동기화 보정
   if ((FL || FC || FR) && (RL || RC || RR)) {
     if (!(FL && FC && FR) && !(RL && RC && RR)) { 
       int diff = posF - posR;
@@ -147,14 +152,11 @@ void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
     }
   }
 
-  // 3. ★ 극단적 가장자리 평행 (100-100 / 001-001) 이탈 방지 조향
   if (FL == 1 && FC == 0 && FR == 0 && RL == 1 && RC == 0 && RR == 0) {
-    lsp -= EDGE_SYNC_GAIN;
-    rsp += EDGE_SYNC_GAIN;
+    lsp -= EDGE_SYNC_GAIN; rsp += EDGE_SYNC_GAIN;
   }
   else if (FL == 0 && FC == 0 && FR == 1 && RL == 0 && RC == 0 && RR == 1) {
-    lsp += EDGE_SYNC_GAIN;
-    rsp -= EDGE_SYNC_GAIN;
+    lsp += EDGE_SYNC_GAIN; rsp -= EDGE_SYNC_GAIN;
   }
 
   drive(lsp, rsp);
@@ -180,7 +182,6 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   else if (!FL && !FC && FR) posF = 2;
   else posF = 0; 
 
-  // 1. 기본 후방 주도 조향
   if (posR == -2) { lsp += 20; rsp -= 10; }
   else if (posR == -1) { lsp += 10; rsp -= 5; } 
   else if (posR == 1) { lsp -= 5; rsp += 10; }  
@@ -188,7 +189,6 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   else if (posR == -3) { lsp += 20; rsp -= 6; } 
   else if (posR == 3) { lsp -= 6; rsp += 20; } 
 
-  // 2. 전후방 일직선 동기화 보정
   if ((RL || RC || RR) && (FL || FC || FR)) {
     if (!(RL && RC && RR) && !(FL && FC && FR)) {
       int diff = posR - posF;
@@ -197,14 +197,11 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
     }
   }
 
-  // 3. ★ 극단적 가장자리 평행 (100-100 / 001-001) 이탈 방지 조향
   if (RL == 1 && RC == 0 && RR == 0 && FL == 1 && FC == 0 && FR == 0) {
-    lsp += EDGE_SYNC_GAIN;
-    rsp -= EDGE_SYNC_GAIN;
+    lsp += EDGE_SYNC_GAIN; rsp -= EDGE_SYNC_GAIN;
   }
   else if (RL == 0 && RC == 0 && RR == 1 && FL == 0 && FC == 0 && FR == 1) {
-    lsp -= EDGE_SYNC_GAIN;
-    rsp += EDGE_SYNC_GAIN;
+    lsp -= EDGE_SYNC_GAIN; rsp += EDGE_SYNC_GAIN;
   }
 
   drive(lsp, rsp);
