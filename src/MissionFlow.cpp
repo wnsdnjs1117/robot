@@ -36,7 +36,7 @@ void executeStage1_Search() {
   goToZoneDirect(6);
   scanZone(6);
 
-  // exitZone(6); // ★ 6구역 탈출은 2단계 배송 시에 허브로 이동하면서 자동으로 이루어지므로 생략
+  // exitZone(6); // ★ 6구역 탈출은 2단계 배송 시에 상황에 맞게 자동으로 이루어지므로 생략
 
   DPRINTLNF(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!");
   DPRINTLNF("========================================\n");
@@ -52,9 +52,66 @@ void executeStage2_Delivery() {
   int deliveredCount = 0;
   bool delivered[7] = {false};
 
+  // ★ 핵심 수정: 1단계 스캔 종료 후 6구역 내부에 남아있는 상태를 인지
+  bool isInsideZone6 = true;
+
   while (deliveredCount < 4) {
     bool movedThisTurn = false;
 
+    // ─────────────────────────────────────────────────────────────
+    // [우선 처리] STAGE 1 직후 6구역 내부에 있을 때의 동작
+    // ─────────────────────────────────────────────────────────────
+    if (isInsideZone6) {
+      if (boxes[6].found && boxes[6].present && !delivered[6]) {
+        int dest = boxes[6].destination;
+
+        if (dest == 6) {
+          DPRINTF("\n[STAY] 6구역: 이미 정답 위치.");
+          delivered[6] = true;
+          deliveredCount++;
+          movedThisTurn = true;
+        } 
+        else if (!isOccupied[dest]) {
+          // 6구역 박스를 당장 옮길 수 있는 경우! (진입 과정 없이 바로 들어올림)
+          DPRINTF("\n[ROUTE] 6 -> "); 
+          DPRINTLN(dest);
+          
+          liftUp();        // 이미 6구역 안에 있으므로 바로 들어올림
+          exitZone(6);     // 그리고 바로 탈출
+          liftUpWait();
+          isInsideZone6 = false; // 탈출 완료 상태 업데이트
+          
+          goToZoneDirect(dest);
+          liftDownUntilClear();
+          exitZone(dest);
+          liftDownWait();
+          
+          boxes[6].present = false;
+          boxes[dest].present = true;
+          isOccupied[6] = false;
+          isOccupied[dest] = true;
+          delivered[6] = true;
+          
+          deliveredCount++;
+          movedThisTurn = true;
+        }
+      }
+      
+      // 6구역 박스를 당장 옮길 수 없는 상황이거나 (목적지가 찼음), 
+      // 방금 6번 정답 처리를 해서 로봇만 빼내야 하는 경우
+      if (!movedThisTurn) {
+        DPRINTLNF("\n[EXIT] 다른 구역 작업을 위해 6구역에서 먼저 탈출합니다.");
+        exitZone(6);
+        isInsideZone6 = false; // 안전하게 메인 라인으로 빠져나왔음을 기록
+      }
+      
+      // 이번 턴은 6구역 내부 처리로 마쳤으므로 다음 루프로 진행
+      continue; 
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 기존의 일반적인 1~6구역 배송 라우팅 로직
+    // ─────────────────────────────────────────────────────────────
     for (int zone = 1; zone <= 6; zone++) {
       if (!boxes[zone].found || !boxes[zone].present || delivered[zone]) continue;
       int dest = boxes[zone].destination;
@@ -85,7 +142,6 @@ void executeStage2_Delivery() {
         exitZone(dest);
         liftDownWait();
 
-        // ★ 상태 동기화 완벽 수정 (이중 관리 방지)
         boxes[zone].present = false;
         boxes[dest].present = true;
         isOccupied[zone] = false;

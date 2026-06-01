@@ -19,15 +19,6 @@ static int zoneToNode(int zone) {
   return 8;
 }
 
-static int nodeIndex(int n) {
-  if (n == 7) return 0;
-  if (n == 8) return 1;
-  if (n == 9) return 2;
-  if (n == 10) return 3;
-  if (n == 11) return 4;
-  return 1;
-}
-
 void turnToHeading(int targetAngle) {
   targetAngle = (targetAngle % 360 + 360) % 360;
   int diff = targetAngle - robotHeading;
@@ -66,6 +57,7 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
   if (alignHeading != -1 && !stopAtEnd) turnToHeading(alignHeading);
 }
 
+// ★ 새로운 맞춤형 노드 간 이동 로직
 static void stepNode(int from, int to, bool stopAtEnd) {
   if (from == 8 && to == 9) {
     turnToHeading(90);
@@ -76,7 +68,8 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       lineFollowStepFull(L, C, R, RL, RC, RR);
       liftUpTick(); liftDownTick(); delay(5);
     }
-  } else if (from == 9 && to == 8) {
+  } 
+  else if (from == 9 && to == 8) {
     turnToHeading(270);
     prizm.resetEncoders(); safeDelay(40);
     lastSensorState = 0;
@@ -87,30 +80,78 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       liftUpTick(); liftDownTick(); delay(5);
     }
     followToCrossing(stopAtEnd);
-  } else if (from == 9 && to == 10) {
+  } 
+  else if (from == 9 && to == 10) { // 9-3 -> 10-2
     executeBlindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd);
-  } else if (from == 10 && to == 11) {
-    executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd);
-  } else if (from == 11 && to == 10) {
-    executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd);
-  } else if (from == 10 && to == 9) {
-    turnToHeading(270);
+  } 
+  else if (from == 9 && to == 11) { // 9-3 -> 11-2 (10번선 무시)
+    turnToHeading(HEADING_9_TO_10); // 동일 축으로 가정
+    
+    // 1. 첫 번째 선(10-2) 만날 때까지 주행
+    blindDriveUntilLine();
+    
+    // 2. 10번 선을 무시하고 강제로 일정 거리 돌파
     prizm.resetEncoders(); safeDelay(40);
-    while(abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_13_CM)) {
+    while (abs(prizm.readEncoderCount(1)) < CM(15.0f)) { 
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      liftUpTick(); liftDownTick(); delay(5);
+    }
+    
+    // 3. 두 번째 선(11-2) 만날 때까지 주행
+    blindDriveUntilLine();
+    
+    prizm.resetEncoders(); safeDelay(40);
+    while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      liftUpTick(); liftDownTick(); delay(5);
+    }
+    if (stopAtEnd) stopAll();
+  } 
+  else if (from == 10 && to == 11) { // 10-2 -> 11-2
+    executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd);
+  } 
+  else if (from == 11 && to == 10) { // 11-2 -> 10-2
+    executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd);
+  } 
+  else if (from == 10 && to == 9) { // 10-2 -> 12 -> 9-2
+    turnToHeading(HEADING_10_TO_12); // ★ 180도(아래)로 회전
+    prizm.resetEncoders(); safeDelay(40);
+    while(abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_12_CM)) {
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
        liftUpTick(); liftDownTick(); delay(5);
     }
-    turnToHeading(HEADING_13_TO_9_2); 
-    blindDriveUntilLine();
-    prizm.resetEncoders(); safeDelay(40);
     
+    turnToHeading(HEADING_12_TO_9_2); // ★ 12번 도착 후 9-2를 향해 회전
+    blindDriveUntilLine();
+    
+    prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
       liftUpTick(); liftDownTick(); delay(5);
     }
     if (stopAtEnd) stopAll();
     else turnToHeading(270); 
-  } else {
+  } 
+  else if (from == 11 && to == 9) { // 11-2 -> 12 -> 9-2
+    turnToHeading(HEADING_11_TO_12); // ★ 대각선(왼쪽 아래) 방향으로 정밀 회전
+    prizm.resetEncoders(); safeDelay(40);
+    while(abs(prizm.readEncoderCount(1)) < CM(DIST_11_TO_12_CM)) {
+       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+       liftUpTick(); liftDownTick(); delay(5);
+    }
+    
+    turnToHeading(HEADING_12_TO_9_2); // ★ 12번 도착 후 9-2를 향해 회전
+    blindDriveUntilLine();
+    
+    prizm.resetEncoders(); safeDelay(40);
+    while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      liftUpTick(); liftDownTick(); delay(5);
+    }
+    if (stopAtEnd) stopAll();
+    else turnToHeading(270); 
+  } 
+  else {
     int dir = (to > from) ? 90 : 270;
     turnToHeading(dir);
     followToCrossing(stopAtEnd);
@@ -118,28 +159,35 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   currentNode = to;
 }
 
+// ★ 규칙에 따른 다이렉트 이동 판단기
 void moveToNode(int toNode) {
   if (currentNode == toNode) return;
-  static const int nodes[] = {7, 8, 9, 10, 11};
-  int cur = nodeIndex(currentNode);
-  int tgt = nodeIndex(toNode);
-  int step = (cur < tgt) ? 1 : -1;
-  while (cur != tgt) {
-    int next = cur + step;
-    bool isFinal = (next == tgt);
-    stepNode(nodes[cur], nodes[next], isFinal);
-    cur = next;
+  
+  while (currentNode != toNode) {
+    int nextNode = toNode; 
+    
+    // 특정 다이렉트 규칙 조건 성립 시 점프
+    if (currentNode < 9 && toNode >= 9) nextNode = currentNode + 1; // 7->8, 8->9
+    else if (currentNode > 9 && toNode <= 9) nextNode = 9; // 10->9 (12경유), 11->9 (12경유) 모두 한방에 처리
+    else if (currentNode == 9 && toNode == 11) nextNode = 11; // 9->11 10번 무시 다이렉트
+    else if (currentNode == 9 && toNode == 10) nextNode = 10;
+    else if (currentNode == 10 && toNode == 11) nextNode = 11;
+    else if (currentNode == 11 && toNode == 10) nextNode = 10;
+    else if (currentNode == 9 && toNode == 8) nextNode = 8;
+    else if (currentNode == 8 && toNode == 7) nextNode = 7;
+    else nextNode = (currentNode < toNode) ? currentNode + 1 : currentNode - 1; // 예외 폴백
+    
+    bool isFinal = (nextNode == toNode);
+    stepNode(currentNode, nextNode, isFinal);
   }
 }
 
-// ── [스마트 탈출 로직 (★탈출 시 절대 조향 없이 완벽한 맹목적 주행 적용)] ──
+// ── [스마트 탈출 로직] ──
 void exitZone(int zone) {
   int targetNode = zoneToNode(zone); 
   if (targetNode == 7) enableEdgeSteering = true;
 
   lastSensorState = 0; 
-
-  // 1. 공통: 라인을 찾을 때까지 절대 조향 없이 '맹목적 직진/후진' 구동
   if (lastEntryWasForward) {
     while (true) {
        int L, C, R, RL, RC, RR;
@@ -160,7 +208,6 @@ void exitZone(int zone) {
 
   prizm.resetEncoders(); safeDelay(40); 
 
-  // 2. 탈출 및 바퀴축 정렬 주행
   if (lastEntryWasForward) {
     if (targetNode == 8) {
        while (true) {
@@ -171,17 +218,15 @@ void exitZone(int zone) {
           liftUpTick(); liftDownTick(); delay(5);
        }
        prizm.resetEncoders(); safeDelay(40);
-       
-       // ★ 사용자 수치(4.0) 적용
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_REAR_CM)) {
           drive(-BACK_SPEED, -BACK_SPEED);
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {
        long targetEscapeDist;
-       if (zone == 5 || zone == 6) targetEscapeDist = CM(EXIT_REV_SPECIAL_56_CM); // 30.0
-       else if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_REV_EXTRA_12_CM); // 33.0
-       else targetEscapeDist = CM(EXIT_REV_EXTRA_3456_CM); // 35.0
+       if (zone == 5 || zone == 6) targetEscapeDist = CM(EXIT_REV_SPECIAL_56_CM); 
+       else if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_REV_EXTRA_12_CM); 
+       else targetEscapeDist = CM(EXIT_REV_EXTRA_3456_CM); 
        
        while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
           int L, C, R, RL, RC, RR;
@@ -200,16 +245,14 @@ void exitZone(int zone) {
           liftUpTick(); liftDownTick(); delay(5);
        }
        prizm.resetEncoders(); safeDelay(40);
-       
-       // ★ 사용자 수치(6.0) 적용
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_FRONT_CM)) {
           drive(SPEED, SPEED);
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {
        long targetEscapeDist;
-       if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_FWD_EXTRA_12_CM); // 35.0
-       else targetEscapeDist = CM(EXIT_FWD_EXTRA_3456_CM); // 37.0
+       if (zone == 1 || zone == 2) targetEscapeDist = CM(EXIT_FWD_EXTRA_12_CM); 
+       else targetEscapeDist = CM(EXIT_FWD_EXTRA_3456_CM); 
 
        while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
           int L, C, R, RL, RC, RR;
@@ -230,13 +273,21 @@ void goToZoneDirect(int zone) {
   moveToNode(targetNode);
 
   int zoneSide = (zone == 3 || zone == 4) ? 180 : 0;
-  turnToHeading(zoneSide);
+  
+  if (robotHeading != 0 && robotHeading != 180) {
+    turnToHeading(zoneSide);
+  }
 
   if (targetNode == 7) enableEdgeSteering = true;
 
   bool enterForward = (robotHeading == zoneSide);
-  if (enterForward) { enterZone(); lastEntryWasForward = true; } 
-  else { reverseEnterZone(); lastEntryWasForward = false; }
+  if (enterForward) { 
+    enterZone(); 
+    lastEntryWasForward = true; 
+  } else { 
+    reverseEnterZone(); 
+    lastEntryWasForward = false; 
+  }
 
   if (targetNode == 7) enableEdgeSteering = false;
 }

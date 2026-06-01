@@ -82,7 +82,8 @@ void turnAngle(int degrees, bool isRight) {
     long pos = (abs(prizm.readEncoderCount(1)) + abs(prizm.readEncoderCount(2))) / 2;
     if (pos >= brakePoint) break; 
 
-    if (degrees == 90 && pos > (targetCounts * 0.8f)) {
+    // ★ 수정: 90도 조건 삭제, 목표 회전량의 60% 이상 진행 시 라인을 만나면 즉시 멈춤 (모든 스핀에 적용)
+    if (pos > (targetCounts * 0.6f)) {
       int L, C, R; readSensors(L, C, R);
       if (isRight && L == 1) break;
       if (!isRight && R == 1) break;

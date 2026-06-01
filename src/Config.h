@@ -36,7 +36,7 @@ constexpr int BUZZER_PIN = 5;
 constexpr int SENSOR_REAR_LEFT = A1;    
 constexpr int SENSOR_REAR_CENTER = A2;  
 constexpr int SENSOR_REAR_RIGHT = A3;   
-constexpr int REAR_SENSOR_THRESHOLD = 128; 
+constexpr int REAR_SENSOR_THRESHOLD = 200; 
 
 // ── [2] 로봇 하드웨어 물리적 치수 ────────────────────────────────────
 constexpr float ROBOT_LENGTH_CM = 35.0f;              
@@ -49,29 +49,28 @@ constexpr float DIST_ZONE_DEPTH_CM = 20.0f;
 constexpr float LINE_LEN_ZONE_12_CM = 28.0f;          
 constexpr float LINE_LEN_ZONE_3456_CM = 30.0f;        
 
-constexpr float ENTRY_FWD_EXTRA_CM = 37.5f; // 전진 진입 보정 (20 + 17.5)
-constexpr float ENTRY_REV_EXTRA_CM = 27.5f; // 후진 진입 보정 (20 + 7.5)
+constexpr float ENTRY_FWD_EXTRA_CM = 38.5f; 
+constexpr float ENTRY_REV_EXTRA_CM = 13.5f; 
 
-constexpr float EXIT_REV_EXTRA_12_CM = 33.0f;     // 후진 1/2 탈출 (28 + 1 + 4)
-constexpr float EXIT_REV_EXTRA_3456_CM = 35.0f;   // 후진 3/4/5/6 탈출 (30 + 1 + 4)
-constexpr float EXIT_FWD_EXTRA_12_CM = 35.0f;     // 전진 1/2 탈출 (28 + 1 + 6)
-constexpr float EXIT_FWD_EXTRA_3456_CM = 37.0f;   // 전진 3/4/5/6 탈출 (30 + 1 + 6)
-constexpr float EXIT_REV_SPECIAL_56_CM = 30.0f;   // 특수 5/6 탈출 (30 + 1 + 4 - 5)
+constexpr float EXIT_REV_EXTRA_12_CM = 33.0f;     
+constexpr float EXIT_REV_EXTRA_3456_CM = 35.0f;   
+constexpr float EXIT_FWD_EXTRA_12_CM = 35.0f;     
+constexpr float EXIT_FWD_EXTRA_3456_CM = 37.0f;   
+constexpr float EXIT_REV_SPECIAL_56_CM = 30.0f;   
 
-// 8번 코너 1.1.1 감지 후 바퀴축 정렬 거리 (사용자 요청치 그대로)
 constexpr float ALIGN_AXIS_FRONT_CM = 6.0f; 
 constexpr float ALIGN_AXIS_REAR_CM = 4.0f;  
 
 // ── [4] 조향 및 모터 속도 파라미터 ──────────────────────────────────
-constexpr int STRAIGHT_SPEED = 30; 
-constexpr int SPEED = 30;          
-constexpr int BACK_SPEED = 30;     
-constexpr int SPIN_SPEED = 30;     
-constexpr int BLIND_SPEED = 30;    
+constexpr int STRAIGHT_SPEED = 40; 
+constexpr int SPEED = 40;          
+constexpr int BACK_SPEED = 40;     
+constexpr int SPIN_SPEED = 40;     
+constexpr int BLIND_SPEED = 60;    
 
 constexpr int MOTOR_OFFSET_L = 0;           
 constexpr int MOTOR_OFFSET_R = 0;           
-constexpr float RIGHT_MOTOR_MULTIPLIER = 1.2f; 
+constexpr float RIGHT_MOTOR_MULTIPLIER = 0.0f; 
 
 constexpr float VELOCITY_KP = 0.2f;               
 constexpr float VELOCITY_TARGET_FACTOR = 0.5f;    
@@ -81,21 +80,31 @@ constexpr int   SPIN_BRAKE_LEAD = 15;
 constexpr int   REAR_ALIGN_GAIN = 5; 
 constexpr bool  WEST_IS_LEFT = true;         
 constexpr int   SPIN_90_COUNTS = 1200;        
-constexpr int   CROSS_CONFIRM = 2;            
+constexpr int   CROSS_CONFIRM = 1;            
 constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM; 
 
-// ── [5] 13번 노드 및 특수 방위각 ─────────────────────────────────────
-constexpr float DIST_10_TO_13_CM = 40.0f;    
-constexpr int   HEADING_13_TO_9_2 = 225;     
+// ── [5] 새 이동 규칙 맞춤 (12, 13번 경유) 특수 노드 파라미터 ─────────
+// 10, 11번에서 9번으로 복귀할 때 12번 경유 파라미터
+constexpr int   HEADING_10_TO_12 = 180;   // ★ 새로 측정: 10-2에서 12번 (수직 아래 방향)
+constexpr float DIST_10_TO_12_CM = 20.0f; // 10-2에서 12번 노드까지 거리
+constexpr int   HEADING_11_TO_12 = 255;   // ★ 새로 측정: 11-2에서 12번 (대각선 왼쪽 아래)
+constexpr float DIST_11_TO_12_CM = 80.0f; // ★ 새로 측정: 11-2에서 12번 노드까지 대각선 거리
+constexpr int   HEADING_12_TO_9_2 = 295;  // 12번에서 9-2 검은선을 향해 올라가는 각도
 
-constexpr float DIST_START_TO_12_CM = 80.0f; 
-constexpr int   HEADING_12_TO_9 = 290;       
-constexpr int   HEADING_9_3_TO_12 = 110;     
-constexpr float DIST_9_3_TO_12_CM = 60.0f;   
-constexpr int   HEADING_12_TO_START = 90;    
-constexpr int   HEADING_11_TO_START = 170;   
-constexpr float DIST_FINISH_ENTRY_CM = 20.0f; 
+// START -> 9번 (13번 경유) 파라미터
+constexpr float DIST_START_TO_13_CM = 80.0f; 
+constexpr int   HEADING_13_TO_9 = 290;       
 
+// 9, 10번에서 START 복귀 (13번 경유) 파라미터
+constexpr int   HEADING_9_TO_13 = 135;     // ★ 새로 측정 필요 (9-3에서 13번 방향)
+constexpr float DIST_9_TO_13_CM = 60.0f;   // ★ 새로 측정 필요 (9-3에서 13까지 거리)
+constexpr int   HEADING_10_TO_13 = 180;    // ★ 새로 측정 필요 (10-3에서 13번 방향)
+constexpr float DIST_10_TO_13_CM = 50.0f;  // ★ 새로 측정 필요 (10-3에서 13까지 거리)
+constexpr int   HEADING_13_TO_START = 90;  // ★ 새로 측정 필요 (13번에서 START 박스 방향)
+
+constexpr float DIST_FINISH_ENTRY_CM = 40.0f; 
+
+// 기존 노드 간 이동 기본 방위각
 constexpr int   HEADING_9_TO_10 = 88;        
 constexpr int   HEADING_10_TO_11 = 90;       
 constexpr int   HEADING_11_TO_10 = 270;      
