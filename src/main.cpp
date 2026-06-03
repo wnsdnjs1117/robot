@@ -13,6 +13,7 @@
 
 #include "LiftTest.h" // ★ LiftTest.h 삭제하지 않고 여기서 정상 호출
 #include "SensorTest.h" // ★ SensorTest.h 삭제하지 않고 여기서 정상 호출
+#include "MoveTest.h" // ★ 시리얼 이동/회전 테스트 모드
 
 // 하드웨어 제어 인스턴스 및 상태 변수 정의
 PRIZM prizm;
@@ -20,7 +21,7 @@ int lastSensorState = 0;
 bool crossingArmed = true;
 int crossingStable = 0;
 
-#if !LIFT_TEST_MODE && !SENSOR_TEST_MODE // 일반 자율주행 모드 (LiftTest.h, SensorTest.h 비활성화)
+#if !LIFT_TEST_MODE && !SENSOR_TEST_MODE && !MOVE_TEST_MODE // 일반 자율주행 모드 (테스트 모드 전부 비활성화)
 void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();

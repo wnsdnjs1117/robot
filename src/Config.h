@@ -10,7 +10,8 @@
 // ── [디버깅 및 테스트 모드] ──────────────────────────────────────────
 #define ROBOT_DEBUG    1
 #define LIFT_TEST_MODE 0
-#define SENSOR_TEST_MODE 0  
+#define SENSOR_TEST_MODE 0
+#define MOVE_TEST_MODE 0   // ★ 1로 켜면 시리얼로 이동거리/속도·회전각도/속도 테스트
 
 #if ROBOT_DEBUG
 #define DPRINT(x) Serial.print(x)

@@ -230,8 +230,17 @@ void returnToFinish() {
   }
   
   // 종료 지점 세레모니
-  stopAll(); turnToHeading(90); 
-  stopAll(); tone(BUZZER_PIN, 1000); delay(1500); noTone(BUZZER_PIN); prizm.setGreenLED(HIGH);
+  stopAll(); turnToHeading(90);
+  stopAll();
+  // 부저 비프 (tone()/noTone() 미링크 환경 대비 — 1kHz 사각파 직접 구동, 1.5초)
+  pinMode(BUZZER_PIN, OUTPUT);
+  unsigned long _beepEnd = millis() + 1500;
+  while (millis() < _beepEnd) {
+    digitalWrite(BUZZER_PIN, HIGH); delayMicroseconds(500);
+    digitalWrite(BUZZER_PIN, LOW);  delayMicroseconds(500);
+  }
+  digitalWrite(BUZZER_PIN, LOW);
+  prizm.setGreenLED(HIGH);
 }
 
 int qrSearchStage() {
