@@ -189,6 +189,44 @@ void moveToNode(int toNode) {
   }
 }
 
+// ── [탈출 보조] 라인 추종으로 지정 거리 탈출 (7번 가로선 통과용 센서 끄기 포함) ──
+//   totalCm: 라인 닿은 지점부터 이동할 총 거리 (바퀴축이 코너에 닿을 때까지)
+//   offAfterCm > 0 이면 offAfterCm 지점부터 ZONE7_CROSS_PASS_CM(4cm) 동안 이동방향 센서를
+//   꺼서, 7번 노드 가로선을 밟아도 오판/헛조향하지 않게 한다.
+//   forward=true → 전방센서로 추종(전방센서 끔), false → 후방센서로 추종(후방센서 끔)
+static void exitTraceDist(float totalCm, float offAfterCm, bool forward) {
+  prizm.resetEncoders(); safeDelay(40);
+  long total   = CM(totalCm);
+  long offStart = (offAfterCm > 0.0f) ? CM(offAfterCm) : -1;
+  long offEnd   = (offAfterCm > 0.0f) ? CM(offAfterCm + ZONE7_CROSS_PASS_CM) : -1;
+
+  while (abs(prizm.readEncoderCount(1)) < total) {
+    int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+    long d = abs(prizm.readEncoderCount(1));
+    bool mask = (offStart >= 0 && d >= offStart && d < offEnd);
+    if (forward) {
+      if (mask) { L = C = R = 0; }          // 이동방향(전방) 센서 끔
+      lineFollowStepFull(L, C, R, RL, RC, RR);
+    } else {
+      if (mask) { RL = RC = RR = 0; }       // 이동방향(후방) 센서 끔
+      reverseLineFollowStep(RL, RC, RR, L, C, R);
+    }
+    liftUpTick(); liftDownTick(); delay(5);
+  }
+}
+
+// ── [탈출 보조] 5·6번 후진 탈출: 후방센서 라인 끊김 감지 시 정착(10-2 / 11-2) ──
+//   오감지 방지로 EXIT_REV_56_ARM_CM(23cm) 이후부터 라인 끊김 감지 시작.
+static void exitRev56() {
+  prizm.resetEncoders(); safeDelay(40);
+  while (true) {
+    int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+    if (abs(prizm.readEncoderCount(1)) > CM(EXIT_REV_56_ARM_CM) && !anyRearLine(RL, RC, RR)) break;
+    reverseLineFollowStep(RL, RC, RR, L, C, R);
+    liftUpTick(); liftDownTick(); delay(5);
+  }
+}
+
 void exitZone(int zone) {
   int targetNode = zoneToNode(zone); 
   if (targetNode == 7) enableEdgeSteering = true;
@@ -225,15 +263,11 @@ void exitZone(int zone) {
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {
-       long targetEscapeDist;
-       if (zone == 1) targetEscapeDist = CM(EXIT_REV_EXTRA_1_CM); 
-       else if (zone == 3) targetEscapeDist = CM(EXIT_REV_EXTRA_3_CM); 
-       else targetEscapeDist = CM(EXIT_REV_SPECIAL_56_CM); 
-       
-       while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
-          int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick(); delay(5);
-       }
+       // 1·3번(7번 노드): 라인 닿은 후 바퀴축이 코너에 닿을 때까지 후진 (가로선 통과 센서 끔)
+       if (zone == 1)      exitTraceDist(EXIT_REV_EXTRA_1_CM, EXIT1_SENSOR_OFF_AFTER_CM, false);
+       else if (zone == 3) exitTraceDist(EXIT_REV_EXTRA_3_CM, EXIT3_SENSOR_OFF_AFTER_CM, false);
+       // 5·6번: 라인 끊김 감지로 10-2 / 11-2에 정착
+       else                exitRev56();
     }
   } else { 
     if (targetNode == 8) { 
@@ -248,14 +282,10 @@ void exitZone(int zone) {
           liftUpTick(); liftDownTick(); delay(5);
        }
     } else {
-       long targetEscapeDist;
-       if (zone == 1) targetEscapeDist = CM(EXIT_FWD_EXTRA_1_CM); 
-       else targetEscapeDist = CM(EXIT_FWD_EXTRA_3_CM); 
-       
-       while (abs(prizm.readEncoderCount(1)) < targetEscapeDist) {
-          int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick(); delay(5);
-       }
+       // 1·3번(7번 노드): 라인 닿은 후 바퀴축이 코너에 닿을 때까지 전진 (가로선 통과 센서 끔)
+       if (zone == 1)      exitTraceDist(EXIT_FWD_EXTRA_1_CM, EXIT1_SENSOR_OFF_AFTER_CM, true);
+       else if (zone == 3) exitTraceDist(EXIT_FWD_EXTRA_3_CM, EXIT3_SENSOR_OFF_AFTER_CM, true);
+       else                exitTraceDist(EXIT_FWD_EXTRA_3_CM, 0.0f, true); // 5·6번 전진 탈출(30cm 기준)
     }
   }
   // 존 탈출 완료 시 정지 (존에 들어갈 때, 나올 때 허용)

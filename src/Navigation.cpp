@@ -55,44 +55,57 @@ void followToCrossing(bool stopAtEnd) {
 void followToCrossing() { followToCrossing(true); }
 
 // ── [2] 존(구역) 진입 ────────────────
+// 전진 진입: 라인을 따라가다 전방센서에서 라인이 끊기면, 리프트가 존 중앙에 올 때까지
+//            ENTRY_FWD_EXTRA_CM(37cm) 더 직진 후 멈춤.
+//            진입 초반 ENTRY_FWD_REAR_OFF_CM(6.5cm) 동안은 후방센서가 7/8번 가로선을
+//            밟으므로 후방센서를 꺼서 정렬 오판을 막는다.
 void enterZone() {
   lastSensorState = 0;
-  
+  prizm.resetEncoders(); safeDelay(40);
+
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (!anyLine(L, C, R)) break; 
-    lineFollowStepFull(L, C, R, RL, RC, RR); 
+    if (!anyLine(L, C, R)) break;
+    // 진입 초반: 후방센서 끄기 (7/8번 가로선 오판 방지)
+    if (abs(prizm.readEncoderCount(1)) < CM(ENTRY_FWD_REAR_OFF_CM)) { RL = RC = RR = 0; }
+    lineFollowStepFull(L, C, R, RL, RC, RR);
     liftUpTick(); liftDownTick(); delay(5);
   }
 
-  prizm.resetEncoders(); safeDelay(40); 
-  long extraDist = CM(ENTRY_FWD_EXTRA_CM); 
-  
+  prizm.resetEncoders(); safeDelay(40);
+  long extraDist = CM(ENTRY_FWD_EXTRA_CM);
+
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
-    drive(ZONE_ENTRY_BLIND_SPEED, ZONE_ENTRY_BLIND_SPEED); 
+    drive(ZONE_ENTRY_BLIND_SPEED, ZONE_ENTRY_BLIND_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
   // 존 진입 완료 후 멈춤 (허용 구간)
   stopAll();
 }
 
+// 후진 진입: 라인을 따라가다 후방센서에서 라인이 끊기면 ENTRY_REV_EXTRA_CM(14cm) 더 후진.
+//            진입 초반 ENTRY_REV_FRONT_OFF_CM(8.5cm) 동안은 전방센서가 7/8번 가로선을
+//            밟으므로 전방센서를 꺼서 정렬 오판을 막는다.
 void reverseEnterZone() {
   lastSensorState = 0;
-  
+  prizm.resetEncoders(); safeDelay(40);
+
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (!anyRearLine(RL, RC, RR)) break; 
-    reverseLineFollowStep(RL, RC, RR, L, C, R); 
+    if (!anyRearLine(RL, RC, RR)) break;
+    // 진입 초반: 전방센서 끄기 (7/8번 가로선 오판 방지)
+    if (abs(prizm.readEncoderCount(1)) < CM(ENTRY_REV_FRONT_OFF_CM)) { L = C = R = 0; }
+    reverseLineFollowStep(RL, RC, RR, L, C, R);
     liftUpTick(); liftDownTick(); delay(5);
   }
 
-  prizm.resetEncoders(); safeDelay(40); 
+  prizm.resetEncoders(); safeDelay(40);
   long extraDist = CM(ENTRY_REV_EXTRA_CM);
-  
+
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
-    drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED); 
+    drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick(); delay(5);
   }
   stopAll();
@@ -113,6 +126,8 @@ void reverseAcrossToOppositeZone() {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     if (abs(prizm.readEncoderCount(1)) > CM(40.0f) && !anyRearLine(RL, RC, RR)) break;
+    // 후진 진입 초반: 전방센서 끄기 (7/8번 가로선 오판 방지)
+    if (abs(prizm.readEncoderCount(1)) < CM(ENTRY_REV_FRONT_OFF_CM)) { L = C = R = 0; }
     reverseLineFollowStep(RL, RC, RR, L, C, R);
     liftUpTick(); liftDownTick(); delay(5);
   }
