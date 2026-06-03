@@ -9,47 +9,45 @@
 #include "Motion.h"
 
 // ── [1] 가로축 교차로 추종 ─────
+// 가로(7~9) 이동 시 출발 노드의 교차선을 목적지로 오판하지 않도록:
+//   1) 출발 직후 DIST_IGNORE_NODE_CM(5cm) 동안은 교차로 감지를 금지(라인만 추종).
+//      이 구간의 1.1.1은 출발 노드의 세로선일 뿐이므로 조향 없이 직진 처리됨.
+//   2) 무시 구간을 지난 뒤, "비교차(빈 라인) 상태를 한 번 본 다음"에만 무장(armed)하여
+//      다음에 만나는 1.1.1을 목적지 교차로로 확정한다.
 void followToCrossing(bool stopAtEnd) {
-  {
-    int L, C, R;
-    readSensors(L, C, R);
-    if (L == 1 && C == 1 && R == 1) {
-      while (true) {
-        readSensors(L, C, R);
-        if (!(L == 1 && C == 1 && R == 1)) break;
-        drive(SPEED, SPEED);
-        liftUpTick(); liftDownTick(); delay(5);
-      }
-      for (int i = 0; i < 10; i++) {
-        drive(SPEED, SPEED);
-        liftUpTick(); liftDownTick(); delay(5);
-      }
-    }
-  }
+  lastSensorState = 0;
+  prizm.resetEncoders(); safeDelay(40);
+  crossingArmed = false; crossingStable = 0;
+  long ignore = CM(DIST_IGNORE_NODE_CM);
 
-  crossingArmed = true; crossingStable = 0;
-  
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-
+    long d = abs(prizm.readEncoderCount(1));
     bool isCross = (L == 1 && C == 1 && R == 1);
-    if (isCross) crossingStable++; else crossingStable = 0;
-    if (!isCross) crossingArmed = true;
+
+    // [1] 출발 노드 무시 구간: 감지 금지, 라인만 추종 (1.1.1=세로선 → 직진/무조향)
+    if (d < ignore) {
+      lineFollowStepFull(L, C, R, RL, RC, RR);
+      liftUpTick(); liftDownTick(); delay(5);
+      continue;
+    }
+
+    // [2] 무시 구간 통과 후: 빈 라인을 한 번 본 뒤에만 무장
+    if (isCross) crossingStable++; else { crossingStable = 0; crossingArmed = true; }
 
     if (crossingArmed && crossingStable >= CROSS_CONFIRM) {
       crossingArmed = false;
-      prizm.resetEncoders(); safeDelay(40); 
-      
+      prizm.resetEncoders(); safeDelay(40);
       while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
-        drive(SPEED, SPEED); 
+        drive(SPEED, SPEED);
         liftUpTick(); liftDownTick(); delay(5);
       }
       if (stopAtEnd) stopAll();
       return;
     }
     lineFollowStepFull(L, C, R, RL, RC, RR);
-    liftUpTick(); liftDownTick(); delay(5);  
+    liftUpTick(); liftDownTick(); delay(5);
   }
 }
 void followToCrossing() { followToCrossing(true); }

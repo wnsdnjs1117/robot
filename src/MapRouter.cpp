@@ -162,9 +162,10 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     else turnToHeading(270); 
   } 
   else {
+    // 가로(7↔8 등) 이동: followToCrossing이 출발 노드 5cm 무시를 자체 처리하므로
+    // 별도의 ignoreNodeTrace는 두지 않는다(이중 무시로 다음 교차로를 놓치는 것 방지).
     int dir = (to > from) ? 90 : 270;
     turnToHeading(dir);
-    ignoreNodeTrace(); 
     followToCrossing(stopAtEnd);
   }
   currentNode = to;
