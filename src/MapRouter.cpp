@@ -189,21 +189,20 @@ void moveToNode(int toNode) {
   }
 }
 
-// ── [탈출 보조] 라인 추종으로 지정 거리 탈출 (7번 가로선 통과용 센서 끄기 포함) ──
+// ── [탈출 보조] 라인 추종으로 지정 거리 탈출 (7번 가로선 오판 방지 센서 끄기 포함) ──
 //   totalCm: 라인 닿은 지점부터 이동할 총 거리 (바퀴축이 코너에 닿을 때까지)
-//   offAfterCm > 0 이면 offAfterCm 지점부터 ZONE7_CROSS_PASS_CM(4cm) 동안 이동방향 센서를
-//   꺼서, 7번 노드 가로선을 밟아도 오판/헛조향하지 않게 한다.
+//   offAfterCm > 0 이면 offAfterCm 지점부터 탈출 끝까지 이동방향 센서를 꺼서,
+//   7번 노드 가로선을 밟아도 오판/헛조향하지 않게 한다.
 //   forward=true → 전방센서로 추종(전방센서 끔), false → 후방센서로 추종(후방센서 끔)
 static void exitTraceDist(float totalCm, float offAfterCm, bool forward) {
   prizm.resetEncoders(); safeDelay(40);
   long total   = CM(totalCm);
   long offStart = (offAfterCm > 0.0f) ? CM(offAfterCm) : -1;
-  long offEnd   = (offAfterCm > 0.0f) ? CM(offAfterCm + ZONE7_CROSS_PASS_CM) : -1;
 
   while (abs(prizm.readEncoderCount(1)) < total) {
     int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
     long d = abs(prizm.readEncoderCount(1));
-    bool mask = (offStart >= 0 && d >= offStart && d < offEnd);
+    bool mask = (offStart >= 0 && d >= offStart);   // 끄기 시작 후 끝까지 무시
     if (forward) {
       if (mask) { L = C = R = 0; }          // 이동방향(전방) 센서 끔
       lineFollowStepFull(L, C, R, RL, RC, RR);

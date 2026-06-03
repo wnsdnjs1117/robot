@@ -55,10 +55,10 @@ constexpr float LINE_LEN_ZONE_12_CM = 28.0f;          // 교차로→1,2존 검�
 constexpr float LINE_LEN_ZONE_3456_CM = 30.0f;        // 교차로→3~6존 검은선 길이
 
 // [3-1] 존 진입 추가 주행 (라인 끊긴 지점 → 리프트가 존 중앙) ─────────────
-//   전진: 존깊이20 + 전방센서6.5 + 리프트10.5 = 37.0
-constexpr float ENTRY_FWD_EXTRA_CM = 37.0f;           // 전진 진입 시 추가 거리 (20+6.5+10.5)
-//   후진: 존깊이20 + 후방센서4.5 - 리프트10.5 = 14.0
-constexpr float ENTRY_REV_EXTRA_CM = 14.0f;           // 후진 진입 시 추가 거리 (20+4.5-10.5)
+//   전진 진입: 후방센서가 존 라인을 벗어난 뒤 직진. 20(존깊이)+6 = 26
+constexpr float ENTRY_FWD_EXTRA_CM = 26.0f;           // 전진 진입 (후방센서 끊김 후 26)
+//   후진 진입: 전방센서가 존 라인을 벗어난 뒤 후진. 20-10.5-6.5 = 3
+constexpr float ENTRY_REV_EXTRA_CM = 3.0f;            // 후진 진입 (전방센서 끊김 후 3)
 
 // [3-2] 1·3번 구역 탈출 추가 주행 (라인 닿은 지점 → 바퀴축이 교차로) ───────
 //   라인 닿은 후 = 선길이 + 선두께1 + 센서거리. 바퀴축이 코너(7번)에 닿을 때까지.
@@ -67,21 +67,21 @@ constexpr float EXIT_FWD_EXTRA_1_CM = 35.5f;          // 1번 전진 탈출 (28+
 constexpr float EXIT_REV_EXTRA_3_CM = 35.5f;          // 3번 후진 탈출 (30+1+4.5)
 constexpr float EXIT_FWD_EXTRA_3_CM = 37.5f;          // 3번 전진 탈출 (30+1+6.5)
 
-// [3-3] 1·3번 구역 탈출 시 7번 노드 가로선 통과용 센서 끄기 구간 ───────────
-//   라인 타고 (존선길이-1)cm 이동 후, 이동방향 센서를 끄고 PASS_CM 더 가서 다시 켬.
+// [3-3] 1·3번 구역 탈출 시 7번 노드 가로선 오판 방지 센서 끄기 ─────────────
+//   라인 타고 N cm 이동한 뒤부터 탈출 끝까지 이동방향 센서를 끈다(무시).
 //   7번 노드의 가로선을 밟아도 오판(코너 인식/헛조향)하지 않게 함.
 constexpr float EXIT1_SENSOR_OFF_AFTER_CM = 27.0f;    // 1번: 27cm 이동 후 센서 끔
 constexpr float EXIT3_SENSOR_OFF_AFTER_CM = 29.0f;    // 3번: 29cm 이동 후 센서 끔
-constexpr float ZONE7_CROSS_PASS_CM = 4.0f;           // 가로선 지나는 동안 센서 끈 채 더 갈 거리
 
 // [3-4] 5·6번 구역 후진 탈출 (10-2 / 11-2 정착) ──────────────────────────
 //   후방센서가 라인 끊김을 감지하면 멈춤. 오감지 방지를 위해 ARM_CM 이후부터 감지 시작.
 constexpr float EXIT_REV_56_ARM_CM = 23.0f;           // 라인타고 23cm 이동 후부터 끊김 감지
 
 // [3-5] 2·4번 교차로(8번 노드) 정렬 거리 ──────────────────────────────────
-//   8번 사거리는 이동방향 센서 1.1.1로 인식 → 바퀴축이 코너에 닿게 센서거리만큼 더 감.
-constexpr float ALIGN_AXIS_FRONT_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;  // 전진 정렬 (6.5)
-constexpr float ALIGN_AXIS_REAR_CM = DIST_AXIS_TO_REAR_SENSOR_CM;    // 후진 정렬 (4.5)
+//   8번 사거리는 이동방향 센서 1.1.1로 인식 → 바퀴축이 코너에 닿게 더 감.
+//   (센서거리 + 선두께1). 7번 노드는 누운 T자형이라 센서로 코너 인식 불가.
+constexpr float ALIGN_AXIS_FRONT_CM = 7.5f;           // 전진 탈출 정렬 (6.5+1)
+constexpr float ALIGN_AXIS_REAR_CM = 5.5f;            // 후진 탈출 정렬 (4.5+1)
 
 // [3-6] 1~4구역 진입 초반 반대편 센서 끄기 구간 (7·8번 가로선 오판 방지) ─────
 //   전진 진입: 후방센서가 4.5(센서)+1(선두께)+1(여분)=6.5cm 동안 7/8번 가로선을 밟음 → 끔
