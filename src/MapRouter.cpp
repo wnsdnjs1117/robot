@@ -1,5 +1,5 @@
 /* ============================================================
- * MapRouter.cpp - 방위각 기반 최단 경로 및 복귀 스마트 탈출
+ * MapRouter.cpp - 방위각 기반 최단 경로 및 복귀 스마트 탈출 (멈칫거림 완벽 제거)
  * ============================================================ */
 #include "MapRouter.h"
 #include "Config.h"
@@ -25,28 +25,27 @@ void turnToHeading(int targetAngle) {
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
   
-  // 이미 목표 각도면 멈추지 않고(stopAll 없이) 즉시 그대로 패스!
+  // 이미 목표 각도면 즉시 그대로 패스
   if (diff == 0) return;
 
   if (diff > 0) turnAngle(diff, true);
   else turnAngle(-diff, false);
 
   robotHeading = targetAngle;
-  // ★ 기존에 있던 중복 stopAll(); delay(200); 완전 삭제
-  // turnAngle 내부에서 이미 깔끔하게 브레이크 잡고 해제했음
 }
 
+// ★ 리셋을 없애고 시작값(startEnc) 차이로 거리를 재서 멈칫거림 차단
 static void ignoreNodeBlind() {
-  prizm.resetEncoders(); safeDelay(40);
-  while (abs(prizm.readEncoderCount(1)) < CM(DIST_IGNORE_NODE_CM)) {
+  long startEnc = abs(prizm.readEncoderCount(1));
+  while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_IGNORE_NODE_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
     liftUpTick(); liftDownTick();
   }
 }
 
 static void ignoreNodeTrace() {
-  prizm.resetEncoders(); safeDelay(40);
-  while (abs(prizm.readEncoderCount(1)) < CM(DIST_IGNORE_NODE_CM)) {
+  long startEnc = abs(prizm.readEncoderCount(1));
+  while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_IGNORE_NODE_CM)) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     lineFollowStepFull(L, C, R, RL, RC, RR);
@@ -56,7 +55,7 @@ static void ignoreNodeTrace() {
 
 static void blindDriveUntilLine() {
   lastSensorState = 0; 
-  prizm.resetEncoders(); safeDelay(40);
+  // 리셋 완전 삭제
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
@@ -71,12 +70,18 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
   ignoreNodeBlind(); 
   blindDriveUntilLine(); 
   
-  prizm.resetEncoders(); safeDelay(40);
-  while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick();
+  if (stopAtEnd) {
+    // 멈출 때는 바퀴축까지 스무스하게 감속 후 정지
+    driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+  } else {
+    // 그냥 지나가는 노드면 멈추거나 리셋하지 않고 그대로 돌진!
+    long alignEnc = abs(prizm.readEncoderCount(1));
+    while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+      liftUpTick(); liftDownTick();
+    }
   }
-  if (stopAtEnd) stopAll();
+  
   if (alignHeading != -1 && !stopAtEnd) turnToHeading(alignHeading);
 }
 
@@ -114,12 +119,15 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     ignoreNodeBlind();     
     blindDriveUntilLine(); 
     
-    prizm.resetEncoders(); safeDelay(40);
-    while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick();
+    if (stopAtEnd) {
+      driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+    } else {
+      long alignEnc = abs(prizm.readEncoderCount(1));
+      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
+        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+        liftUpTick(); liftDownTick();
+      }
     }
-    if (stopAtEnd) stopAll();
   } 
   else if (from == 10 && to == 11) { 
     executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd); 
@@ -129,41 +137,47 @@ static void stepNode(int from, int to, bool stopAtEnd) {
   } 
   else if (from == 10 && to == 9) { 
     turnToHeading(HEADING_10_TO_12); 
-    prizm.resetEncoders(); safeDelay(40);
-    while(abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_12_CM)) { 
+    long startEnc = abs(prizm.readEncoderCount(1));
+    while(abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_10_TO_12_CM)) { 
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
        liftUpTick(); liftDownTick();
     }
     turnToHeading(HEADING_12_TO_9_2); 
     blindDriveUntilLine(); 
-    prizm.resetEncoders(); safeDelay(40);
-    while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick();
+    
+    if (stopAtEnd) {
+      driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+    } else {
+      long alignEnc = abs(prizm.readEncoderCount(1));
+      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
+        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+        liftUpTick(); liftDownTick();
+      }
+      turnToHeading(270); 
     }
-    if (stopAtEnd) stopAll();
-    else turnToHeading(270); 
   } 
   else if (from == 11 && to == 9) { 
     turnToHeading(HEADING_11_TO_12); 
-    prizm.resetEncoders(); safeDelay(40);
-    while(abs(prizm.readEncoderCount(1)) < CM(DIST_11_TO_12_CM)) { 
+    long startEnc = abs(prizm.readEncoderCount(1));
+    while(abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_11_TO_12_CM)) { 
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
        liftUpTick(); liftDownTick();
     }
     turnToHeading(HEADING_12_TO_9_2); 
     blindDriveUntilLine(); 
-    prizm.resetEncoders(); safeDelay(40);
-    while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick();
+    
+    if (stopAtEnd) {
+      driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+    } else {
+      long alignEnc = abs(prizm.readEncoderCount(1));
+      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
+        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+        liftUpTick(); liftDownTick();
+      }
+      turnToHeading(270); 
     }
-    if (stopAtEnd) stopAll();
-    else turnToHeading(270); 
   } 
   else {
-    // 가로(7↔8 등) 이동: followToCrossing이 출발 노드 5cm 무시를 자체 처리하므로
-    // 별도의 ignoreNodeTrace는 두지 않는다(이중 무시로 다음 교차로를 놓치는 것 방지).
     int dir = (to > from) ? 90 : 270;
     turnToHeading(dir);
     followToCrossing(stopAtEnd);
@@ -190,38 +204,31 @@ void moveToNode(int toNode) {
   }
 }
 
-// ── [탈출 보조] 라인 추종으로 지정 거리 탈출 (7번 가로선 오판 방지 센서 끄기 포함) ──
-//   totalCm: 라인 닿은 지점부터 이동할 총 거리 (바퀴축이 코너에 닿을 때까지)
-//   offAfterCm > 0 이면 offAfterCm 지점부터 탈출 끝까지 이동방향 센서를 꺼서,
-//   7번 노드 가로선을 밟아도 오판/헛조향하지 않게 한다.
-//   forward=true → 전방센서로 추종(전방센서 끔), false → 후방센서로 추종(후방센서 끔)
 static void exitTraceDist(float totalCm, float offAfterCm, bool forward) {
-  prizm.resetEncoders(); safeDelay(40);
+  long startEnc = abs(prizm.readEncoderCount(1));
   long total   = CM(totalCm);
   long offStart = (offAfterCm > 0.0f) ? CM(offAfterCm) : -1;
 
-  while (abs(prizm.readEncoderCount(1)) < total) {
+  while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < total) {
     int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    long d = abs(prizm.readEncoderCount(1));
-    bool mask = (offStart >= 0 && d >= offStart);   // 끄기 시작 후 끝까지 무시
+    long d = abs(abs(prizm.readEncoderCount(1)) - startEnc);
+    bool mask = (offStart >= 0 && d >= offStart);
     if (forward) {
-      if (mask) { L = C = R = 0; }          // 이동방향(전방) 센서 끔
+      if (mask) { L = C = R = 0; }
       lineFollowStepFull(L, C, R, RL, RC, RR);
     } else {
-      if (mask) { RL = RC = RR = 0; }       // 이동방향(후방) 센서 끔
+      if (mask) { RL = RC = RR = 0; }
       reverseLineFollowStep(RL, RC, RR, L, C, R);
     }
     liftUpTick(); liftDownTick();
   }
 }
 
-// ── [탈출 보조] 5·6번 후진 탈출: 후방센서 라인 끊김 감지 시 정착(10-2 / 11-2) ──
-//   오감지 방지로 EXIT_REV_56_ARM_CM(23cm) 이후부터 라인 끊김 감지 시작.
 static void exitRev56() {
-  prizm.resetEncoders(); safeDelay(40);
+  long startEnc = abs(prizm.readEncoderCount(1));
   while (true) {
     int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (abs(prizm.readEncoderCount(1)) > CM(EXIT_REV_56_ARM_CM) && !anyRearLine(RL, RC, RR)) break;
+    if (abs(abs(prizm.readEncoderCount(1)) - startEnc) > CM(EXIT_REV_56_ARM_CM) && !anyRearLine(RL, RC, RR)) break;
     reverseLineFollowStep(RL, RC, RR, L, C, R);
     liftUpTick(); liftDownTick();
   }
@@ -248,8 +255,7 @@ void exitZone(int zone) {
     }
   }
 
-  prizm.resetEncoders(); safeDelay(40); 
-
+  // ★ 존 탈출 후 바퀴 정렬 시에도 리셋 없이 스무스하게 연결
   if (lastEntryWasForward) { 
     if (targetNode == 8) { 
        while (true) {
@@ -257,16 +263,14 @@ void exitZone(int zone) {
           if (RL && RC && RR) break; 
           reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick();
        }
-       prizm.resetEncoders(); safeDelay(40);
-       while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_REAR_CM)) {
+       long alignEnc = abs(prizm.readEncoderCount(1));
+       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(ALIGN_AXIS_REAR_CM)) {
           drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
           liftUpTick(); liftDownTick();
        }
     } else {
-       // 1·3번(7번 노드): 라인 닿은 후 바퀴축이 코너에 닿을 때까지 후진 (가로선 통과 센서 끔)
        if (zone == 1)      exitTraceDist(EXIT_REV_EXTRA_1_CM, EXIT1_SENSOR_OFF_AFTER_CM, false);
        else if (zone == 3) exitTraceDist(EXIT_REV_EXTRA_3_CM, EXIT3_SENSOR_OFF_AFTER_CM, false);
-       // 5·6번: 라인 끊김 감지로 10-2 / 11-2에 정착
        else                exitRev56();
     }
   } else { 
@@ -276,19 +280,18 @@ void exitZone(int zone) {
           if (L && C && R) break; 
           lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
        }
-       prizm.resetEncoders(); safeDelay(40);
-       while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_FRONT_CM)) {
+       long alignEnc = abs(prizm.readEncoderCount(1));
+       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(ALIGN_AXIS_FRONT_CM)) {
           drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
           liftUpTick(); liftDownTick();
        }
     } else {
-       // 1·3번(7번 노드): 라인 닿은 후 바퀴축이 코너에 닿을 때까지 전진 (가로선 통과 센서 끔)
        if (zone == 1)      exitTraceDist(EXIT_FWD_EXTRA_1_CM, EXIT1_SENSOR_OFF_AFTER_CM, true);
        else if (zone == 3) exitTraceDist(EXIT_FWD_EXTRA_3_CM, EXIT3_SENSOR_OFF_AFTER_CM, true);
-       else                exitTraceDist(EXIT_FWD_EXTRA_3_CM, 0.0f, true); // 5·6번 전진 탈출(30cm 기준)
+       else                exitTraceDist(EXIT_FWD_EXTRA_3_CM, 0.0f, true);
     }
   }
-  // 존 탈출 완료 시 정지 (존에 들어갈 때, 나올 때 허용)
+  
   stopAll();
   if (targetNode == 7) enableEdgeSteering = false;
   currentNode = targetNode;
