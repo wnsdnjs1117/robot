@@ -10,6 +10,9 @@
 
 bool enableEdgeSteering = false;
 
+// S-커브 가감속 속도 계산 (정의는 [6]) — turnAngle 등에서 미리 사용
+static int sCurveSpeed(long pos, long error, long rampCounts, int maxSpd);
+
 // ── [0] Non-Blocking 비동기 대기 ──
 void safeDelay(unsigned long ms) {
   unsigned long start = millis();
@@ -116,24 +119,11 @@ void turnAngle(int degrees, bool isRight) {
     long dL = labs(prizm.readEncoderCount(1) - startL);
     long dR = labs(prizm.readEncoderCount(2) - startR);
     long pos = (dL + dR) / 2;
-    
-    long error = targetCounts - pos; 
-    if (error <= 0) break; 
-    
-    float spd_accel = SPIN_SPEED;
-    float spd_decel = SPIN_SPEED;
 
-    if (pos < rampCounts) {
-      spd_accel = 20.0 + (SPIN_SPEED - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0));
-    }
-    if (error < rampCounts) {
-      spd_decel = 20.0 + (SPIN_SPEED - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0));
-    }
-    
-    int spd = (int)min(spd_accel, spd_decel);
+    long error = targetCounts - pos;
+    if (error <= 0) break;
 
-    if (spd > SPIN_SPEED) spd = SPIN_SPEED;
-    if (spd < 20) spd = 20;
+    int spd = sCurveSpeed(pos, error, rampCounts, SPIN_SPEED);
 
     if (isRight) drive(spd, -spd);
     else drive(-spd, spd);
@@ -281,107 +271,37 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   reverseLineFollowStep(RL, RC, RR, FL, FC, FR, BACK_SPEED);
 }
 
-// ── [6] ★ S-커브 이동 함수들 (전체 거리의 30% 가감속 적용) ───────────
+// ── [6] ★ S-커브 가감속 이동 ───────────
+// 출발/도착 구간(거리의 30%)에서 sin 곡선으로 부드럽게 가감속해 바퀴 미끄러짐을 막는다.
+// 어떤 경우에도 MIN_MOVE_SPEED 밑으로 떨어지지 않고, 목표 엔코더에 도달한 뒤 stopAll()로 제동한다.
+static int sCurveSpeed(long pos, long error, long rampCounts, int maxSpd) {
+  float spd_accel = maxSpd;
+  float spd_decel = maxSpd;
+  if (pos < rampCounts) {
+    spd_accel = MIN_MOVE_SPEED + (maxSpd - MIN_MOVE_SPEED) * sin(((float)pos / rampCounts) * (PI / 2.0));
+  }
+  if (error < rampCounts) {
+    spd_decel = MIN_MOVE_SPEED + (maxSpd - MIN_MOVE_SPEED) * sin(((float)error / rampCounts) * (PI / 2.0));
+  }
+  int spd = (int)min(spd_accel, spd_decel);
+  return constrain(spd, MIN_MOVE_SPEED, maxSpd);
+}
+
 void driveStraightSmooth(float cm, int maxSpd) {
   long startEnc = labs(prizm.readEncoderCount(1));
   long targetCounts = CM(cm);
   if (targetCounts <= 0) return;
-  
+
   long rampCounts = (long)(targetCounts * 0.3f);
   if (rampCounts < 1) rampCounts = 1;
 
   while (true) {
-    long currentEnc = labs(prizm.readEncoderCount(1));
-    long pos = labs(currentEnc - startEnc);
+    long pos = labs(labs(prizm.readEncoderCount(1)) - startEnc);
     long error = targetCounts - pos;
-    if (error <= 0) break; 
-    
-    float spd_accel = maxSpd;
-    float spd_decel = maxSpd;
-    
-    if (pos < rampCounts) {
-      spd_accel = 20.0 + (maxSpd - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0));
-    }
-    if (error < rampCounts) {
-      spd_decel = 20.0 + (maxSpd - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0));
-    }
-    
-    int currentSpd = (int)min(spd_accel, spd_decel);
-    currentSpd = constrain(currentSpd, 20, maxSpd);
-    
+    if (error <= 0) break;
+
+    int currentSpd = sCurveSpeed(pos, error, rampCounts, maxSpd);
     drive(currentSpd, currentSpd);
-    liftUpTick(); liftDownTick();
-  }
-  stopAll();
-}
-
-void lineFollowSmooth(float cm, int maxSpd) {
-  long startEnc = labs(prizm.readEncoderCount(1));
-  long targetCounts = CM(cm);
-  if (targetCounts <= 0) return;
-  
-  long rampCounts = (long)(targetCounts * 0.3f);
-  if (rampCounts < 1) rampCounts = 1;
-
-  while (true) {
-    long currentEnc = labs(prizm.readEncoderCount(1));
-    long pos = labs(currentEnc - startEnc);
-    long error = targetCounts - pos;
-    if (error <= 0) break;
-    
-    float spd_accel = maxSpd;
-    float spd_decel = maxSpd;
-    
-    if (pos < rampCounts) {
-      spd_accel = 20.0 + (maxSpd - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0));
-    }
-    if (error < rampCounts) {
-      spd_decel = 20.0 + (maxSpd - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0));
-    }
-    
-    int currentSpd = (int)min(spd_accel, spd_decel);
-    currentSpd = constrain(currentSpd, 20, maxSpd);
-    
-    int FL, FC, FR, RL, RC, RR;
-    readSensors(FL, FC, FR); readRearSensors(RL, RC, RR);
-    
-    lineFollowStepFull(FL, FC, FR, RL, RC, RR, currentSpd);
-    liftUpTick(); liftDownTick();
-  }
-  stopAll();
-}
-
-void reverseLineFollowSmooth(float cm, int maxSpd) {
-  long startEnc = labs(prizm.readEncoderCount(1));
-  long targetCounts = CM(cm);
-  if (targetCounts <= 0) return;
-  
-  long rampCounts = (long)(targetCounts * 0.3f);
-  if (rampCounts < 1) rampCounts = 1;
-
-  while (true) {
-    long currentEnc = labs(prizm.readEncoderCount(1));
-    long pos = labs(currentEnc - startEnc);
-    long error = targetCounts - pos;
-    if (error <= 0) break;
-    
-    float spd_accel = maxSpd;
-    float spd_decel = maxSpd;
-    
-    if (pos < rampCounts) {
-      spd_accel = 20.0 + (maxSpd - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0));
-    }
-    if (error < rampCounts) {
-      spd_decel = 20.0 + (maxSpd - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0));
-    }
-    
-    int currentSpd = (int)min(spd_accel, spd_decel);
-    currentSpd = constrain(currentSpd, 20, maxSpd);
-    
-    int FL, FC, FR, RL, RC, RR;
-    readSensors(FL, FC, FR); readRearSensors(RL, RC, RR);
-    
-    reverseLineFollowStep(RL, RC, RR, FL, FC, FR, currentSpd);
     liftUpTick(); liftDownTick();
   }
   stopAll();
@@ -400,8 +320,8 @@ void driveExtraDecel(float cm, int startSpd) {
     if (pos >= targetCounts) break;
 
     float progress = (float)pos / targetCounts;
-    int currentMag = 20 + (absStart - 20) * cos(progress * (PI / 2.0));
-    
+    int currentMag = MIN_MOVE_SPEED + (absStart - MIN_MOVE_SPEED) * cos(progress * (PI / 2.0));
+
     if (startSpd < 0) currentMag = -currentMag;
     
     drive(currentMag, currentMag);

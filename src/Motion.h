@@ -28,8 +28,6 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR, int b
 // ★ S-커브 가감속 이동 함수들 (부드러운 출발 및 정지)
 // ============================================================
 void driveStraightSmooth(float cm, int maxSpd);       // 센서 없이 직진 (가감속)
-void lineFollowSmooth(float cm, int maxSpd);          // 라인 따라 전진 (가감속)
-void reverseLineFollowSmooth(float cm, int maxSpd);   // 라인 따라 후진 (가감속)
 void driveExtraDecel(float cm, int startSpd);         // ★ 블라인드 탐지 후 바퀴 축까지 부드럽게 감속 정지
 
 #endif

@@ -48,10 +48,6 @@ constexpr int SENSOR_REAR_CENTER = A2;
 constexpr int SENSOR_REAR_RIGHT = A3;
 constexpr int REAR_SENSOR_THRESHOLD = 200;
 
-// ── [1-1] 센서 노이즈 필터 (검은선 오감지 방지) ───────────────────────────
-constexpr int SENSOR_FILTER_SAMPLES = 3;     
-constexpr int REAR_SENSOR_HYSTERESIS = 40;   
-
 // ── [2] 로봇 하드웨어 물리적 치수 (★ 바퀴축 기준 실측) ───────────────────
 constexpr float ROBOT_LENGTH_CM = 35.0f;              
 constexpr float DIST_AXIS_TO_FRONT_SENSOR_CM = 6.5f;  
@@ -92,30 +88,30 @@ constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 40;
 constexpr int ZONE_EXIT_BLIND_SPEED = 40;        
 constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;   
 
-constexpr int SPIN_SPEED = 40;           
-constexpr int SPIN_90_COUNTS = 1185;     
-constexpr int SPIN_BRAKE_LEAD = 30;      
+constexpr int SPIN_SPEED = 40;
+constexpr int SPIN_90_COUNTS = 1185;
 
-// 전/후진 듀얼 PID 세팅
-constexpr float LINE_KP_FWD_SOFT = 0.5f;    
-constexpr float LINE_KP_FWD_HARD = 3.5f;    
-constexpr float LINE_KP_REV_SOFT = 0.3f;    
-constexpr float LINE_KP_REV_HARD = 1.0f;    
-constexpr float LINE_KI = 0.0f;             
-constexpr float LINE_KD = 1.0f;             
-constexpr float LINE_ALIGN_GAIN = 1.0f;     
+// ★ 가감속 시 최소 이동 속도 — 목표 엔코더 도달 전까지 이 속도 밑으로 떨어지지 않는다.
+//   (목표에 도달하면 125로 제동. "미리 멈추기" 방지)
+constexpr int MIN_MOVE_SPEED = 20;
 
-constexpr float VELOCITY_KP = 0.2f;               
-constexpr float VELOCITY_TARGET_FACTOR = 0.5f;    
-constexpr int   VELOCITY_MAX_CORRECTION = 10; 
-constexpr int   REAR_ALIGN_GAIN = 5;         
-constexpr int   EDGE_SYNC_GAIN = 5;         
+// 전/후진 듀얼 PID 세팅 (★ e9a612c 검증 세팅과 완전 동일 — 스무스 이동과 무관하게 고정)
+constexpr float LINE_KP_FWD_SOFT = 0.6f;
+constexpr float LINE_KP_FWD_HARD = 3.5f;
+constexpr float LINE_KP_REV_SOFT = 0.4f;
+constexpr float LINE_KP_REV_HARD = 1.2f;
+constexpr float LINE_KI = 0.0f;
+constexpr float LINE_KD = 5.0f;
+constexpr float LINE_ALIGN_GAIN = 1.5f;
 
-constexpr int MOTOR_OFFSET_L = 0;           
-constexpr int MOTOR_OFFSET_R = 0;           
-constexpr float RIGHT_MOTOR_MULTIPLIER = 0.0f; 
-constexpr bool  WEST_IS_LEFT = true;         
-constexpr int   CROSS_CONFIRM = 1;            
+constexpr float VELOCITY_KP = 0.2f;
+constexpr float VELOCITY_TARGET_FACTOR = 0.5f;
+constexpr int   VELOCITY_MAX_CORRECTION = 10;
+constexpr int   EDGE_SYNC_GAIN = 5;
+
+constexpr int MOTOR_OFFSET_L = 0;
+constexpr int MOTOR_OFFSET_R = 0;
+constexpr int   CROSS_CONFIRM = 1;
 constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM; 
 
 // ── [5] 이동 노드 방위각 및 거리 ─────────────────────────────────────
