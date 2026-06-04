@@ -29,7 +29,7 @@ void setup() {
   // EXPANSION 리프트 컨트롤러 초기화
   extern const int EXP_ID;
   exc.controllerEnable(EXP_ID);
-  delay(10);
+  safeDelay(10);
   exc.resetEncoder(EXP_ID, LIFT_L);
   exc.resetEncoder(EXP_ID, LIFT_R);
 
@@ -44,21 +44,19 @@ void setup() {
   // 가상 맵 데이터 셔플 생성
   setupRandomLayout();
 
-  // 시스템 준비 완료. 스타트 버튼 대기
+  // 시스템 준비 완료. 스타트 버튼 대기 (delay 없이 타이트 폴링)
   prizm.setGreenLED(HIGH);
-  while (prizm.readStartButton() == 0) {
-    delay(10);
-  }
+  while (prizm.readStartButton() == 0) { }
   prizm.setGreenLED(LOW);
-  delay(200);
+  safeDelay(200);
 }
 
 void loop() {
   // [1단계] 탐색: 박스 2개를 발견하면 즉시 해당 구역에서 주행 셧다운!
   executeStage1_Search();
 
-  // 기구학적 안정을 위한 2초 대기
-  delay(2000);
+  // 기구학적 안정을 위한 2초 대기 (delay 없이 millis 기반)
+  safeDelay(2000);
 
   // [2단계] 배송: 멈춘 위치(존)에서부터 다이나믹하게 최단 거리 배송 수행!
   executeStage2_Delivery();

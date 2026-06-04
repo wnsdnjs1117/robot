@@ -40,7 +40,7 @@ static void ignoreNodeBlind() {
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_IGNORE_NODE_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 }
 
@@ -50,7 +50,7 @@ static void ignoreNodeTrace() {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     lineFollowStepFull(L, C, R, RL, RC, RR);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 }
 
@@ -61,7 +61,7 @@ static void blindDriveUntilLine() {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     drive(BLIND_SPEED, BLIND_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 }
 
@@ -74,7 +74,7 @@ static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool 
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   if (stopAtEnd) stopAll();
   if (alignHeading != -1 && !stopAtEnd) turnToHeading(alignHeading);
@@ -89,7 +89,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       readSensors(L, C, R); readRearSensors(RL, RC, RR);
       if (!anyLine(L, C, R)) { if (stopAtEnd) stopAll(); break; }
       lineFollowStepFull(L, C, R, RL, RC, RR);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
   } 
   else if (from == 9 && to == 8) {
@@ -100,7 +100,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
       int L, C, R; readSensors(L, C, R);
       if (anyLine(L, C, R)) break;
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
     followToCrossing(stopAtEnd);
   } 
@@ -117,7 +117,7 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
     if (stopAtEnd) stopAll();
   } 
@@ -132,14 +132,14 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     prizm.resetEncoders(); safeDelay(40);
     while(abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_12_CM)) { 
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-       liftUpTick(); liftDownTick(); delay(5);
+       liftUpTick(); liftDownTick();
     }
     turnToHeading(HEADING_12_TO_9_2); 
     blindDriveUntilLine(); 
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
     if (stopAtEnd) stopAll();
     else turnToHeading(270); 
@@ -149,14 +149,14 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     prizm.resetEncoders(); safeDelay(40);
     while(abs(prizm.readEncoderCount(1)) < CM(DIST_11_TO_12_CM)) { 
        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-       liftUpTick(); liftDownTick(); delay(5);
+       liftUpTick(); liftDownTick();
     }
     turnToHeading(HEADING_12_TO_9_2); 
     blindDriveUntilLine(); 
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
     if (stopAtEnd) stopAll();
     else turnToHeading(270); 
@@ -211,7 +211,7 @@ static void exitTraceDist(float totalCm, float offAfterCm, bool forward) {
       if (mask) { RL = RC = RR = 0; }       // 이동방향(후방) 센서 끔
       reverseLineFollowStep(RL, RC, RR, L, C, R);
     }
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 }
 
@@ -223,7 +223,7 @@ static void exitRev56() {
     int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
     if (abs(prizm.readEncoderCount(1)) > CM(EXIT_REV_56_ARM_CM) && !anyRearLine(RL, RC, RR)) break;
     reverseLineFollowStep(RL, RC, RR, L, C, R);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 }
 
@@ -237,14 +237,14 @@ void exitZone(int zone) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
        if (anyRearLine(RL, RC, RR)) break; 
        drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
-       liftUpTick(); liftDownTick(); delay(5);
+       liftUpTick(); liftDownTick();
     }
   } else {
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
        if (anyLine(L, C, R)) break; 
        drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
-       liftUpTick(); liftDownTick(); delay(5);
+       liftUpTick(); liftDownTick();
     }
   }
 
@@ -255,12 +255,12 @@ void exitZone(int zone) {
        while (true) {
           int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
           if (RL && RC && RR) break; 
-          reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick(); delay(5);
+          reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick();
        }
        prizm.resetEncoders(); safeDelay(40);
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_REAR_CM)) {
           drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
-          liftUpTick(); liftDownTick(); delay(5);
+          liftUpTick(); liftDownTick();
        }
     } else {
        // 1·3번(7번 노드): 라인 닿은 후 바퀴축이 코너에 닿을 때까지 후진 (가로선 통과 센서 끔)
@@ -274,12 +274,12 @@ void exitZone(int zone) {
        while (true) {
           int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
           if (L && C && R) break; 
-          lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick(); delay(5);
+          lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
        }
        prizm.resetEncoders(); safeDelay(40);
        while (abs(prizm.readEncoderCount(1)) < CM(ALIGN_AXIS_FRONT_CM)) {
           drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
-          liftUpTick(); liftDownTick(); delay(5);
+          liftUpTick(); liftDownTick();
        }
     } else {
        // 1·3번(7번 노드): 라인 닿은 후 바퀴축이 코너에 닿을 때까지 전진 (가로선 통과 센서 끔)

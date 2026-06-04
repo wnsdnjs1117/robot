@@ -8,11 +8,11 @@
 
 bool enableEdgeSteering = false;
 
-// ── [0] Non-Blocking 비동기 대기 ───────────────────────────
+// ── [0] Non-Blocking 비동기 대기 (delay() 미사용, millis 기반 + 리프트 틱) ──
 void safeDelay(unsigned long ms) {
   unsigned long start = millis();
   while (millis() - start < ms) {
-    liftUpTick(); liftDownTick(); delay(5); 
+    liftUpTick(); liftDownTick();
   }
 }
 
@@ -98,7 +98,7 @@ void turnAngle(int degrees, bool isRight) {
     if (isRight) drive(spd, -spd);
     else drive(-spd, spd);
 
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   // 스핀 턴 완료 후 1회 급제동 및 즉각 해제 (추가 딜레이 완전히 삭제)
   stopAll(); 

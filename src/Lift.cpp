@@ -88,7 +88,6 @@ void liftUp() {
     if (basePwrR == 0) pwrR = 0;
 
     exc.setMotorPowers(EXP_ID, pwrL, -pwrR);
-    delay(LIFT_TICK_INTERVAL_MS);
     updateHeight();
   } while (heightL < LIFT_UP_CLEAR_CM || heightR < LIFT_UP_CLEAR_CM);
 
@@ -133,7 +132,6 @@ void liftUpWait() {
   DPRINTLNF(">> [LIFT] 상승 완료 대기 중...");
   while (liftUpRunning) {
     liftUpTick();
-    delay(LIFT_TICK_INTERVAL_MS);
   }
   DPRINTLNF(">> [LIFT] 상승 확인 완료");
 }
@@ -215,7 +213,6 @@ void liftDownWait() {
   DPRINTLNF(">> [LIFT] 착지 대기 중...");
   while (liftDownRunning) {
     liftDownTick();
-    delay(LIFT_TICK_INTERVAL_MS);
   }
   DPRINTLNF(">> [LIFT] 착지 확인 완료");
 }
@@ -224,7 +221,6 @@ void liftDownUntilClear() {
   liftDownStart();
   while (heightL > LIFT_DOWN_CLEAR_CM || heightR > LIFT_DOWN_CLEAR_CM) {
     liftDownTick();
-    delay(LIFT_TICK_INTERVAL_MS);
   }
   DPRINTLNF(">> [LIFT] 주행 허가 기준 높이 도달 (배경 하강 계속)");
 }
@@ -249,7 +245,7 @@ void runLiftTestMode() {
   if (!initDone) {
     Serial.begin(9600);
     exc.controllerEnable(EXP_ID);
-    delay(10);
+    { unsigned long _t = millis(); while (millis() - _t < 10) { } }  // delay 없이 settle
     exc.resetEncoder(EXP_ID, LIFT_L);
     exc.resetEncoder(EXP_ID, LIFT_R);
     Serial.println(F("=== LIFT INTERNAL TEST MODE ACTIVE ==="));

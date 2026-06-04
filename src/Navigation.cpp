@@ -29,7 +29,7 @@ void followToCrossing(bool stopAtEnd) {
     // [1] 출발 노드 무시 구간: 감지 금지, 라인만 추종 (1.1.1=세로선 → 직진/무조향)
     if (d < ignore) {
       lineFollowStepFull(L, C, R, RL, RC, RR);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
       continue;
     }
 
@@ -41,13 +41,13 @@ void followToCrossing(bool stopAtEnd) {
       prizm.resetEncoders(); safeDelay(40);
       while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
         drive(SPEED, SPEED);
-        liftUpTick(); liftDownTick(); delay(5);
+        liftUpTick(); liftDownTick();
       }
       if (stopAtEnd) stopAll();
       return;
     }
     lineFollowStepFull(L, C, R, RL, RC, RR);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 }
 void followToCrossing() { followToCrossing(true); }
@@ -68,7 +68,7 @@ void enterZone() {
     if (!early && !anyRearLine(RL, RC, RR)) break;   // 후방센서가 존 라인을 벗어남
     if (early) { RL = RC = RR = 0; }                 // 초반: 후방센서 무시
     lineFollowStepFull(L, C, R, RL, RC, RR);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 
   prizm.resetEncoders(); safeDelay(40);
@@ -76,7 +76,7 @@ void enterZone() {
 
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(ZONE_ENTRY_BLIND_SPEED, ZONE_ENTRY_BLIND_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   // 존 진입 완료 후 멈춤 (허용 구간)
   stopAll();
@@ -96,7 +96,7 @@ void reverseEnterZone() {
     if (!early && !anyLine(L, C, R)) break;          // 전방센서가 존 라인을 벗어남
     if (early) { L = C = R = 0; }                    // 초반: 전방센서 무시
     reverseLineFollowStep(RL, RC, RR, L, C, R);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 
   prizm.resetEncoders(); safeDelay(40);
@@ -104,7 +104,7 @@ void reverseEnterZone() {
 
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   stopAll();
 }
@@ -116,7 +116,7 @@ void reverseAcrossToOppositeZone() {
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     if (anyRearLine(RL, RC, RR)) break;
     drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   
   prizm.resetEncoders(); safeDelay(40);
@@ -128,7 +128,7 @@ void reverseAcrossToOppositeZone() {
     // 후진 진입 초반: 전방센서 무시 (7/8번 가로선 오판 방지)
     if (abs(prizm.readEncoderCount(1)) < CM(ENTRY_REV_FRONT_OFF_CM)) { L = C = R = 0; }
     reverseLineFollowStep(RL, RC, RR, L, C, R);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   
   prizm.resetEncoders(); safeDelay(40);
@@ -136,7 +136,7 @@ void reverseAcrossToOppositeZone() {
   
   while (abs(prizm.readEncoderCount(1)) < extraDist) {
     drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   stopAll();
 }
@@ -149,13 +149,13 @@ void goToMainLine() {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
 
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_START_TO_13_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   
   // 회전 전 관성만 제어, 무의미한 delay 삭제
@@ -165,13 +165,13 @@ void goToMainLine() {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
     drive(BLIND_SPEED, BLIND_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_CROSS_ALIGN_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   
   // 회전 전 관성 제어, 딜레이 삭제
@@ -187,7 +187,7 @@ void returnToFinish() {
       int L, C, R; readSensors(L, C, R);
       if (anyLine(L, C, R)) break; 
       drive(BLIND_SPEED, BLIND_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
   } 
   else if (currentNode == 10) {
@@ -195,14 +195,14 @@ void returnToFinish() {
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_10_TO_13_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
     turnToHeading(HEADING_13_TO_START);
     while (true) {
       int L, C, R; readSensors(L, C, R);
       if (anyLine(L, C, R)) break; 
       drive(BLIND_SPEED, BLIND_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
   } 
   else { 
@@ -211,21 +211,21 @@ void returnToFinish() {
     prizm.resetEncoders(); safeDelay(40);
     while (abs(prizm.readEncoderCount(1)) < CM(DIST_9_TO_13_CM)) {
       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
     turnToHeading(HEADING_13_TO_START);
     while (true) {
       int L, C, R; readSensors(L, C, R);
       if (anyLine(L, C, R)) break; 
       drive(BLIND_SPEED, BLIND_SPEED);
-      liftUpTick(); liftDownTick(); delay(5);
+      liftUpTick(); liftDownTick();
     }
   }
 
   prizm.resetEncoders(); safeDelay(40);
   while (abs(prizm.readEncoderCount(1)) < CM(DIST_FINISH_ENTRY_CM)) {
     drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick(); delay(5);
+    liftUpTick(); liftDownTick();
   }
   
   // 종료 지점 세레모니

@@ -23,10 +23,16 @@ static char    _mtBuf[24];
 static uint8_t _mtLen = 0;
 
 // 급정지(Brake) 후 자연 정지 — 리프트 틱에 의존하지 않는 로컬 제동
+// delay() 대신 millis 기반 대기 (테스트 모드는 리프트 미사용)
+static void _mtWait(unsigned long ms) {
+  unsigned long t = millis();
+  while (millis() - t < ms) { }
+}
+
 static void _mtBrake() {
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
-  delay(80);
+  _mtWait(80);
   prizm.setMotorSpeeds(0, 0);
 }
 
@@ -35,10 +41,9 @@ static void _mtMove(float cm, int speed) {
   int s = constrain(abs(speed), 1, 100);
   if (cm < 0) s = -s;
   long target = CM(fabs(cm));
-  prizm.resetEncoders(); delay(40);
+  prizm.resetEncoders(); _mtWait(40);
   while (labs(prizm.readEncoderCount(1)) < target) {
     drive(s, s);
-    delay(5);
   }
   _mtBrake();
 }
@@ -48,13 +53,12 @@ static void _mtTurn(float deg, int speed) {
   int s = constrain(abs(speed), 1, 100);
   bool right = (deg >= 0);
   long target = (long)((SPIN_90_COUNTS / 90.0) * fabs(deg));
-  prizm.resetEncoders(); delay(40);
+  prizm.resetEncoders(); _mtWait(40);
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
     if (pos >= target - SPIN_BRAKE_LEAD) break;
     if (right) drive(s, -s);
     else       drive(-s, s);
-    delay(5);
   }
   _mtBrake();
 }

@@ -28,7 +28,7 @@ void setup() {
   Serial.begin(9600);
   prizm.PrizmBegin();
   exc.controllerEnable(EXP_ID);
-  delay(10);
+  { unsigned long _t = millis(); while (millis() - _t < 10) { } }  // delay 없이 settle
   exc.resetEncoder(EXP_ID, LIFT_L);
   exc.resetEncoder(EXP_ID, LIFT_R);
 
