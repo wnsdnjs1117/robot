@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "MapRouter.h" 
 #include "Lift.h" 
+#include <math.h>
 
 bool enableEdgeSteering = false;
 
@@ -58,6 +59,29 @@ void drive(int l, int r) {
 
   int finalL = outL; int finalR = outR;
   
+  // ★ 물리적 모터 비선형 편차 보정 (속도 구간별 맞춤 보정)
+  // "느릴 때는 오른쪽이 빠르고, 빠를 때는 왼쪽이 빠름" 현상을 해결하기 위한 동적 배율
+  float speedMag = abs(finalL);
+  if (speedMag < 20.0) speedMag = 20.0;
+  if (speedMag > 100.0) speedMag = 100.0;
+  
+  // 1. 속도가 20(최저 속도)일 때의 왼쪽 모터 보정치
+  // 오른쪽이 빠르므로 왼쪽을 5% 증폭 (1.05) - 필요시 조절하세요!
+  float compLow = 1.021; 
+  
+  // 2. 속도가 100(최고 속도)일 때의 왼쪽 모터 보정치
+  // 왼쪽이 빠르므로 왼쪽을 3% 감소 (0.97) - 필요시 조절하세요!
+  float compHigh = 0.985; 
+  
+  // 현재 속도에 맞춰 compLow와 compHigh 사이의 값을 자연스럽게 섞어줌 (선형 보간)
+  float comp = compLow + (compHigh - compLow) * ((speedMag - 20.0) / 80.0);
+  
+  if (finalL > 0) {
+    finalL = (int)(finalL * comp + 0.5);
+  } else if (finalL < 0) {
+    finalL = (int)(finalL * comp - 0.5);
+  }
+  
   if (finalL > 0 && finalR > 0) { finalL += MOTOR_OFFSET_L; finalR += MOTOR_OFFSET_R; } 
   else if (finalL < 0 && finalR < 0) { finalL -= MOTOR_OFFSET_L; finalR -= MOTOR_OFFSET_R; }
   
@@ -65,48 +89,65 @@ void drive(int l, int r) {
 }
 
 void stopAll() {
-  // 1. 모터에 125(급정지/Brake) 명령 전달하여 관성을 칼같이 잡음
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
-  
-  // 2. 급정지가 물리적으로 걸릴 아주 짧은 시간만 대기 (60ms)
   safeDelay(60); 
-  
-  // 3. 바로 제동을 풀고 자연스러운 상태(Coast)로 전환 (다음 동작으로 즉각 이어짐)
   prizm.setMotorSpeeds(0, 0);
 }
 
-// ── [2] ★ 제자리 칼각 회전 ─────────────────────────────────
+// ── [2] ★ 제자리 칼각 회전 (절대 거리 기반 초스무스 가감속 + 오차 보정 적용) ───────────
 void turnAngle(int degrees, bool isRight) {
   prizm.resetEncoders();
   safeDelay(40);
   
-  long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * degrees);
-  long brakePoint = targetCounts - SPIN_BRAKE_LEAD;
+  float absDeg = fabs((float)degrees);
+  float compDeg = absDeg;
+  
+  // 실측 데이터 기반 수학적 보정식 적용 (90도=92도, 720도=715도 기준)
+  if (absDeg >= 3.0) {
+    compDeg = (absDeg - 3.0) * 1.011236; 
+  } else {
+    compDeg = absDeg * (90.0 / 92.0); 
+  }
+  
+  long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg);
+  if (targetCounts <= 0) return;
+
+  // 짧은 거리 급제동 방지: 고정된 각도(30도)를 기준으로 감속
+  long rampCounts = (long)((SPIN_90_COUNTS / 90.0) * 30.0);
 
   while (true) {
     long pos = (abs(prizm.readEncoderCount(1)) + abs(prizm.readEncoderCount(2))) / 2;
-    if (pos >= brakePoint) break; 
+    long error = targetCounts - pos; 
+    if (error <= 0) break; 
+    
+    float spd_accel = SPIN_SPEED;
+    float spd_decel = SPIN_SPEED;
 
-    if (pos > (targetCounts * 0.6f)) {
-      int L, C, R; readSensors(L, C, R);
-      if (isRight && L == 1) break;
-      if (!isRight && R == 1) break;
+    // 출발 직후 30도 동안 부드럽게 가속
+    if (pos < rampCounts) {
+      spd_accel = 20.0 + (SPIN_SPEED - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0));
     }
+    // 도착 직전 30도 동안 부드럽게 감속
+    if (error < rampCounts) {
+      spd_decel = 20.0 + (SPIN_SPEED - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0));
+    }
+    
+    int spd = (int)min(spd_accel, spd_decel);
 
-    int spd = SPIN_SPEED;
+    if (spd > SPIN_SPEED) spd = SPIN_SPEED;
+    if (spd < 20) spd = 20;
+
     if (isRight) drive(spd, -spd);
     else drive(-spd, spd);
 
     liftUpTick(); liftDownTick();
   }
-  // 스핀 턴 완료 후 1회 급제동 및 즉각 해제 (추가 딜레이 완전히 삭제)
+  
   stopAll(); 
 }
 
 // ── [3] 센서 읽기 (디바운스 + 히스테리시스 필터 적용) ───────────────────────
-// 채널별 디바운스: raw 값이 SENSOR_FILTER_SAMPLES회 연속 동일해야 확정값을 바꾼다.
-//   ch 0~2 = 전방 L/C/R, ch 3~5 = 후방 L/C/R
 static int filterDigital(int ch, int raw) {
   static int     stable[6] = {0, 0, 0, 0, 0, 0};
   static int     cand[6]   = {0, 0, 0, 0, 0, 0};
@@ -130,13 +171,12 @@ void readSensors(int& L, int& C, int& R) {
 }
 
 void readRearSensors(int& RL, int& RC, int& RR) {
-  static int prev[3] = {0, 0, 0};   // 직전 히스테리시스 출력
+  static int prev[3] = {0, 0, 0};
   int a[3] = { analogRead(SENSOR_REAR_LEFT),
                analogRead(SENSOR_REAR_CENTER),
                analogRead(SENSOR_REAR_RIGHT) };
   int raw[3];
   for (int i = 0; i < 3; i++) {
-    // 히스테리시스: 켜져 있으면 (TH-H) 밑으로 떨어져야 끄고, 꺼져 있으면 (TH+H) 위로 올라야 켠다.
     if (prev[i]) raw[i] = (a[i] <= REAR_SENSOR_THRESHOLD - REAR_SENSOR_HYSTERESIS) ? 0 : 1;
     else         raw[i] = (a[i] >= REAR_SENSOR_THRESHOLD + REAR_SENSOR_HYSTERESIS) ? 1 : 0;
     prev[i] = raw[i];

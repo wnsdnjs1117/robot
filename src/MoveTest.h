@@ -3,13 +3,10 @@
  * Config.h 에서 MOVE_TEST_MODE 1 로 설정하면 활성화
  *
  * [시리얼 명령]  (9600bps, 줄 끝에 개행)
- *   m <cm> <speed>   : 직진 이동.  예) m 50 30  → 50cm 를 속도 30으로 전진
- *                                     m -20 40 → 20cm 를 속도 40으로 후진
- *   t <deg> <speed>  : 제자리 회전. 예) t -90 30 → 속도 30으로 반시계(좌) 90도
- *                                     t 90 30  → 속도 30으로 시계(우) 90도
- *
- * - 이동/회전 모두 실제 주행에 쓰는 drive() (엔코더 속도보정 포함)를 그대로 사용.
- * - 거리는 COUNTS_PER_CM, 회전각은 SPIN_90_COUNTS(Config) 기준으로 환산.
+ * m <cm> <speed>   : 직진 이동.  예) m 50 30  → 50cm 를 속도 30으로 전진
+ * m -20 40 → 20cm 를 속도 40으로 후진
+ * t <deg> <speed>  : 제자리 회전. 예) t -90 30 → 속도 30으로 반시계(좌) 90도
+ * t 90 30  → 속도 30으로 시계(우) 90도
  * ============================================================ */
 #ifndef MOVE_TEST_H
 #define MOVE_TEST_H
@@ -22,8 +19,6 @@
 static char    _mtBuf[24];
 static uint8_t _mtLen = 0;
 
-// 급정지(Brake) 후 자연 정지 — 리프트 틱에 의존하지 않는 로컬 제동
-// delay() 대신 millis 기반 대기 (테스트 모드는 리프트 미사용)
 static void _mtWait(unsigned long ms) {
   unsigned long t = millis();
   while (millis() - t < ms) { }
@@ -36,30 +31,103 @@ static void _mtBrake() {
   prizm.setMotorSpeeds(0, 0);
 }
 
-// cm>0 전진 / cm<0 후진, speed 1~100
+// ★ 직진/후진 이동 (절대 거리 기반 스무스)
 static void _mtMove(float cm, int speed) {
-  int s = constrain(abs(speed), 1, 100);
-  if (cm < 0) s = -s;
-  long target = CM(fabs(cm));
-  prizm.resetEncoders(); _mtWait(40);
-  while (labs(prizm.readEncoderCount(1)) < target) {
-    drive(s, s);
+  int max_spd = constrain(abs(speed), 1, 100);
+  int dir = (cm >= 0) ? 1 : -1; 
+  float absCm = fabs(cm);
+  float compCm = absCm;
+  
+  // 이동 오차 보정
+  if (absCm >= 2.0) {
+    compCm = (absCm - 1.0) * 1.0; 
   }
+  
+  long targetCounts = CM(compCm);
+  if (targetCounts <= 0) return; 
+  
+  // ★ 짧은 거리 급제동 방지: 고정된 15cm 폭을 기준으로 감속합니다.
+  long rampCounts = CM(15.0);
+  
+  prizm.resetEncoders(); _mtWait(40);
+  
+  while (true) {
+    long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
+    long error = targetCounts - pos;
+    if (error <= 0) break;
+    
+    float spd_accel = max_spd;
+    float spd_decel = max_spd;
+
+    // 출발 직후 15cm 동안 부드럽게 가속
+    if (pos < rampCounts) {
+      spd_accel = 20.0 + (max_spd - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0));
+    }
+    // 도착 직전 15cm 동안 부드럽게 감속
+    if (error < rampCounts) {
+      spd_decel = 20.0 + (max_spd - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0));
+    }
+    
+    int spd = (int)min(spd_accel, spd_decel);
+    
+    if (spd > max_spd) spd = max_spd;
+    if (spd < 20) spd = 20;
+
+    drive(spd * dir, spd * dir);
+  }
+  
   _mtBrake();
 }
 
-// deg>0 시계(우회전) / deg<0 반시계(좌회전), speed 1~100
+// ★ 제자리 회전 (절대 거리 기반 스무스)
 static void _mtTurn(float deg, int speed) {
-  int s = constrain(abs(speed), 1, 100);
+  int max_spd = constrain(abs(speed), 1, 100);
   bool right = (deg >= 0);
-  long target = (long)((SPIN_90_COUNTS / 90.0) * fabs(deg));
+  
+  float absDeg = fabs(deg);
+  float compDeg = absDeg;
+  
+  // 수학적 오차 보정
+  if (absDeg >= 3.0) {
+    compDeg = (absDeg - 3.0) * 1.011236; 
+  } else {
+    compDeg = absDeg * (90.0 / 92.0);
+  }
+  
+  long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg);
+  if (targetCounts <= 0) return;
+  
+  // ★ 짧은 거리 급제동 방지: 비율이 아닌 30도 기준으로 가감속
+  long rampCounts = (long)((SPIN_90_COUNTS / 90.0) * 30.0);
+  
   prizm.resetEncoders(); _mtWait(40);
+  
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
-    if (pos >= target - SPIN_BRAKE_LEAD) break;
-    if (right) drive(s, -s);
-    else       drive(-s, s);
+    long error = targetCounts - pos;
+    if (error <= 0) break;
+    
+    float spd_accel = max_spd;
+    float spd_decel = max_spd;
+
+    // 가속 구간
+    if (pos < rampCounts) {
+      spd_accel = 20.0 + (max_spd - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0));
+    }
+    // 감속 구간
+    if (error < rampCounts) {
+      spd_decel = 20.0 + (max_spd - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0));
+    }
+    
+    int spd = (int)min(spd_accel, spd_decel);
+    
+    if (spd > max_spd) spd = max_spd;
+    if (spd < 20) spd = 20;
+
+    if (right) drive(spd, -spd);
+    else       drive(-spd, spd);
   }
+  
   _mtBrake();
 }
 

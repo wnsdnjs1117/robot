@@ -9,7 +9,7 @@
 
 // ── [디버깅 및 테스트 모드] ──────────────────────────────────────────
 #define ROBOT_DEBUG    1
-#define LIFT_TEST_MODE 0
+#define LIFT_TEST_MODE 1
 #define SENSOR_TEST_MODE 0
 #define MOVE_TEST_MODE 0   // ★ 1로 켜면 시리얼로 이동거리/속도·회전각도/속도 테스트
 
@@ -26,7 +26,7 @@
 #endif
 
 // ★ [엔코더 실측값 반영] 80cm 이동 시 3450 카운트
-constexpr float COUNTS_PER_CM = 3420.0f / 80.0f; // 나눈 결과값이 적어지면 로봇도 조금 갑니다.
+constexpr float COUNTS_PER_CM = 3570.0f / 80.0f; // 나눈 결과값이 적어지면 로봇도 조금 갑니다.
 constexpr int CM(float cm) { return (int)(cm * COUNTS_PER_CM + 0.5f); } 
 
 // ── [1] 핀 번호 및 하드웨어 센서 ─────────────────────────────────────
@@ -114,7 +114,7 @@ constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;   // 탈출 시 후진 속도 (�
 
 // [4-4] 제자리 회전(스핀) 속도 및 각도 제어
 constexpr int SPIN_SPEED = 40;           // 제자리 턴 기본 속도
-constexpr int SPIN_90_COUNTS = 1100;     // ★ 90도 회전 시 기준 엔코더 값 (모든 각도의 기준)
+constexpr int SPIN_90_COUNTS = 1185;     // ★ 90도 회전 시 기준 엔코더 값 (모든 각도의 기준)
 constexpr int SPIN_BRAKE_LEAD = 30;      // 회전 목표 도달 전 미리 브레이크 잡는 수치
 
 // [4-5] 조향(PID/동기화) 게인값
@@ -166,16 +166,16 @@ constexpr float LIFT_UP_CLEAR_CM          = 5.0f;
 constexpr float LIFT_DOWN_CLEAR_CM        = 0.0f;    
 
 // 리프트 모터 속도 (실측 반영)
-constexpr int   LIFT_UP_POWER             = 50;      // 기본 상승 파워
+constexpr int   LIFT_UP_POWER             = 100;      // 기본 상승 파워
 constexpr int   LIFT_DOWN_POWER           = 100;      // 기본 하강 파워
 
 constexpr float LIFT_UP_SLOW_ZONE_CM      = 20.0f;   
 constexpr int   LIFT_UP_SLOW_POWER_L      = 40;      
 constexpr int   LIFT_UP_SLOW_POWER_R      = 40;      
 constexpr float LIFT_DOWN_SLOW_ZONE_CM    = 8.0f;    
-constexpr int   LIFT_DOWN_SLOW_POWER_L    = 25;      
-constexpr int   LIFT_DOWN_SLOW_POWER_R    = 25;      
-constexpr float LIFT_SYNC_GAIN            = 3.0f;    
+constexpr int   LIFT_DOWN_SLOW_POWER_L    = 20;      
+constexpr int   LIFT_DOWN_SLOW_POWER_R    = 20;      
+constexpr float LIFT_SYNC_GAIN            = 5.0f;    
 constexpr unsigned long LIFT_TICK_INTERVAL_MS  = 10;
 constexpr unsigned long LIFT_FLOOR_TIME_MS     = 2000; 
 
