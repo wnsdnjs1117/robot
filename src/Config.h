@@ -36,10 +36,17 @@ constexpr int SENSOR_RIGHT = 4;
 constexpr bool INVERT_SENSORS = false;  
 constexpr int BUZZER_PIN = 5;           
 
-constexpr int SENSOR_REAR_LEFT = A1;    
-constexpr int SENSOR_REAR_CENTER = A2;  
-constexpr int SENSOR_REAR_RIGHT = A3;   
-constexpr int REAR_SENSOR_THRESHOLD = 200; 
+constexpr int SENSOR_REAR_LEFT = A1;
+constexpr int SENSOR_REAR_CENTER = A2;
+constexpr int SENSOR_REAR_RIGHT = A3;
+constexpr int REAR_SENSOR_THRESHOLD = 200;
+
+// ── [1-1] 센서 노이즈 필터 (검은선 오감지 방지) ───────────────────────────
+//   디바운스: 새 값이 연속 N회 동일하게 읽혀야 상태를 바꾼다(순간 글리치 무시).
+//   루프가 빨라졌으므로(약 2~3ms) N회 ≈ 수 ms 지연으로 실제 선 인식엔 영향 적음.
+constexpr int SENSOR_FILTER_SAMPLES = 3;     // 상태 확정에 필요한 연속 동일 샘플 수
+//   후방 아날로그 히스테리시스: 임계값 부근 떨림(채터) 방지용 상·하 밴드 폭.
+constexpr int REAR_SENSOR_HYSTERESIS = 40;   // 켜짐 임계=TH+H, 꺼짐 임계=TH-H
 
 // ── [2] 로봇 하드웨어 물리적 치수 (★ 바퀴축 기준 실측) ───────────────────
 constexpr float ROBOT_LENGTH_CM = 35.0f;              // 로봇의 전체 길이

@@ -104,15 +104,46 @@ void turnAngle(int degrees, bool isRight) {
   stopAll(); 
 }
 
-// ── [3] 센서 읽기 ──────────────────────────────────────────
-void readSensors(int& L, int& C, int& R) {
-  L = digitalRead(SENSOR_LEFT); C = digitalRead(SENSOR_CENTER); R = digitalRead(SENSOR_RIGHT);
-  if (INVERT_SENSORS) { L = !L; C = !C; R = !R; }
+// ── [3] 센서 읽기 (디바운스 + 히스테리시스 필터 적용) ───────────────────────
+// 채널별 디바운스: raw 값이 SENSOR_FILTER_SAMPLES회 연속 동일해야 확정값을 바꾼다.
+//   ch 0~2 = 전방 L/C/R, ch 3~5 = 후방 L/C/R
+static int filterDigital(int ch, int raw) {
+  static int     stable[6] = {0, 0, 0, 0, 0, 0};
+  static int     cand[6]   = {0, 0, 0, 0, 0, 0};
+  static uint8_t cnt[6]    = {0, 0, 0, 0, 0, 0};
+
+  if (raw == stable[ch]) { cand[ch] = raw; cnt[ch] = 0; return stable[ch]; }
+  if (raw == cand[ch]) {
+    if (++cnt[ch] >= SENSOR_FILTER_SAMPLES) { stable[ch] = raw; cnt[ch] = 0; }
+  } else {
+    cand[ch] = raw; cnt[ch] = 1;
+  }
+  return stable[ch];
 }
+
+void readSensors(int& L, int& C, int& R) {
+  int rl = digitalRead(SENSOR_LEFT), rc = digitalRead(SENSOR_CENTER), rr = digitalRead(SENSOR_RIGHT);
+  if (INVERT_SENSORS) { rl = !rl; rc = !rc; rr = !rr; }
+  L = filterDigital(0, rl);
+  C = filterDigital(1, rc);
+  R = filterDigital(2, rr);
+}
+
 void readRearSensors(int& RL, int& RC, int& RR) {
-  RL = (analogRead(SENSOR_REAR_LEFT) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
-  RC = (analogRead(SENSOR_REAR_CENTER) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
-  RR = (analogRead(SENSOR_REAR_RIGHT) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
+  static int prev[3] = {0, 0, 0};   // 직전 히스테리시스 출력
+  int a[3] = { analogRead(SENSOR_REAR_LEFT),
+               analogRead(SENSOR_REAR_CENTER),
+               analogRead(SENSOR_REAR_RIGHT) };
+  int raw[3];
+  for (int i = 0; i < 3; i++) {
+    // 히스테리시스: 켜져 있으면 (TH-H) 밑으로 떨어져야 끄고, 꺼져 있으면 (TH+H) 위로 올라야 켠다.
+    if (prev[i]) raw[i] = (a[i] <= REAR_SENSOR_THRESHOLD - REAR_SENSOR_HYSTERESIS) ? 0 : 1;
+    else         raw[i] = (a[i] >= REAR_SENSOR_THRESHOLD + REAR_SENSOR_HYSTERESIS) ? 1 : 0;
+    prev[i] = raw[i];
+  }
+  RL = filterDigital(3, raw[0]);
+  RC = filterDigital(4, raw[1]);
+  RR = filterDigital(5, raw[2]);
 }
 bool anyLine(int L, int C, int R) { return (L == 1 || C == 1 || R == 1); }
 bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
