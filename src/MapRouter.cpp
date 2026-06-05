@@ -137,13 +137,9 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd); 
   } 
   else if (from == 10 && to == 9) { 
-    turnToHeading(HEADING_10_TO_12); 
-    long startEnc = abs(prizm.readEncoderCount(1));
-    while(abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_10_TO_12_CM)) { 
-       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-       liftUpTick(); liftDownTick();
-    }
-    turnToHeading(HEADING_12_TO_9_2); 
+    turnToHeading(HEADING_10_TO_12);
+    driveDistance(DIST_10_TO_12_CM, STRAIGHT_SPEED);
+    turnToHeading(HEADING_12_TO_9_2);
     blindDriveUntilLine(); 
     
     if (stopAtEnd) {
@@ -158,13 +154,9 @@ static void stepNode(int from, int to, bool stopAtEnd) {
     }
   } 
   else if (from == 11 && to == 9) { 
-    turnToHeading(HEADING_11_TO_12); 
-    long startEnc = abs(prizm.readEncoderCount(1));
-    while(abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_11_TO_12_CM)) { 
-       drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-       liftUpTick(); liftDownTick();
-    }
-    turnToHeading(HEADING_12_TO_9_2); 
+    turnToHeading(HEADING_11_TO_12);
+    driveDistance(DIST_11_TO_12_CM, STRAIGHT_SPEED);
+    turnToHeading(HEADING_12_TO_9_2);
     blindDriveUntilLine(); 
     
     if (stopAtEnd) {

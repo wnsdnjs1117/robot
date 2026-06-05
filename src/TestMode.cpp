@@ -142,73 +142,41 @@ static void _mtBrake() {
 }
 
 static void _mtMove(float cm, int speed) {
-  int max_spd = constrain(abs(speed), 1, 100);
-  int dir = (cm >= 0) ? 1 : -1; 
+  int spd = constrain(abs(speed), 1, 100);
+  int dir = (cm >= 0) ? 1 : -1;
   float absCm = fabs(cm);
-  float compCm = absCm;
-  
-  if (absCm >= 2.0) { compCm = (absCm - 1.0) * 1.0; }
+  float compCm = (absCm >= 2.0) ? (absCm - 1.0) : absCm;
   long targetCounts = CM(compCm);
-  if (targetCounts <= 0) return; 
-  
-  long rampCounts = (long)(targetCounts * 0.3f);
-  if (rampCounts < 1) rampCounts = 1;
+  if (targetCounts <= 0) return;
 
   prizm.resetEncoders(); _mtWait(40);
-  
+
+  // 칼각: 일정 속도로 이동 후 즉시 제동
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
-    long error = targetCounts - pos;
-    if (error <= 0) break;
-    
-    float spd_accel = max_spd;
-    float spd_decel = max_spd;
-
-    if (pos < rampCounts) { spd_accel = 20.0 + (max_spd - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0)); }
-    if (error < rampCounts) { spd_decel = 20.0 + (max_spd - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0)); }
-    
-    int spd = (int)min(spd_accel, spd_decel);
-    if (spd > max_spd) spd = max_spd;
-    if (spd < 20) spd = 20;
-
+    if (targetCounts - pos <= 0) break;
     drive(spd * dir, spd * dir);
   }
   _mtBrake();
 }
 
 static void _mtTurn(float deg, int speed) {
-  int max_spd = constrain(abs(speed), 1, 100);
+  int spd = constrain(abs(speed), 1, 100);
   bool right = (deg >= 0);
-  
+
   float absDeg = fabs(deg);
-  
-  // ★ 스마트 각도 보정 (테스트 모드에도 동일하게 반영)
-  float slipCompensation = (absDeg / 90.0) * 2.5; 
-  float compDeg = absDeg - slipCompensation;
-  
+  // ★ 스마트 각도 보정 (관성 미끄러짐 예측 — 칼각 정지 시 오버슈트 보정)
+  float compDeg = absDeg - (absDeg / 90.0) * 2.5;
+
   long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg);
   if (targetCounts <= 0) return;
-  
-  long rampCounts = (long)(targetCounts * 0.3f);
-  if (rampCounts < 1) rampCounts = 1;
 
   prizm.resetEncoders(); _mtWait(40);
-  
+
+  // 칼각: 일정 속도로 회전 후 즉시 제동
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
-    long error = targetCounts - pos;
-    if (error <= 0) break;
-    
-    float spd_accel = max_spd;
-    float spd_decel = max_spd;
-
-    if (pos < rampCounts) { spd_accel = 20.0 + (max_spd - 20.0) * sin(((float)pos / rampCounts) * (PI / 2.0)); }
-    if (error < rampCounts) { spd_decel = 20.0 + (max_spd - 20.0) * sin(((float)error / rampCounts) * (PI / 2.0)); }
-    
-    int spd = (int)min(spd_accel, spd_decel);
-    if (spd > max_spd) spd = max_spd;
-    if (spd < 20) spd = 20;
-
+    if (targetCounts - pos <= 0) break;
     if (right) drive(spd, -spd);
     else       drive(-spd, spd);
   }

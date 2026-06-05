@@ -1,5 +1,5 @@
 /* ============================================================
- * Motion.cpp - 듀얼 PID 조향 및 무중단 가감속 이동 (가감속 30% 비율 적용)
+ * Motion.cpp - 듀얼 PID 조향 및 칼각(일정 속도→즉시 정지) 이동
  * ============================================================ */
 #include "Motion.h"
 #include "Config.h"
@@ -10,9 +10,6 @@
 #include <math.h>
 
 bool enableEdgeSteering = false;
-
-// S-커브 가감속 속도 계산 (정의는 [6]) — turnAngle 등에서 미리 사용
-static int sCurveSpeed(long pos, long error, long rampCounts, int maxSpd);
 
 // ── [0] Non-Blocking 비동기 대기 ──
 void safeDelay(unsigned long ms) {
@@ -121,29 +118,23 @@ void turnAngle(int degrees, bool isRight) {
   long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg);
   if (targetCounts <= 0) return;
 
-  long rampCounts = (long)(targetCounts * 0.3f);
-  if (rampCounts < 1) rampCounts = 1; 
-
   long startL = prizm.readEncoderCount(1);
   long startR = prizm.readEncoderCount(2);
 
+  // 칼각 회전: 일정 속도(SPIN_SPEED)로 돌다 목표 도달 즉시 제동
   while (true) {
     long dL = labs(prizm.readEncoderCount(1) - startL);
     long dR = labs(prizm.readEncoderCount(2) - startR);
     long pos = (dL + dR) / 2;
+    if (targetCounts - pos <= 0) break;
 
-    long error = targetCounts - pos;
-    if (error <= 0) break;
-
-    int spd = sCurveSpeed(pos, error, rampCounts, SPIN_SPEED);
-
-    if (isRight) drive(spd, -spd);
-    else drive(-spd, spd);
+    if (isRight) drive(SPIN_SPEED, -SPIN_SPEED);
+    else drive(-SPIN_SPEED, SPIN_SPEED);
 
     liftUpTick(); liftDownTick();
   }
-  
-  stopAll(); 
+
+  stopAll();
 }
 
 // ── [3] 센서 읽기 ───────────
@@ -283,68 +274,34 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
   reverseLineFollowStep(RL, RC, RR, FL, FC, FR, BACK_SPEED);
 }
 
-// ── [6] ★ S-커브 가감속 이동 ───────────
-// 출발/도착 구간(거리의 30%)에서 sin 곡선으로 부드럽게 가감속해 바퀴 미끄러짐을 막는다.
-// 어떤 경우에도 MIN_MOVE_SPEED 밑으로 떨어지지 않고, 목표 엔코더에 도달한 뒤 stopAll()로 제동한다.
-// 도착 구간(error < rampCounts)에서만 sin 곡선으로 감속. 그 외는 maxSpd로 순항.
-static int decelSpeed(long error, long rampCounts, int maxSpd) {
-  float s = maxSpd;
-  if (error < rampCounts) {
-    s = MIN_MOVE_SPEED + (maxSpd - MIN_MOVE_SPEED) * sin(((float)error / rampCounts) * (PI / 2.0));
-  }
-  return constrain((int)s, MIN_MOVE_SPEED, maxSpd);
-}
-
-static int sCurveSpeed(long pos, long error, long rampCounts, int maxSpd) {
-  float spd_accel = maxSpd;
-  if (pos < rampCounts) {
-    spd_accel = MIN_MOVE_SPEED + (maxSpd - MIN_MOVE_SPEED) * sin(((float)pos / rampCounts) * (PI / 2.0));
-  }
-  int spd = (int)min((int)spd_accel, decelSpeed(error, rampCounts, maxSpd));
-  return constrain(spd, MIN_MOVE_SPEED, maxSpd);
-}
-
-void driveStraightSmooth(float cm, int maxSpd) {
-  long startEnc = labs(prizm.readEncoderCount(1));
-  long targetCounts = CM(cm);
-  if (targetCounts <= 0) return;
-
-  long rampCounts = (long)(targetCounts * 0.3f);
-  if (rampCounts < 1) rampCounts = 1;
-
-  while (true) {
-    long pos = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-    long error = targetCounts - pos;
-    if (error <= 0) break;
-
-    int currentSpd = sCurveSpeed(pos, error, rampCounts, maxSpd);
-    drive(currentSpd, currentSpd);
-    liftUpTick(); liftDownTick();
-  }
-  stopAll();
-}
-
-// 진입 속도로 순항하다 막판 30%에서만 감속해 최저속으로 목표 도달 → 125 제동.
-// (전체 거리 감속처럼 미리 기어들지 않으므로 "멈칫"이 사라지고, 종단 속도/정지 위치는 동일)
-void driveExtraDecel(float cm, int startSpd) {
+// ── [6] ★ 고정 거리 이동 (칼각: 일정 속도 → 즉시 정지) ───────────
+// 가감속(S-커브) 없이 목표 엔코더까지 일정 속도(speed, 음수면 후진)로 이동하고
+// 도달 즉시 125 제동. 주행 중 '이동 예정' 거리와 '남은 거리'를 cm로 출력한다.
+void driveDistance(float cm, int speed) {
   long startEnc = labs(prizm.readEncoderCount(1));
   long targetCounts = CM(cm);
   if (targetCounts <= 0) { stopAll(); return; }
 
-  int absStart = abs(startSpd);
-  long rampCounts = (long)(targetCounts * 0.3f);
-  if (rampCounts < 1) rampCounts = 1;
+  DPRINTF("\n>> 이동 예정 "); DPRINT(cm); DPRINTLNF(" cm");
 
+  unsigned long lastPrint = 0;
   while (true) {
     long pos = labs(labs(prizm.readEncoderCount(1)) - startEnc);
     long error = targetCounts - pos;
     if (error <= 0) break;
 
-    int mag = decelSpeed(error, rampCounts, absStart);
-    if (startSpd < 0) mag = -mag;
+    unsigned long now = millis();
+    if (now - lastPrint >= 200) {
+      DPRINTF("   남은 거리 "); DPRINT((float)error / COUNTS_PER_CM); DPRINTLNF(" cm");
+      lastPrint = now;
+    }
 
-    drive(mag, mag);
+    drive(speed, speed);
     liftUpTick(); liftDownTick(); scanTick();
   }
   stopAll();
 }
+
+// 기존 호출부 호환용 래퍼 (이제 모두 칼각 일정 속도 이동)
+void driveStraightSmooth(float cm, int maxSpd) { driveDistance(cm, maxSpd); }
+void driveExtraDecel(float cm, int startSpd)   { driveDistance(cm, startSpd); }

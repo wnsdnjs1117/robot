@@ -120,10 +120,6 @@ constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;
 constexpr int SPIN_SPEED = 40;
 constexpr int SPIN_90_COUNTS = 1185;
 
-// ★ 가감속 시 최소 이동 속도 — 목표 엔코더 도달 전까지 이 속도 밑으로 떨어지지 않는다.
-//   (목표에 도달하면 125로 제동. "미리 멈추기" 방지)
-constexpr int MIN_MOVE_SPEED = 20;
-
 // 전/후진 듀얼 PID 세팅 (★ e9a612c 검증 세팅과 완전 동일 — 스무스 이동과 무관하게 고정)
 constexpr float LINE_KP_FWD_SOFT = 0.6f;
 constexpr float LINE_KP_FWD_HARD = 3.5f;

@@ -26,9 +26,10 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR);
 void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR, int baseSpeed);
 
 // ============================================================
-// ★ S-커브 가감속 이동 함수들 (부드러운 출발 및 정지)
+// ★ 고정 거리 이동 (칼각: 일정 속도 → 즉시 정지, 이동/남은 거리 cm 출력)
 // ============================================================
-void driveStraightSmooth(float cm, int maxSpd);       // 센서 없이 직진 (가감속)
-void driveExtraDecel(float cm, int startSpd);         // ★ 블라인드 탐지 후 바퀴 축까지 부드럽게 감속 정지
+void driveDistance(float cm, int speed);              // 일정 속도 직진/후진(음수=후진) 후 즉시 정지
+void driveStraightSmooth(float cm, int maxSpd);       // (호환 래퍼) driveDistance 호출
+void driveExtraDecel(float cm, int startSpd);         // (호환 래퍼) driveDistance 호출
 
 #endif
