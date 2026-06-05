@@ -82,7 +82,7 @@ void enterZone(int zone) {
     if (armed && !anyRearLine(RL, RC, RR)) break;            // 후방 라인 끊김 = 기준점
 
     lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_ENTRY_BLIND_SPEED);
-    liftUpTick(); liftDownTick();
+    liftUpTick(); liftDownTick(); scanTick();
   }
 
   driveExtraDecel(c.entryFwdExtra, ZONE_ENTRY_BLIND_SPEED);
@@ -106,7 +106,7 @@ void reverseEnterZone(int zone) {
     if (armed && !anyLine(L, C, R)) break;                   // 전방 라인 끊김 = 기준점
 
     reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
-    liftUpTick(); liftDownTick();
+    liftUpTick(); liftDownTick(); scanTick();
   }
 
   driveExtraDecel(c.entryRevExtra, -ZONE_ENTRY_BLIND_BACK_SPEED);
@@ -123,7 +123,7 @@ void reverseAcrossToOppositeZone(int zone) {
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     if (anyRearLine(RL, RC, RR)) break;
     drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
-    liftUpTick(); liftDownTick();
+    liftUpTick(); liftDownTick(); scanTick();
   }
 
   long s = labs(prizm.readEncoderCount(1));
@@ -138,7 +138,7 @@ void reverseAcrossToOppositeZone(int zone) {
     if (d > CM(ZONE_CROSS_MIN_CM) && armed && !anyLine(L, C, R)) break;
 
     reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
-    liftUpTick(); liftDownTick();
+    liftUpTick(); liftDownTick(); scanTick();
   }
 
   driveExtraDecel(c.entryRevExtra, -ZONE_ENTRY_BLIND_BACK_SPEED);
@@ -225,22 +225,51 @@ void returnToFinish() {
   prizm.setGreenLED(HIGH);
 }
 
-int qrSearchStage() {
-  int randomFound = 0;
-  turnToHeading(0); enterZone(2); lastEntryWasForward = true;
-  if (scanZone(2)) randomFound++;
-  if (randomFound >= 2) { stopAll(); printSearchResult(); return 2; }
+// 1~4구역 중 박스를 인식한 개수
+static int countFound1to4() {
+  int c = 0;
+  for (int z = 1; z <= 4; z++) if (boxes[z].found) c++;
+  return c;
+}
 
-  reverseAcrossToOppositeZone(4); lastEntryWasForward = false;
-  if (scanZone(4)) randomFound++;
-  if (randomFound >= 2) { stopAll(); printSearchResult(); return 4; }
+// 1패스: 2→4→1→3 순으로 진입+대기 스캔. 박스는 정확히 2개이므로 2개 찾으면 조기 종료.
+// 각 존 진입 직전 arm, 다음 존으로 횡단하기 직전 disarm(융합 역방향 횡단에서 오귀속 방지).
+int qrSearchStage() {
+  scanArm(2); turnToHeading(0); enterZone(2); lastEntryWasForward = true;
+  scanZone(2);
+  if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 2; }
+  scanDisarm();
+
+  scanArm(4); reverseAcrossToOppositeZone(4); lastEntryWasForward = false;
+  scanZone(4);
+  if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 4; }
+  scanDisarm();
 
   followToCrossing(); turnAngle(90, false); followToCrossing(); turnAngle(90, true);
-  enterZone(1); lastEntryWasForward = true;
-  if (scanZone(1)) randomFound++;
-  if (randomFound >= 2) { stopAll(); printSearchResult(); return 1; }
+  scanArm(1); enterZone(1); lastEntryWasForward = true;
+  scanZone(1);
+  if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 1; }
+  scanDisarm();
 
-  enableEdgeSteering = true; reverseAcrossToOppositeZone(3); enableEdgeSteering = false;
-  lastEntryWasForward = false; scanZone(3); stopAll(); printSearchResult();
+  scanArm(3); enableEdgeSteering = true; reverseAcrossToOppositeZone(3); enableEdgeSteering = false;
+  lastEntryWasForward = false; scanZone(3); scanDisarm();
+  stopAll(); printSearchResult();
   return 3;
+}
+
+// 1패스 후 인식<2면, 미발견 존(빈 존 포함)을 재진입해 2개 찾을 때까지 재스캔.
+// (빈 존 2개가 있으므로 종료 조건은 '인식수==2'. MAX_RESCAN_TRIES로 무한루프 방지)
+void rescanZones1to4() {
+  int tries = 0;
+  while (countFound1to4() < 2 && tries < MAX_RESCAN_TRIES) {
+    for (int z = 1; z <= 4 && countFound1to4() < 2; z++) {
+      if (boxes[z].found) continue;
+      scanArm(z);
+      goToZoneDirect(z);   // 진입 스캔
+      scanZone(z);         // 대기 스캔
+      exitZone(z);         // 탈출 스캔 후 노드 복귀
+      scanDisarm();
+    }
+    tries++;
+  }
 }

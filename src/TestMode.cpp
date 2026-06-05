@@ -9,6 +9,7 @@
 #include "TestMode.h"
 #include "Motion.h"
 #include "Lift.h"
+#include "HuskyQR.h"
 
 // ── [1] 센서 테스트 모드 ───────────────────────────────────────
 static unsigned long _stLastPrint = 0;
@@ -266,7 +267,36 @@ static bool loopMoveTest() {
   return true;
 }
 
-// ── [4] 통합 테스트 메뉴 ───────────────────────────────────────────
+// ── [4] QR(HuskyLens) 인식 테스트 모드 ──────────────────────────────
+static unsigned long _qrLastPrint = 0;
+
+static void setupQrTest() {
+  HuskyQR::begin();   // Wire는 PrizmBegin()이 이미 시작함
+  Serial.println(F("HuskyLens QR 인식 테스트 — QR을 카메라에 비추세요."));
+  Serial.println(F("각 박스 QR이 ID 1~6으로 학습돼 있어야 합니다. (q=종료)"));
+  _qrLastPrint = millis();
+}
+
+static bool loopQrTest() {
+  if (Serial.available()) {
+    char c = Serial.peek();
+    if (c == 'q' || c == 'Q') { Serial.read(); return false; }
+  }
+  unsigned long now = millis();
+  if (now - _qrLastPrint >= 200) {
+    int id = HuskyQR::readBoxId();
+    if (id >= 1 && id <= 6) {
+      Serial.print(F("인식 ID(목적지): ")); Serial.println(id);
+      beep(120);
+    } else {
+      Serial.println(F("...(인식 없음)"));
+    }
+    _qrLastPrint = now;
+  }
+  return true;
+}
+
+// ── [5] 통합 테스트 메뉴 ───────────────────────────────────────────
 void runTestMenu() {
   stopAll(); 
   
@@ -276,16 +306,17 @@ void runTestMenu() {
   Serial.println(F("[c] 변경  |  [e] 선택/실행  |  [q] 종료"));
   
   int mode = 0;
-  const char* names[] = {"[1] 센서 테스트", "[2] 리프트 테스트", "[3] 이동/회전 테스트"};
+  const char* names[] = {"[1] 센서 테스트", "[2] 리프트 테스트", "[3] 이동/회전 테스트", "[4] QR 인식 테스트"};
+  const int MODE_COUNT = 4;
   Serial.print(F("\n▶ 현재 선택: ")); Serial.println(names[mode]);
 
   while(true) {
     if(Serial.available()) {
       char c = Serial.read();
       if(c == 'c' || c == 'C') {
-        mode = (mode + 1) % 3;
+        mode = (mode + 1) % MODE_COUNT;
         Serial.print(F("▶ 현재 선택: ")); Serial.println(names[mode]);
-      } 
+      }
       else if(c == 'e' || c == 'E') {
         Serial.println(F("\n----------------------------------"));
         Serial.print(F(" 실행 중: ")); Serial.println(names[mode]);
@@ -301,6 +332,9 @@ void runTestMenu() {
         } else if(mode == 2) {
           setupMoveTest();
           while(loopMoveTest()) { liftUpTick(); liftDownTick(); }
+        } else if(mode == 3) {
+          setupQrTest();
+          while(loopQrTest()) { delay(1); }
         }
         
         Serial.println(F("\n=================================="));

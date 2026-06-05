@@ -6,8 +6,37 @@
 #include <Arduino.h>
 
 #include "Config.h"
+#include "Motion.h"   // beep()
+#if !QR_SIMULATION
+#include "HuskyQR.h"  // 실제 QR 리더
+#endif
 
 BoxInfo boxes[7];
+
+// ── QR 연속 스캔 상태 ──
+volatile int g_scanTargetZone = 0;
+void scanArm(int zone) { g_scanTargetZone = zone; }
+void scanDisarm()      { g_scanTargetZone = 0; }
+
+void scanTick() {
+  int z = g_scanTargetZone;
+  if (z == 0 || boxes[z].found) return;          // 비활성 또는 이미 인식
+  static unsigned long last = 0;
+  if (millis() - last < SCAN_POLL_MS) return;    // 스티어링 루프 보호용 throttle
+  last = millis();
+#if QR_SIMULATION
+  // 가상: 박스 존재를 곧 인식으로 간주(목적지는 setupRandomLayout가 채움)
+  if (boxes[z].present) { boxes[z].found = true; beep(120); }
+#else
+  int id = HuskyQR::readBoxId();
+  if (id >= 1 && id <= 6) {
+    boxes[z].found = true;
+    boxes[z].present = true;
+    boxes[z].destination = id;   // 읽은 QR ID가 곧 목적지 존
+    beep(120);
+  }
+#endif
+}
 
 static void printZoneName(int z) {
   if (z == ZONE_IN)
@@ -71,19 +100,23 @@ void setupRandomLayout() {
   DPRINTLNF("========================================");
 }
 
+// 존에서 정지한 채 최대 SCAN_DWELL_MS 동안 QR을 계속 스캔(인식되면 조기 종료).
+// 진입/탈출 모션 중에도 scanTick()이 돌므로 여기 도착 전에 이미 래치됐을 수 있다.
+// disarm은 호출자(탐색 헬퍼)가 탈출까지 끝난 뒤 수행 → 탈출 중에도 계속 스캔.
 bool scanZone(int zone) {
   DPRINTF(">> [SCAN] ");
   printZoneName(zone);
-  if (boxes[zone].present) {
-    boxes[zone].found = true;
+  scanArm(zone);
+  unsigned long end = millis() + SCAN_DWELL_MS;
+  while (millis() < end && !boxes[zone].found) { scanTick(); }
+  if (boxes[zone].found) {
     DPRINTF(" -> 발견! (목적지: ");
     DPRINT(boxes[zone].destination);
     DPRINTLNF(")");
     return true;
-  } else {
-    DPRINTLNF(" -> 비어 있음");
-    return false;
   }
+  DPRINTLNF(" -> 미인식");
+  return false;
 }
 
 void printSearchResult() {

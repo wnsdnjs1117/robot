@@ -5,7 +5,8 @@
 #include "Config.h"
 #include "Motion.h"
 #include "Navigation.h"
-#include "Lift.h" 
+#include "Lift.h"
+#include "BoxMap.h"   // scanTick (QR 연속 스캔: 탈출 중에도 스캔)
 
 int robotHeading = 0;  
 int currentNode = 11;
@@ -220,7 +221,7 @@ static void exitTraceDist(float totalCm, float offAfterCm, bool forward) {
       if (mask) { RL = RC = RR = 0; }
       reverseLineFollowStep(RL, RC, RR, L, C, R);
     }
-    liftUpTick(); liftDownTick();
+    liftUpTick(); liftDownTick(); scanTick();
   }
 }
 
@@ -230,7 +231,7 @@ static void exitRev56(float armCm) {
     int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
     if (abs(abs(prizm.readEncoderCount(1)) - startEnc) > CM(armCm) && !anyRearLine(RL, RC, RR)) break;
     reverseLineFollowStep(RL, RC, RR, L, C, R);
-    liftUpTick(); liftDownTick();
+    liftUpTick(); liftDownTick(); scanTick();
   }
 }
 
@@ -243,16 +244,16 @@ void exitZone(int zone) {
   if (lastEntryWasForward) {
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-       if (anyRearLine(RL, RC, RR)) break; 
+       if (anyRearLine(RL, RC, RR)) break;
        drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
-       liftUpTick(); liftDownTick();
+       liftUpTick(); liftDownTick(); scanTick();
     }
   } else {
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-       if (anyLine(L, C, R)) break; 
+       if (anyLine(L, C, R)) break;
        drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
-       liftUpTick(); liftDownTick();
+       liftUpTick(); liftDownTick(); scanTick();
     }
   }
 
@@ -262,12 +263,12 @@ void exitZone(int zone) {
        while (true) {
           int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
           if (RL && RC && RR) break;
-          reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick();
+          reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick(); scanTick();
        }
        long alignEnc = abs(prizm.readEncoderCount(1));
        while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(c.exitAlignRev)) {
           drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
-          liftUpTick(); liftDownTick();
+          liftUpTick(); liftDownTick(); scanTick();
        }
     } else if (c.exitRevArm > 0.0f) {   // 5·6 예외: 일정거리 후 후방감지 → 라인 끊김 즉시 정지
        exitRev56(c.exitRevArm);
@@ -279,12 +280,12 @@ void exitZone(int zone) {
        while (true) {
           int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
           if (L && C && R) break;
-          lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
+          lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick(); scanTick();
        }
        long alignEnc = abs(prizm.readEncoderCount(1));
        while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(c.exitAlignFwd)) {
           drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
-          liftUpTick(); liftDownTick();
+          liftUpTick(); liftDownTick(); scanTick();
        }
     } else {                            // 1·3·5·6: 전방센서 라인 닿음 기준 일정거리 추가 전진
        exitTraceDist(c.exitFwdExtra, c.exitFwdSensorOff, true);

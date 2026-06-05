@@ -7,6 +7,7 @@
 extern bool enableEdgeSteering;
 
 void safeDelay(unsigned long ms);
+void beep(unsigned long ms);
 void drive(int l, int r);
 void stopAll();
 void turnAngle(int degrees, bool isRight);

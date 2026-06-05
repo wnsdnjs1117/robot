@@ -3,8 +3,9 @@
  * ============================================================ */
 #include "Motion.h"
 #include "Config.h"
-#include "MapRouter.h" 
-#include "Lift.h" 
+#include "MapRouter.h"
+#include "Lift.h"
+#include "BoxMap.h"   // scanTick (QR 연속 스캔)
 #include "TestMode.h" // 디버그 키 감지용
 #include <math.h>
 
@@ -20,6 +21,17 @@ void safeDelay(unsigned long ms) {
     liftUpTick(); liftDownTick();
     checkDebugKey();
   }
+}
+
+// ── 부저 (QR 인식음 / 종료음 공용) ──
+void beep(unsigned long ms) {
+  pinMode(BUZZER_PIN, OUTPUT);
+  unsigned long end = millis() + ms;
+  while (millis() < end) {
+    digitalWrite(BUZZER_PIN, HIGH); delayMicroseconds(500);
+    digitalWrite(BUZZER_PIN, LOW);  delayMicroseconds(500);
+  }
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
 // ── [1] 모터 구동 및 급정지 ───────────────
@@ -332,7 +344,7 @@ void driveExtraDecel(float cm, int startSpd) {
     if (startSpd < 0) mag = -mag;
 
     drive(mag, mag);
-    liftUpTick(); liftDownTick();
+    liftUpTick(); liftDownTick(); scanTick();
   }
   stopAll();
 }

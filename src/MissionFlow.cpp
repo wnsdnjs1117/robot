@@ -29,14 +29,23 @@ void executeStage1_Search() {
 
   exitZone(foundZone);
 
-  goToZoneDirect(5);
-  scanZone(5);
+  // ★ 1~4구역: 박스 2개를 모두 인식할 때까지 미발견 존 재진입 스캔
+  rescanZones1to4();
 
-  exitZone(5);
-  goToZoneDirect(6);
-  scanZone(6);
+  // ★ 5구역: 항상 박스가 있으므로 인식될 때까지 재진입(진입·대기·탈출 내내 스캔)
+  scanArm(5); goToZoneDirect(5); scanZone(5);
+  for (int t = 0; !boxes[5].found && t < MAX_RESCAN_TRIES; t++) {
+    exitZone(5); goToZoneDirect(5); scanZone(5);
+  }
+  exitZone(5); scanDisarm();
 
-  // exitZone(6); // ★ 6구역 탈출은 2단계 배송 시에 상황에 맞게 자동으로 이루어지므로 생략
+  // ★ 6구역: 항상 박스가 있으므로 인식될 때까지 재진입(인식 후엔 존 안에 머무름)
+  scanArm(6); goToZoneDirect(6); scanZone(6);
+  for (int t = 0; !boxes[6].found && t < MAX_RESCAN_TRIES; t++) {
+    exitZone(6); goToZoneDirect(6); scanZone(6);
+  }
+  scanDisarm();
+  // ★ 6구역 탈출은 2단계 배송 시에 상황에 맞게 자동으로 이루어지므로 생략
 
   DPRINTLNF(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!");
   DPRINTLNF("========================================\n");

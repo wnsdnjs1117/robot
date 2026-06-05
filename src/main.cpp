@@ -10,6 +10,7 @@
 #include "MissionFlow.h"
 #include "Motion.h"
 #include "Navigation.h"
+#include "HuskyQR.h"
 
 #if RUN_TEST_MODE == 1
 #include "TestMode.h"
@@ -74,8 +75,14 @@ void setup() {
   pinMode(SENSOR_REAR_RIGHT, INPUT);
   prizm.resetEncoders();
 
-  // 가상 맵 데이터 생성
+#if QR_SIMULATION
+  // 가상 맵 데이터 생성 (카메라/박스 없이 전체 미션 테스트)
   setupRandomLayout();
+#else
+  // 실제 QR: 박스맵은 0에서 시작해 스캔으로만 채워진다
+  for (int i = 0; i < 7; i++) { boxes[i].present = false; boxes[i].found = false; boxes[i].destination = 0; }
+  HuskyQR::begin();   // Wire는 PrizmBegin()이 이미 시작함
+#endif
 
   Serial.println(F("시스템 준비 완료. 초록색 Start 버튼을 누르면 자율 주행을 시작합니다."));
 

@@ -12,7 +12,20 @@
 // 0: 대회용 자율 주행 펌웨어 컴파일 (테스트 코드가 0 byte가 됨)
 // 1: 하드웨어 테스트 전용 펌웨어 컴파일 (자율 주행 코드 제외)
 // ============================================================
-#define RUN_TEST_MODE 0 
+#define RUN_TEST_MODE 0
+
+// ============================================================
+// ★ [QR 시뮬레이션] ★
+// 0: 실제 HuskyLens로 QR ID를 읽어 박스 목적지 결정
+// 1: 가상 박스맵(setupRandomLayout)으로 동작 — 카메라/박스 없이 전체 미션 테스트
+// ============================================================
+#define QR_SIMULATION 0
+
+// ── HuskyLens / 스캔 파라미터 ──
+constexpr uint8_t HUSKY_I2C_ADDR = 0x32;        // HuskyLens I2C 주소
+constexpr int MAX_RESCAN_TRIES = 5;             // 재스캔 무한루프 안전 상한
+constexpr unsigned long SCAN_DWELL_MS = 3000;   // 존 내 정지 스캔(대기) 시간
+constexpr unsigned long SCAN_POLL_MS  = 50;     // scanTick I2C 폴링 간격(스티어링 보호)
 
 // ── [디버깅 모드] ──────────────────────────────────────────
 #define ROBOT_DEBUG 1  

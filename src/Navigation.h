@@ -14,5 +14,6 @@ void reverseAcrossToOppositeZone(int zone);
 void goToMainLine();
 void returnToFinish();
 int qrSearchStage();
+void rescanZones1to4();   // 1~4구역 박스 2개를 모두 인식할 때까지 미발견 존 재스캔
 
 #endif
