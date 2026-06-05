@@ -274,16 +274,21 @@ void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
 // ── [6] ★ S-커브 가감속 이동 ───────────
 // 출발/도착 구간(거리의 30%)에서 sin 곡선으로 부드럽게 가감속해 바퀴 미끄러짐을 막는다.
 // 어떤 경우에도 MIN_MOVE_SPEED 밑으로 떨어지지 않고, 목표 엔코더에 도달한 뒤 stopAll()로 제동한다.
+// 도착 구간(error < rampCounts)에서만 sin 곡선으로 감속. 그 외는 maxSpd로 순항.
+static int decelSpeed(long error, long rampCounts, int maxSpd) {
+  float s = maxSpd;
+  if (error < rampCounts) {
+    s = MIN_MOVE_SPEED + (maxSpd - MIN_MOVE_SPEED) * sin(((float)error / rampCounts) * (PI / 2.0));
+  }
+  return constrain((int)s, MIN_MOVE_SPEED, maxSpd);
+}
+
 static int sCurveSpeed(long pos, long error, long rampCounts, int maxSpd) {
   float spd_accel = maxSpd;
-  float spd_decel = maxSpd;
   if (pos < rampCounts) {
     spd_accel = MIN_MOVE_SPEED + (maxSpd - MIN_MOVE_SPEED) * sin(((float)pos / rampCounts) * (PI / 2.0));
   }
-  if (error < rampCounts) {
-    spd_decel = MIN_MOVE_SPEED + (maxSpd - MIN_MOVE_SPEED) * sin(((float)error / rampCounts) * (PI / 2.0));
-  }
-  int spd = (int)min(spd_accel, spd_decel);
+  int spd = (int)min((int)spd_accel, decelSpeed(error, rampCounts, maxSpd));
   return constrain(spd, MIN_MOVE_SPEED, maxSpd);
 }
 
@@ -307,25 +312,27 @@ void driveStraightSmooth(float cm, int maxSpd) {
   stopAll();
 }
 
+// 진입 속도로 순항하다 막판 30%에서만 감속해 최저속으로 목표 도달 → 125 제동.
+// (전체 거리 감속처럼 미리 기어들지 않으므로 "멈칫"이 사라지고, 종단 속도/정지 위치는 동일)
 void driveExtraDecel(float cm, int startSpd) {
   long startEnc = labs(prizm.readEncoderCount(1));
   long targetCounts = CM(cm);
   if (targetCounts <= 0) { stopAll(); return; }
 
   int absStart = abs(startSpd);
+  long rampCounts = (long)(targetCounts * 0.3f);
+  if (rampCounts < 1) rampCounts = 1;
 
   while (true) {
-    long currentEnc = labs(prizm.readEncoderCount(1));
-    long pos = labs(currentEnc - startEnc);
-    if (pos >= targetCounts) break;
+    long pos = labs(labs(prizm.readEncoderCount(1)) - startEnc);
+    long error = targetCounts - pos;
+    if (error <= 0) break;
 
-    float progress = (float)pos / targetCounts;
-    int currentMag = MIN_MOVE_SPEED + (absStart - MIN_MOVE_SPEED) * cos(progress * (PI / 2.0));
+    int mag = decelSpeed(error, rampCounts, absStart);
+    if (startSpd < 0) mag = -mag;
 
-    if (startSpd < 0) currentMag = -currentMag;
-    
-    drive(currentMag, currentMag);
+    drive(mag, mag);
     liftUpTick(); liftDownTick();
   }
-  stopAll(); 
+  stopAll();
 }

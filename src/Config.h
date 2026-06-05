@@ -60,22 +60,39 @@ constexpr float DIST_ZONE_DEPTH_CM = 20.0f;
 constexpr float LINE_LEN_ZONE_12_CM = 28.0f;          
 constexpr float LINE_LEN_ZONE_3456_CM = 30.0f;        
 
-constexpr float ENTRY_FWD_EXTRA_CM = 26.0f;           
-constexpr float ENTRY_REV_EXTRA_CM = 3.0f;            
+// ★ 반대편 존으로 후진 횡단 시 최소 이동 거리(가드)
+constexpr float ZONE_CROSS_MIN_CM = 40.0f;
 
-constexpr float EXIT_REV_EXTRA_1_CM = 33.5f;          
-constexpr float EXIT_FWD_EXTRA_1_CM = 35.5f;          
-constexpr float EXIT_REV_EXTRA_3_CM = 35.5f;          
-constexpr float EXIT_FWD_EXTRA_3_CM = 37.5f;          
+// ── [3-1] ★ 존(1~6) 진입/탈출 개별 설정 테이블 ──────────────────────────
+//  이 표만 고치면 각 존의 진입/탈출 동작을 따로 튜닝할 수 있다.
+//  (SRAM 절약: 전역 배열이 아닌 switch 접근자 → 상수는 플래시에 둔다)
+struct ZoneCfg {
+  // ── 진입 ──
+  float entryFwdExtra;     // 전진 진입: 후방센서 라인 끊김 후 추가 전진(cm)
+  float entryRevExtra;     // 후진 진입: 전방센서 라인 끊김 후 추가 후진(cm)
+  float entryFwdRearMute;  // 전진 진입 초반 후방센서 무시 거리(cm)
+  float entryRevFrontMute; // 후진 진입 초반 전방센서 무시 거리(cm)
+  // ── 탈출 (존1·3·5·6 = 거리식 / 존2·4 = 8번 노드 정렬식) ──
+  float exitFwdExtra;      // 전진 탈출: 후방센서 라인 닿음 후 추가 전진(cm)
+  float exitRevExtra;      // 후진 탈출: 전방센서 라인 닿음 후 추가 후진(cm)
+  float exitFwdSensorOff;  // 전진 탈출 중 진행센서 무시 시작 거리(cm, 0=안 씀)
+  float exitRevSensorOff;  // 후진 탈출 중 진행센서 무시 시작 거리(cm, 0=안 씀)
+  float exitRevArm;        // 후진 탈출 후방감지 개시 거리(cm, 5·6 예외용, 0=일반 거리식)
+  float exitAlignFwd;      // 8번 노드 전진 탈출 축정렬(cm) (존2·4)
+  float exitAlignRev;      // 8번 노드 후진 탈출 축정렬(cm) (존2·4)
+};
 
-constexpr float EXIT1_SENSOR_OFF_AFTER_CM = 27.0f;    
-constexpr float EXIT3_SENSOR_OFF_AFTER_CM = 29.0f;    
-constexpr float EXIT_REV_56_ARM_CM = 23.0f;           
-
-constexpr float ALIGN_AXIS_FRONT_CM = 7.5f;           
-constexpr float ALIGN_AXIS_REAR_CM = 5.5f;            
-constexpr float ENTRY_FWD_REAR_OFF_CM = 6.5f;         
-constexpr float ENTRY_REV_FRONT_OFF_CM = 8.5f;        
+inline ZoneCfg zoneCfg(int z) {
+  switch (z) {           // entryFwd,entryRev, FwdMute,RevMute, exitFwd,exitRev, FwdOff,RevOff, revArm, alignF,alignR
+    case 1: return {26.0f,3.0f, 6.5f,8.5f, 24.5f,22.5f, 27.0f,0.0f,  0.0f, 0.0f,0.0f};
+    case 2: return {26.0f,3.0f, 6.5f,8.5f, 24.5f,22.5f,  0.0f,0.0f,  0.0f, 7.5f,5.5f}; // 8번 노드 정렬
+    case 3: return {26.0f,3.0f, 6.5f,8.5f, 26.5f,24.5f, 29.0f,0.0f,  0.0f, 0.0f,0.0f};
+    case 4: return {26.0f,3.0f, 6.5f,8.5f, 26.5f,24.5f,  0.0f,0.0f,  0.0f, 7.5f,5.5f}; // 8번 노드 정렬
+    case 5: return {26.0f,3.0f, 0.0f,0.0f, 26.5f, 0.0f,  0.0f,0.0f, 23.0f, 0.0f,0.0f};
+    case 6: return {26.0f,3.0f, 0.0f,0.0f, 26.5f, 0.0f,  0.0f,0.0f, 23.0f, 0.0f,0.0f};
+    default:return {26.0f,3.0f, 0.0f,0.0f, 26.5f,24.5f,  0.0f,0.0f,  0.0f, 0.0f,0.0f};
+  }
+}
 
 // ── [4] 속도 및 조향 제어 ─────────────────────────────────────────
 constexpr int SPEED = 35;                

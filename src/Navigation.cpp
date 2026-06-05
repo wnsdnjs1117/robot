@@ -64,38 +64,60 @@ void followToCrossing(bool stopAtEnd) {
 void followToCrossing() { followToCrossing(true); }
 
 // ── [2] 존(구역) 진입 ────────────────
-void enterZone() {
+// ★ 전진 진입: 전방센서로 조향. 초반 후방센서 무시(교차로 선 오감지 방지) 후,
+//   후방(후행)센서가 라인을 봤다가 끊기는 지점 기준으로 추가 전진 → 리프트를 존 중앙에 안착.
+void enterZone(int zone) {
+  ZoneCfg c = zoneCfg(zone);
   lastSensorState = 0;
-  
+  long s = labs(prizm.readEncoderCount(1));
+  bool armed = false;
+
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (!anyLine(L, C, R)) break; 
-    lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_ENTRY_BLIND_SPEED); 
-    liftUpTick(); liftDownTick(); 
+    long d = labs(labs(prizm.readEncoderCount(1)) - s);
+
+    if (d < CM(c.entryFwdRearMute)) { RL = RC = RR = 0; }   // 초반 후방센서 무시
+    else if (anyRearLine(RL, RC, RR)) armed = true;          // 후방이 존 라인을 잡음
+    if (armed && !anyRearLine(RL, RC, RR)) break;            // 후방 라인 끊김 = 기준점
+
+    lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_ENTRY_BLIND_SPEED);
+    liftUpTick(); liftDownTick();
   }
 
-  // ★ 블라인드 탐지 후 바퀴 축까지 부드럽게 감속하여 완벽하게 안착
-  driveExtraDecel(ENTRY_FWD_EXTRA_CM, ZONE_ENTRY_BLIND_SPEED);
+  driveExtraDecel(c.entryFwdExtra, ZONE_ENTRY_BLIND_SPEED);
 }
 
-void reverseEnterZone() {
+// ★ 후진 진입: 후방센서로 조향. 초반 전방센서 무시 후,
+//   전방(후행)센서가 라인을 봤다가 끊기는 지점 기준으로 추가 후진.
+void reverseEnterZone(int zone) {
+  ZoneCfg c = zoneCfg(zone);
   lastSensorState = 0;
-  
+  long s = labs(prizm.readEncoderCount(1));
+  bool armed = false;
+
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (!anyRearLine(RL, RC, RR)) break; 
-    reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED); 
-    liftUpTick(); liftDownTick(); 
+    long d = labs(labs(prizm.readEncoderCount(1)) - s);
+
+    if (d < CM(c.entryRevFrontMute)) { L = C = R = 0; }      // 초반 전방센서 무시
+    else if (anyLine(L, C, R)) armed = true;                 // 전방이 존 라인을 잡음
+    if (armed && !anyLine(L, C, R)) break;                   // 전방 라인 끊김 = 기준점
+
+    reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
+    liftUpTick(); liftDownTick();
   }
 
-  // ★ 후진 존 진입 시에도 부드럽게 감속하여 안착
-  driveExtraDecel(ENTRY_REV_EXTRA_CM, -ZONE_ENTRY_BLIND_BACK_SPEED);
+  driveExtraDecel(c.entryRevExtra, -ZONE_ENTRY_BLIND_BACK_SPEED);
 }
 
-void reverseAcrossToOppositeZone() {
+// ★ 반대편 존으로 후진 횡단: ① 후방(선행)센서가 반대편 라인을 잡을 때까지 블라인드 후진,
+//   ② 반대편 라인을 후진 추종하다 전방(후행)센서 끊김에서 정지(최소 횡단거리 가드 적용).
+void reverseAcrossToOppositeZone(int zone) {
+  ZoneCfg c = zoneCfg(zone);
   lastSensorState = 0;
+
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -103,17 +125,23 @@ void reverseAcrossToOppositeZone() {
     drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick();
   }
-  
-  long startEnc = abs(prizm.readEncoderCount(1));
+
+  long s = labs(prizm.readEncoderCount(1));
+  bool armed = false;
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (abs(abs(prizm.readEncoderCount(1)) - startEnc) > CM(40.0f) && !anyRearLine(RL, RC, RR)) break;
+    long d = labs(labs(prizm.readEncoderCount(1)) - s);
+
+    if (d < CM(c.entryRevFrontMute)) { L = C = R = 0; }
+    else if (anyLine(L, C, R)) armed = true;
+    if (d > CM(ZONE_CROSS_MIN_CM) && armed && !anyLine(L, C, R)) break;
+
     reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick();
   }
-  
-  driveExtraDecel(ENTRY_REV_EXTRA_CM, -ZONE_ENTRY_BLIND_BACK_SPEED);
+
+  driveExtraDecel(c.entryRevExtra, -ZONE_ENTRY_BLIND_BACK_SPEED);
 }
 
 // ── [3] 탐색 및 시작/종료 처리 ────────────────
@@ -199,20 +227,20 @@ void returnToFinish() {
 
 int qrSearchStage() {
   int randomFound = 0;
-  turnToHeading(0); enterZone(); lastEntryWasForward = true;
+  turnToHeading(0); enterZone(2); lastEntryWasForward = true;
   if (scanZone(2)) randomFound++;
   if (randomFound >= 2) { stopAll(); printSearchResult(); return 2; }
-  
-  reverseAcrossToOppositeZone(); lastEntryWasForward = false;
+
+  reverseAcrossToOppositeZone(4); lastEntryWasForward = false;
   if (scanZone(4)) randomFound++;
   if (randomFound >= 2) { stopAll(); printSearchResult(); return 4; }
-  
+
   followToCrossing(); turnAngle(90, false); followToCrossing(); turnAngle(90, true);
-  enterZone(); lastEntryWasForward = true;
+  enterZone(1); lastEntryWasForward = true;
   if (scanZone(1)) randomFound++;
   if (randomFound >= 2) { stopAll(); printSearchResult(); return 1; }
-  
-  enableEdgeSteering = true; reverseAcrossToOppositeZone(); enableEdgeSteering = false;
+
+  enableEdgeSteering = true; reverseAcrossToOppositeZone(3); enableEdgeSteering = false;
   lastEntryWasForward = false; scanZone(3); stopAll(); printSearchResult();
   return 3;
 }

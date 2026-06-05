@@ -7,9 +7,9 @@
 void followToCrossing();
 void followToCrossing(bool stopAtEnd);  // ★ 누락되었던 오버로드 선언 추가
 
-void enterZone();
-void reverseEnterZone();
-void reverseAcrossToOppositeZone();
+void enterZone(int zone);
+void reverseEnterZone(int zone);
+void reverseAcrossToOppositeZone(int zone);
 
 void goToMainLine();
 void returnToFinish();

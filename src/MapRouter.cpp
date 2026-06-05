@@ -224,18 +224,19 @@ static void exitTraceDist(float totalCm, float offAfterCm, bool forward) {
   }
 }
 
-static void exitRev56() {
+static void exitRev56(float armCm) {
   long startEnc = abs(prizm.readEncoderCount(1));
   while (true) {
     int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (abs(abs(prizm.readEncoderCount(1)) - startEnc) > CM(EXIT_REV_56_ARM_CM) && !anyRearLine(RL, RC, RR)) break;
+    if (abs(abs(prizm.readEncoderCount(1)) - startEnc) > CM(armCm) && !anyRearLine(RL, RC, RR)) break;
     reverseLineFollowStep(RL, RC, RR, L, C, R);
     liftUpTick(); liftDownTick();
   }
 }
 
 void exitZone(int zone) {
-  int targetNode = zoneToNode(zone); 
+  int targetNode = zoneToNode(zone);
+  ZoneCfg c = zoneCfg(zone);
   if (targetNode == 7) enableEdgeSteering = true;
 
   lastSensorState = 0; 
@@ -256,39 +257,37 @@ void exitZone(int zone) {
   }
 
   // ★ 존 탈출 후 바퀴 정렬 시에도 리셋 없이 스무스하게 연결
-  if (lastEntryWasForward) { 
-    if (targetNode == 8) { 
+  if (lastEntryWasForward) {   // 정방향 진입 → 후진 탈출
+    if (targetNode == 8) {     // 8번 사거리: 1 1 1 감지 후 바퀴축 정렬
        while (true) {
           int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          if (RL && RC && RR) break; 
+          if (RL && RC && RR) break;
           reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick();
        }
        long alignEnc = abs(prizm.readEncoderCount(1));
-       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(ALIGN_AXIS_REAR_CM)) {
+       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(c.exitAlignRev)) {
           drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
           liftUpTick(); liftDownTick();
        }
-    } else {
-       if (zone == 1)      exitTraceDist(EXIT_REV_EXTRA_1_CM, EXIT1_SENSOR_OFF_AFTER_CM, false);
-       else if (zone == 3) exitTraceDist(EXIT_REV_EXTRA_3_CM, EXIT3_SENSOR_OFF_AFTER_CM, false);
-       else                exitRev56();
+    } else if (c.exitRevArm > 0.0f) {   // 5·6 예외: 일정거리 후 후방감지 → 라인 끊김 즉시 정지
+       exitRev56(c.exitRevArm);
+    } else {                            // 1·3 등: 후방센서 라인 닿음 기준 일정거리 추가 후진
+       exitTraceDist(c.exitRevExtra, c.exitRevSensorOff, false);
     }
-  } else { 
-    if (targetNode == 8) { 
+  } else {                     // 역방향 진입 → 전진 탈출
+    if (targetNode == 8) {     // 8번 사거리: 1 1 1 감지 후 바퀴축 정렬
        while (true) {
           int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          if (L && C && R) break; 
+          if (L && C && R) break;
           lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
        }
        long alignEnc = abs(prizm.readEncoderCount(1));
-       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(ALIGN_AXIS_FRONT_CM)) {
+       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(c.exitAlignFwd)) {
           drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
           liftUpTick(); liftDownTick();
        }
-    } else {
-       if (zone == 1)      exitTraceDist(EXIT_FWD_EXTRA_1_CM, EXIT1_SENSOR_OFF_AFTER_CM, true);
-       else if (zone == 3) exitTraceDist(EXIT_FWD_EXTRA_3_CM, EXIT3_SENSOR_OFF_AFTER_CM, true);
-       else                exitTraceDist(EXIT_FWD_EXTRA_3_CM, 0.0f, true);
+    } else {                            // 1·3·5·6: 전방센서 라인 닿음 기준 일정거리 추가 전진
+       exitTraceDist(c.exitFwdExtra, c.exitFwdSensorOff, true);
     }
   }
   
@@ -310,12 +309,12 @@ void goToZoneDirect(int zone) {
   if (targetNode == 7) enableEdgeSteering = true;
 
   bool enterForward = (robotHeading == zoneSide);
-  if (enterForward) { 
-    enterZone(); 
-    lastEntryWasForward = true; 
-  } else { 
-    reverseEnterZone(); 
-    lastEntryWasForward = false; 
+  if (enterForward) {
+    enterZone(zone);
+    lastEntryWasForward = true;
+  } else {
+    reverseEnterZone(zone);
+    lastEntryWasForward = false;
   }
 
   if (targetNode == 7) enableEdgeSteering = false;
