@@ -22,7 +22,6 @@
 #define QR_SIMULATION 0
 
 // ── HuskyLens / 스캔 파라미터 ──
-constexpr uint8_t HUSKY_I2C_ADDR = 0x32;        // HuskyLens I2C 주소
 constexpr int MAX_RESCAN_TRIES = 5;             // 재스캔 무한루프 안전 상한
 constexpr unsigned long SCAN_DWELL_MS = 3000;   // 존 내 정지 스캔(대기) 시간
 constexpr unsigned long SCAN_POLL_MS  = 50;     // scanTick I2C 폴링 간격(스티어링 보호)
