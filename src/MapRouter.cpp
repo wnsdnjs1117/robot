@@ -6,7 +6,7 @@
 #include "Motion.h"
 #include "Navigation.h"
 #include "Lift.h"
-#include "BoxMap.h"   // scanTick (QR 연속 스캔: 탈출 중에도 스캔)
+#include "BoxMap.h"
 
 int robotHeading = 0;  
 int currentNode = 11;
@@ -25,156 +25,100 @@ void turnToHeading(int targetAngle) {
   int diff = targetAngle - robotHeading;
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
-  
-  // 이미 목표 각도면 즉시 그대로 패스
   if (diff == 0) return;
-
   if (diff > 0) turnAngle(diff, true);
   else turnAngle(-diff, false);
-
   robotHeading = targetAngle;
 }
 
-// ★ 리셋을 없애고 시작값(startEnc) 차이로 거리를 재서 멈칫거림 차단
 static void ignoreNodeBlind() {
   long startEnc = abs(prizm.readEncoderCount(1));
   while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_IGNORE_NODE_CM)) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-    liftUpTick(); liftDownTick();
+    drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick();
   }
 }
 
 static void ignoreNodeTrace() {
   long startEnc = abs(prizm.readEncoderCount(1));
   while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_IGNORE_NODE_CM)) {
-    int L, C, R, RL, RC, RR;
-    readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    lineFollowStepFull(L, C, R, RL, RC, RR);
-    liftUpTick(); liftDownTick();
+    int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+    lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
   }
 }
 
 static void blindDriveUntilLine() {
   lastSensorState = 0; 
-  // 리셋 완전 삭제
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-    drive(BLIND_SPEED, BLIND_SPEED);
-    liftUpTick(); liftDownTick();
+    drive(BLIND_SPEED, BLIND_SPEED); liftUpTick(); liftDownTick();
   }
 }
 
 static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd) {
   turnToHeading(targetHeading);
-  
-  ignoreNodeBlind(); 
-  blindDriveUntilLine(); 
-  
+  ignoreNodeBlind(); blindDriveUntilLine(); 
   if (stopAtEnd) {
-    // 멈출 때는 바퀴축까지 스무스하게 감속 후 정지
     driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
   } else {
-    // 그냥 지나가는 노드면 멈추거나 리셋하지 않고 그대로 돌진!
     long alignEnc = abs(prizm.readEncoderCount(1));
     while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick();
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick();
     }
   }
-  
   if (alignHeading != -1 && !stopAtEnd) turnToHeading(alignHeading);
 }
 
 static void stepNode(int from, int to, bool stopAtEnd) {
   if (from == 8 && to == 9) {
-    turnToHeading(90);
-    ignoreNodeTrace(); 
+    turnToHeading(90); ignoreNodeTrace(); 
     while (true) {
-      int L, C, R, RL, RC, RR;
-      readSensors(L, C, R); readRearSensors(RL, RC, RR);
+      int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
       if (!anyLine(L, C, R)) { if (stopAtEnd) stopAll(); break; }
-      lineFollowStepFull(L, C, R, RL, RC, RR);
-      liftUpTick(); liftDownTick();
+      lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
     }
   } 
   else if (from == 9 && to == 8) {
-    turnToHeading(270);
-    ignoreNodeBlind(); 
-    lastSensorState = 0;
+    turnToHeading(270); ignoreNodeBlind(); lastSensorState = 0;
     while (true) {
       int L, C, R; readSensors(L, C, R);
       if (anyLine(L, C, R)) break;
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-      liftUpTick(); liftDownTick();
+      drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick();
     }
     followToCrossing(stopAtEnd);
   } 
-  else if (from == 9 && to == 10) { 
-    executeBlindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd);
-  } 
+  else if (from == 9 && to == 10) { executeBlindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd); } 
   else if (from == 9 && to == 11) { 
-    turnToHeading(HEADING_9_TO_11); 
-    ignoreNodeBlind();     
-    blindDriveUntilLine(); 
-    ignoreNodeBlind();     
-    blindDriveUntilLine(); 
-    
-    if (stopAtEnd) {
-      driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
-    } else {
+    turnToHeading(HEADING_9_TO_11); ignoreNodeBlind(); blindDriveUntilLine(); ignoreNodeBlind(); blindDriveUntilLine(); 
+    if (stopAtEnd) driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+    else {
       long alignEnc = abs(prizm.readEncoderCount(1));
-      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
-        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-        liftUpTick(); liftDownTick();
-      }
+      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) { drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick(); }
     }
   } 
-  else if (from == 10 && to == 11) { 
-    executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd); 
-  } 
-  else if (from == 11 && to == 10) { 
-    executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd); 
-  } 
+  else if (from == 10 && to == 11) { executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd); } 
+  else if (from == 11 && to == 10) { executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd); } 
   else if (from == 10 && to == 9) { 
-    turnToHeading(HEADING_10_TO_12);
-    driveDistance(DIST_10_TO_12_CM, STRAIGHT_SPEED);
-    turnToHeading(HEADING_12_TO_9_2);
-    blindDriveUntilLine(); 
-    
-    if (stopAtEnd) {
-      driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
-    } else {
+    turnToHeading(HEADING_10_TO_12); driveDistance(DIST_10_TO_12_CM, STRAIGHT_SPEED);
+    turnToHeading(HEADING_12_TO_9_2); blindDriveUntilLine(); 
+    if (stopAtEnd) driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+    else {
       long alignEnc = abs(prizm.readEncoderCount(1));
-      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
-        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-        liftUpTick(); liftDownTick();
-      }
+      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) { drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick(); }
       turnToHeading(270); 
     }
   } 
   else if (from == 11 && to == 9) { 
-    turnToHeading(HEADING_11_TO_12);
-    driveDistance(DIST_11_TO_12_CM, STRAIGHT_SPEED);
-    turnToHeading(HEADING_12_TO_9_2);
-    blindDriveUntilLine(); 
-    
-    if (stopAtEnd) {
-      driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
-    } else {
+    turnToHeading(HEADING_11_TO_12); driveDistance(DIST_11_TO_12_CM, STRAIGHT_SPEED);
+    turnToHeading(HEADING_12_TO_9_2); blindDriveUntilLine(); 
+    if (stopAtEnd) driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+    else {
       long alignEnc = abs(prizm.readEncoderCount(1));
-      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
-        drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
-        liftUpTick(); liftDownTick();
-      }
+      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) { drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick(); }
       turnToHeading(270); 
     }
   } 
-  else {
-    int dir = (to > from) ? 90 : 270;
-    turnToHeading(dir);
-    followToCrossing(stopAtEnd);
-  }
+  else { int dir = (to > from) ? 90 : 270; turnToHeading(dir); followToCrossing(stopAtEnd); }
   currentNode = to;
 }
 
@@ -191,39 +135,7 @@ void moveToNode(int toNode) {
     else if (currentNode == 9 && toNode == 8) nextNode = 8;
     else if (currentNode == 8 && toNode == 7) nextNode = 7;
     else nextNode = (currentNode < toNode) ? currentNode + 1 : currentNode - 1; 
-    
-    bool isFinal = (nextNode == toNode);
-    stepNode(currentNode, nextNode, isFinal);
-  }
-}
-
-static void exitTraceDist(float totalCm, float offAfterCm, bool forward) {
-  long startEnc = abs(prizm.readEncoderCount(1));
-  long total   = CM(totalCm);
-  long offStart = (offAfterCm > 0.0f) ? CM(offAfterCm) : -1;
-
-  while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < total) {
-    int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    long d = abs(abs(prizm.readEncoderCount(1)) - startEnc);
-    bool mask = (offStart >= 0 && d >= offStart);
-    if (forward) {
-      if (mask) { L = C = R = 0; }
-      lineFollowStepFull(L, C, R, RL, RC, RR);
-    } else {
-      if (mask) { RL = RC = RR = 0; }
-      reverseLineFollowStep(RL, RC, RR, L, C, R);
-    }
-    liftUpTick(); liftDownTick(); scanTick();
-  }
-}
-
-static void exitRev56(float armCm) {
-  long startEnc = abs(prizm.readEncoderCount(1));
-  while (true) {
-    int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    if (abs(abs(prizm.readEncoderCount(1)) - startEnc) > CM(armCm) && !anyRearLine(RL, RC, RR)) break;
-    reverseLineFollowStep(RL, RC, RR, L, C, R);
-    liftUpTick(); liftDownTick(); scanTick();
+    stepNode(currentNode, nextNode, (nextNode == toNode));
   }
 }
 
@@ -233,58 +145,70 @@ void exitZone(int zone) {
   if (targetNode == 7) enableEdgeSteering = true;
 
   lastSensorState = 0; 
-  if (lastEntryWasForward) {
-    while (true) {
-       int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-       if (anyRearLine(RL, RC, RR)) break;
-       drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
-       liftUpTick(); liftDownTick(); scanTick();
-    }
-  } else {
-    while (true) {
-       int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-       if (anyLine(L, C, R)) break;
-       drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
-       liftUpTick(); liftDownTick(); scanTick();
-    }
-  }
+  long startEnc = labs(prizm.readEncoderCount(1));
 
-  // ★ 존 탈출 후 바퀴 정렬 시에도 리셋 없이 스무스하게 연결
-  if (lastEntryWasForward) {   // 정방향 진입 → 후진 탈출
-    if (targetNode == 8) {     // 8번 사거리: 1 1 1 감지 후 바퀴축 정렬
-       while (true) {
-          int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          if (RL && RC && RR) break;
-          reverseLineFollowStep(RL, RC, RR, L, C, R); liftUpTick(); liftDownTick(); scanTick();
-       }
-       long alignEnc = abs(prizm.readEncoderCount(1));
-       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(c.exitAlignRev)) {
-          drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
-          liftUpTick(); liftDownTick(); scanTick();
-       }
-    } else if (c.exitRevArm > 0.0f) {   // 5·6 예외: 일정거리 후 후방감지 → 라인 끊김 즉시 정지
-       exitRev56(c.exitRevArm);
-    } else {                            // 1·3 등: 후방센서 라인 닿음 기준 일정거리 추가 후진
-       exitTraceDist(c.exitRevExtra, c.exitRevSensorOff, false);
+  DPRINTF("\n-Exit Z:"); DPRINT(zone);
+
+  if (lastEntryWasForward) {   
+    DPRINTF(" Rev");
+    while (true) {
+       int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+       long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
+       if (dist > CM(c.exitRevMax)) { DPRINTF(" !MAX"); break; }
+       if (dist > CM(10.0f) && anyRearLine(RL, RC, RR)) { DPRINTF(" L_ON"); break; }
+
+       reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
+       liftUpTick(); liftDownTick(); scanTick();
     }
-  } else {                     // 역방향 진입 → 전진 탈출
-    if (targetNode == 8) {     // 8번 사거리: 1 1 1 감지 후 바퀴축 정렬
-       while (true) {
+
+    long distSoFar = labs(labs(prizm.readEncoderCount(1)) - startEnc);
+    long targetDist = distSoFar + CM(c.exitRevExtra);
+    
+    if (targetDist < CM(c.exitRevMin)) { targetDist = CM(c.exitRevMin); DPRINTF(" <MIN"); }
+    else if (targetDist > CM(c.exitRevMax)) { targetDist = CM(c.exitRevMax); DPRINTF(" >MAX"); }
+    else { DPRINTF(" OK"); }
+
+    long remain = targetDist - distSoFar;
+    if (remain > 0) {
+       long curEnc = labs(prizm.readEncoderCount(1));
+       while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
           int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          if (L && C && R) break;
-          lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick(); scanTick();
-       }
-       long alignEnc = abs(prizm.readEncoderCount(1));
-       while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(c.exitAlignFwd)) {
-          drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
+          reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
           liftUpTick(); liftDownTick(); scanTick();
        }
-    } else {                            // 1·3·5·6: 전방센서 라인 닿음 기준 일정거리 추가 전진
-       exitTraceDist(c.exitFwdExtra, c.exitFwdSensorOff, true);
+    }
+
+  } else {  
+    DPRINTF(" Fwd");
+    while (true) {
+       int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+       long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
+       if (dist > CM(c.exitFwdMax)) { DPRINTF(" !MAX"); break; }
+       if (dist > CM(10.0f) && anyLine(L, C, R)) { DPRINTF(" L_ON"); break; }
+
+       lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
+       liftUpTick(); liftDownTick(); scanTick();
+    }
+
+    long distSoFar = labs(labs(prizm.readEncoderCount(1)) - startEnc);
+    long targetDist = distSoFar + CM(c.exitFwdExtra);
+    
+    if (targetDist < CM(c.exitFwdMin)) { targetDist = CM(c.exitFwdMin); DPRINTF(" <MIN"); }
+    else if (targetDist > CM(c.exitFwdMax)) { targetDist = CM(c.exitFwdMax); DPRINTF(" >MAX"); }
+    else { DPRINTF(" OK"); }
+
+    long remain = targetDist - distSoFar;
+    if (remain > 0) {
+       long curEnc = labs(prizm.readEncoderCount(1));
+       while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
+          int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+          lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
+          liftUpTick(); liftDownTick(); scanTick();
+       }
     }
   }
   
-  stopAll();
+  stopAll(); DPRINTLNF(" Done");
   if (targetNode == 7) enableEdgeSteering = false;
   currentNode = targetNode;
 }
@@ -292,23 +216,13 @@ void exitZone(int zone) {
 void goToZoneDirect(int zone) {
   int targetNode = zoneToNode(zone);
   moveToNode(targetNode);
-
   int zoneSide = (zone == 3 || zone == 4) ? 180 : 0;
-  
-  if (robotHeading != 0 && robotHeading != 180) {
-    turnToHeading(zoneSide);
-  }
-
+  if (robotHeading != 0 && robotHeading != 180) turnToHeading(zoneSide);
   if (targetNode == 7) enableEdgeSteering = true;
 
   bool enterForward = (robotHeading == zoneSide);
-  if (enterForward) {
-    enterZone(zone);
-    lastEntryWasForward = true;
-  } else {
-    reverseEnterZone(zone);
-    lastEntryWasForward = false;
-  }
-
+  if (enterForward) { enterZone(zone); lastEntryWasForward = true; } 
+  else { reverseEnterZone(zone); lastEntryWasForward = false; }
+  
   if (targetNode == 7) enableEdgeSteering = false;
 }

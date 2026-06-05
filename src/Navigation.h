@@ -5,15 +5,15 @@
 #define NAVIGATION_H
 
 void followToCrossing();
-void followToCrossing(bool stopAtEnd);  // ★ 누락되었던 오버로드 선언 추가
+void followToCrossing(bool stopAtEnd);
 
 void enterZone(int zone);
 void reverseEnterZone(int zone);
-void reverseAcrossToOppositeZone(int zone);
+// ★ 불필요해진 reverseAcrossToOppositeZone 삭제로 메모리 절약
 
 void goToMainLine();
 void returnToFinish();
 int qrSearchStage();
-void rescanZones1to4();   // 1~4구역 박스 2개를 모두 인식할 때까지 미발견 존 재스캔
+void rescanZones1to4();
 
 #endif

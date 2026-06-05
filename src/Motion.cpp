@@ -48,7 +48,7 @@ void drive(int l, int r) {
   if (l != lastReqL || r != lastReqR) { outL = l; outR = r; }
   lastReqL = l; lastReqR = r;
 
-  if (dt >= 20) { 
+  if (dt >= 10) {  // ★ 기존 20에서 10으로 변경하여 조향 반응 속도를 2배 높임
     long encL = prizm.readEncoderCount(1);
     long encR = prizm.readEncoderCount(2);
 

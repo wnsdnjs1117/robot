@@ -75,35 +75,25 @@ constexpr float LINE_LEN_ZONE_3456_CM = 30.0f;
 // ★ 반대편 존으로 후진 횡단 시 최소 이동 거리(가드)
 constexpr float ZONE_CROSS_MIN_CM = 40.0f;
 
-// ── [3-1] ★ 존(1~6) 진입/탈출 개별 설정 테이블 ──────────────────────────
-//  이 표만 고치면 각 존의 진입/탈출 동작을 따로 튜닝할 수 있다.
-//  (SRAM 절약: 전역 배열이 아닌 switch 접근자 → 상수는 플래시에 둔다)
+// ── [3-1] ★ 존(1~6) 진입/탈출 개별 설정 테이블 (최소/최대 가드 적용) ──
 struct ZoneCfg {
-  // ── 진입 ──
-  float entryFwdExtra;     // 전진 진입: 후방센서 라인 끊김 후 추가 전진(cm)
-  float entryRevExtra;     // 후진 진입: 전방센서 라인 끊김 후 추가 후진(cm)
-  float entryFwdRearMute;  // 전진 진입 초반 후방센서 무시 거리(cm)
-  float entryRevFrontMute; // 후진 진입 초반 전방센서 무시 거리(cm)
-  // ── 탈출 (존1·3·5·6 = 거리식 / 존2·4 = 8번 노드 정렬식) ──
-  float exitFwdExtra;      // 전진 탈출: 후방센서 라인 닿음 후 추가 전진(cm)
-  float exitRevExtra;      // 후진 탈출: 전방센서 라인 닿음 후 추가 후진(cm)
-  float exitFwdSensorOff;  // 전진 탈출 중 진행센서 무시 시작 거리(cm, 0=안 씀)
-  float exitRevSensorOff;  // 후진 탈출 중 진행센서 무시 시작 거리(cm, 0=안 씀)
-  float exitRevArm;        // 후진 탈출 후방감지 개시 거리(cm, 5·6 예외용, 0=일반 거리식)
-  float exitAlignFwd;      // 8번 노드 전진 탈출 축정렬(cm) (존2·4)
-  float exitAlignRev;      // 8번 노드 후진 탈출 축정렬(cm) (존2·4)
+  float entryFwdExtra; float entryFwdMin; float entryFwdMax;
+  float entryRevExtra; float entryRevMin; float entryRevMax;
+  float exitFwdExtra;  float exitFwdMin;  float exitFwdMax;
+  float exitRevExtra;  float exitRevMin;  float exitRevMax;
 };
 
 inline ZoneCfg zoneCfg(int z) {
-  switch (z) {           // entryFwd,entryRev, FwdMute,RevMute, exitFwd,exitRev, FwdOff,RevOff, revArm, alignF,alignR
-    case 1: return {26.0f,3.0f, 6.5f,8.5f, 24.5f,22.5f, 27.0f,0.0f,  0.0f, 0.0f,0.0f};
-    case 2: return {26.0f,3.0f, 6.5f,8.5f, 24.5f,22.5f,  0.0f,0.0f,  0.0f, 7.5f,5.5f}; // 8번 노드 정렬
-    case 3: return {26.0f,3.0f, 6.5f,8.5f, 26.5f,24.5f, 29.0f,0.0f,  0.0f, 0.0f,0.0f};
-    case 4: return {26.0f,3.0f, 6.5f,8.5f, 26.5f,24.5f,  0.0f,0.0f,  0.0f, 7.5f,5.5f}; // 8번 노드 정렬
-    case 5: return {26.0f,3.0f, 0.0f,0.0f, 26.5f, 0.0f,  0.0f,0.0f, 23.0f, 0.0f,0.0f};
-    case 6: return {26.0f,3.0f, 0.0f,0.0f, 26.5f, 0.0f,  0.0f,0.0f, 23.0f, 0.0f,0.0f};
-    default:return {26.0f,3.0f, 0.0f,0.0f, 26.5f,24.5f,  0.0f,0.0f,  0.0f, 0.0f,0.0f};
-  }
+  // 1, 2번 존은 거리가 다름
+  bool isZ12 = (z == 1 || z == 2);
+  
+  // 최대치는 최소치보다 4cm 더 크게 설정
+  return {
+    37.0f, isZ12 ? 57.5f : 59.5f, (isZ12 ? 57.5f : 59.5f) + 4.0f,  // 전진 진입: Extra, Min, Max
+    14.0f, isZ12 ? 37.5f : 39.5f, (isZ12 ? 37.5f : 39.5f) + 4.0f,  // 후진 진입: Extra, Min, Max
+    isZ12 ? 35.5f : 37.5f, isZ12 ? 37.5f : 39.5f, (isZ12 ? 37.5f : 39.5f) + 4.0f,  // 전진 탈출: Extra, Min, Max
+    isZ12 ? 33.5f : 35.5f, isZ12 ? 58.5f : 60.5f, (isZ12 ? 58.5f : 60.5f) + 4.0f   // 후진 탈출: Extra, Min, Max
+  };
 }
 
 // ── [4] 속도 및 조향 제어 ─────────────────────────────────────────
@@ -120,13 +110,13 @@ constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;
 constexpr int SPIN_SPEED = 40;
 constexpr int SPIN_90_COUNTS = 1185;
 
-// 전/후진 듀얼 PID 세팅 (★ e9a612c 검증 세팅과 완전 동일 — 스무스 이동과 무관하게 고정)
-constexpr float LINE_KP_FWD_SOFT = 0.6f;
-constexpr float LINE_KP_FWD_HARD = 3.5f;
-constexpr float LINE_KP_REV_SOFT = 0.4f;
-constexpr float LINE_KP_REV_HARD = 1.2f;
+// ★ 센서 반응과 조향이 더 빠릿빠릿해지도록 P, D 게인 수치 상향
+constexpr float LINE_KP_FWD_SOFT = 1.0f; // 0.6 -> 1.0
+constexpr float LINE_KP_FWD_HARD = 4.0f; // 3.5 -> 4.0
+constexpr float LINE_KP_REV_SOFT = 0.8f; // 0.4 -> 0.8
+constexpr float LINE_KP_REV_HARD = 1.8f; // 1.2 -> 1.8
 constexpr float LINE_KI = 0.0f;
-constexpr float LINE_KD = 5.0f;
+constexpr float LINE_KD = 8.0f;          // 5.0 -> 8.0
 constexpr float LINE_ALIGN_GAIN = 1.5f;
 
 constexpr float VELOCITY_KP = 0.2f;
