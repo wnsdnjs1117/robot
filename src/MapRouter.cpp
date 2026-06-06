@@ -70,14 +70,13 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
 
   while (true) {
     int fl, fc, fr, rl, rc, rr;
-    readFrontLineSensors(fl, fc, fr);
-    readRearLineSensors(rl, rc, rr);
+    readLineSensors(fl, fc, fr, rl, rc, rr);
 
     if (!crossFound) {
       if (encoderTraveledSince(motionStart) < ignoreSpan) {
         traceLineForward(fl, fc, fr, rl, rc, rr, RAMP_MIN_SPEED);
       } else {
-        bool isCross = (fl == 1 && fc == 1 && fr == 1);
+        bool isCross = frontCrossFull(fl, fc, fr);
         if (isCross) intersectionHitCount++;
         else { intersectionHitCount = 0; intersectionArmed = true; }
         if (intersectionArmed && intersectionHitCount >= CROSS_CONFIRM) {
@@ -89,12 +88,12 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
           int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
               approachMark, SPEED_LINE_FOLLOW_FWD);
           traceLineForward(fl, fc, fr, rl, rc, rr, speed);
-          liftUpTick(); liftDownTick();
+          driveLoopTick();
           continue;
         }
       }
       if (!crossFound) {
-        liftUpTick(); liftDownTick();
+        driveLoopTick();
         continue;
       }
     }
@@ -105,7 +104,7 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
     int speed = crossAlignSpeed(crossMark, alignSpan, alignStart);
     if (finishAlignSpan(crossMark, alignSpan)) break;
     traceLineForward(fl, fc, fr, rl, rc, rr, speed);
-    liftUpTick(); liftDownTick();
+    driveLoopTick();
   }
   if (stopAtEnd)
     correctTrackLegOvershoot(motionStart, DIST_TRACK_NODE_SPAN_CM);
@@ -119,9 +118,9 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   if (stopAtEnd && !longLeg)
     clearIntersectionCross();
   else if (longLeg && stopAtEnd) {
-    int fl0, fc0, fr0;
-    readFrontLineSensors(fl0, fc0, fr0);
-    if (fl0 == 1 && fc0 == 1 && fr0 == 1)
+    int fl0, fc0, fr0, rl0, rc0, rr0;
+    readLineSensors(fl0, fc0, fr0, rl0, rc0, rr0);
+    if (frontCrossFull(fl0, fc0, fr0))
       clearIntersectionCross();
   }
   DriveEncMark motionStart = captureDriveEnc();
@@ -136,8 +135,7 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
 
   while (true) {
     int fl, fc, fr, rl, rc, rr;
-    readFrontLineSensors(fl, fc, fr);
-    readRearLineSensors(rl, rc, rr);
+    readLineSensors(fl, fc, fr, rl, rc, rr);
     if (frontOnLine(fl, fc, fr)) lineSeen = true;
 
     long traveled = encoderTraveledSince(motionStart);
@@ -146,7 +144,7 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
 
     if (longLeg && traveled >= node8Center - node8PassHalf
         && traveled <= node8Center + node8PassHalf
-        && fl == 1 && fc == 1 && fr == 1) {
+        && frontCrossFull(fl, fc, fr)) {
       resetRampSpeedLimiter(speed);
       setWheelSpeeds(speed, speed);
       liftUpTick(); liftDownTick();
@@ -164,7 +162,7 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
     } else {
       traceLineForward(fl, fc, fr, rl, rc, rr, speed);
     }
-    liftUpTick(); liftDownTick();
+    driveLoopTick();
   }
   if (stopAtEnd)
     correctTrackLegOvershoot(motionStart, legSpanCm);
@@ -251,7 +249,7 @@ static bool exitLineDetected(int zone, bool reverse,
     int fl, int fc, int fr, int rl, int rc, int rr, int& confirmCount) {
   if (zone == 2 || zone == 4) {
     return reverse ? (rl == 1 && rc == 1 && rr == 1)
-                   : (fl == 1 && fc == 1 && fr == 1);
+                   : frontCrossFull(fl, fc, fr);
   }
   if (reverse) {
     if (rearOnLine(rl, rc, rr)) {
@@ -298,8 +296,7 @@ void leaveZone(int zone) {
 
     while (true) {
       int fl, fc, fr, rl, rc, rr;
-      readFrontLineSensors(fl, fc, fr);
-      readRearLineSensors(rl, rc, rr);
+      readLineSensors(fl, fc, fr, rl, rc, rr);
 
       if (!lineDetected) {
         if (exitLineDetected(zone, true, fl, fc, fr, rl, rc, rr, confirmCount)) {
@@ -335,7 +332,7 @@ void leaveZone(int zone) {
           traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
         }
       }
-      liftUpTick(); liftDownTick(); pollZoneScan();
+      driveLoopTick();
     }
   } else {
     DPRINTF(" Fwd");
@@ -355,8 +352,7 @@ void leaveZone(int zone) {
 
     while (true) {
       int fl, fc, fr, rl, rc, rr;
-      readFrontLineSensors(fl, fc, fr);
-      readRearLineSensors(rl, rc, rr);
+      readLineSensors(fl, fc, fr, rl, rc, rr);
 
       if (!lineDetected) {
         if (exitLineDetected(zone, false, fl, fc, fr, rl, rc, rr, confirmCount)) {
@@ -365,14 +361,14 @@ void leaveZone(int zone) {
           DPRINTF(" L_ON");
           if (extraSpan <= 0) break;
         } else {
-          if (crossZone && frontOnLine(fl, fc, fr) && !(fl && fc && fr) && !approachDecel) {
+          if (crossZone && frontOnLine(fl, fc, fr) && !frontCrossFull(fl, fc, fr) && !approachDecel) {
             approachDecel = true;
             approachMark = captureDriveEnc();
           }
           int speed = (crossZone && approachDecel)
               ? decelMarkSpeed(approachMark, approachDecelSpan, openSpeed)
               : rampMarkSpeed(motionStart, openSpeed);
-          if (crossZone && frontOnLine(fl, fc, fr) && !(fl && fc && fr)) {
+          if (crossZone && frontOnLine(fl, fc, fr) && !frontCrossFull(fl, fc, fr)) {
             traceLineForward(fl, fc, fr, rl, rc, rr, speed);
           } else {
             speed = smoothRampSpeed(speed);
@@ -389,7 +385,7 @@ void leaveZone(int zone) {
           traceLineForward(fl, fc, fr, rl, rc, rr, speed);
         }
       }
-      liftUpTick(); liftDownTick(); pollZoneScan();
+      driveLoopTick();
     }
   }
 

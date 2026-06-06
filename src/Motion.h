@@ -14,8 +14,14 @@ void rotateByDegrees(int degrees, bool clockwise);
 
 void readFrontLineSensors(int& left, int& center, int& right);
 void readRearLineSensors(int& left, int& center, int& right);
+void readLineSensors(int& fl, int& fc, int& fr, int& rl, int& rc, int& rr);
 bool frontOnLine(int left, int center, int right);
 bool rearOnLine(int left, int center, int right);
+inline bool frontCrossFull(int left, int center, int right) {
+  return left == 1 && center == 1 && right == 1;
+}
+
+void driveLoopTick(); // lift tick + (QR 스캔 중일 때만) pollZoneScan
 
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr);
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int speed);
