@@ -192,19 +192,15 @@ void exitZone(int zone) {
 
     // 2. 라인을 만난 이후의 마무리 축 정렬 동작
     if (zone == 5 || zone == 6) {
-       // 5, 6번 존: 선에 닿은 뒤 선에서 완전히 벗어날 때까지만 추가 후진 후 칼정지
-       // ★ 추종(reverseLineFollowStep) 대신 직진 후진 → 가로지르는 메인라인을 따라 휘지 않고
-       //    최단거리로 통과(과다 이동 버그 수정)
-       if (lineHit) {
-           while (true) {
-              int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-              if (!anyRearLine(RL, RC, RR)) {
-                 DPRINTF(" L_OFF");
-                 break;
-              }
-              drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
-              liftUpTick(); liftDownTick(); scanTick();
-           }
+       // 5, 6번 존: 후방 센서가 메인 라인을 감지한 뒤 c.exitRevExtra(28cm) 라인 추종 후 정지
+       long remain = CM(c.exitRevExtra);
+       if (lineHit && remain > 0) {
+          long curEnc = labs(prizm.readEncoderCount(1));
+          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
+             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+             reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
+             liftUpTick(); liftDownTick(); scanTick();
+          }
        }
     } else if (zone == 1 || zone == 3) {
        // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
@@ -272,19 +268,15 @@ void exitZone(int zone) {
 
     // 2. 라인을 만난 이후의 마무리 축 정렬 동작
     if (zone == 5 || zone == 6) {
-       // 5, 6번 존: 선에 닿은 뒤 선이 완전히 끝날 때까지만 추가 전진 후 칼정지
-       // ★ 추종(lineFollowStepFull) 대신 직진 전진 → 가로지르는 메인라인을 따라 휘지 않고
-       //    최단거리로 통과(과다 이동 버그 수정)
-       if (lineHit) {
-           while (true) {
-              int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-              if (!anyLine(L, C, R)) {
-                 DPRINTF(" L_OFF");
-                 break;
-              }
-              drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
-              liftUpTick(); liftDownTick(); scanTick();
-           }
+       // 5, 6번 존: 전방 센서가 메인 라인을 감지한 뒤 c.exitFwdExtra(28cm) 라인 추종 후 정지
+       long remain = CM(c.exitFwdExtra);
+       if (lineHit && remain > 0) {
+          long curEnc = labs(prizm.readEncoderCount(1));
+          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
+             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+             lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
+             liftUpTick(); liftDownTick(); scanTick();
+          }
        }
     } else if (zone == 1 || zone == 3) {
        // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
