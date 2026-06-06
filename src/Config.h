@@ -213,10 +213,10 @@
  // [8] 주행 cruise 속도 (모터 출력 0~100)
  // ============================================================
  
- constexpr int SPEED_LINE_FOLLOW_FWD = 35; // (수정) 교차로 감지 확률을 위해 40->35 하향
+ constexpr int SPEED_LINE_FOLLOW_FWD = 40; // (수정) 교차로 감지 확률을 위해 40->35 하향
  // 라인 추종 전진 (트랙·교차로)
  
- constexpr int SPEED_LINE_FOLLOW_REV = 40;
+ constexpr int SPEED_LINE_FOLLOW_REV = 35;
  // 라인 추종 후진
  
  constexpr int SPEED_OPEN_ZONE_FWD = 50;
@@ -225,16 +225,16 @@
  constexpr int SPEED_OPEN_ZONE_REV = 50;
  // 맹목 후진 — 박스 존 내부
  
- constexpr int SPEED_OPEN_TRACK_FWD = 50;
+ constexpr int SPEED_OPEN_TRACK_FWD = 70;
  // 맹목 전진 — 메인 트랙·블라인드 정렬
  
- constexpr int SPEED_OPEN_TRACK_REV = 50;
+ constexpr int SPEED_OPEN_TRACK_REV = 60;
  // 맹목 후진 — 메인 트랙
  
- constexpr int SPEED_9_TO_8 = 20;
+ constexpr int SPEED_9_TO_8 = 30;
  // 9→8 구간 전용 (13 경유 등 9번 정확 정렬 불가 → 저속)
  
- constexpr int START_LINE_SEARCH_SPEED = 25;
+ constexpr int START_LINE_SEARCH_SPEED = 30;
  // 스타트 존 → 메인 라인 최초 탐색 속도
  
  // ============================================================
@@ -275,6 +275,13 @@
  // ============================================================
  // [10] 트랙 노드 7 — 8 — 9 (동서 직선, 실측 ~70cm)
  // ============================================================
+
+ constexpr int SPEED_TRACK_7_9_LINE = 60;
+ // 메인 트랙 가로(동서) 라인 추종: 7→8, 8→9, 8→7, 7→9 (9→8은 SPEED_9_TO_8)
+
+ constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;
+ constexpr float LINE_KP_TRACK_7_9_HARD = 6.5f;
+ // 메인 트랙 가로 라인 추종 P 게인 (오차 ±1 / ±2 이상)
  
  constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
  // 8↔7, 8↔9 노드 간 직선 거리 (접근 감속 시작 계산용)
@@ -294,11 +301,13 @@
  constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;
  // 7→9 장구간 — 8번 교차 통과 구간 (±cm, cruise 유지)
  
- inline long trackNodeApproachStartCounts(int cruiseSpeed) {
-   // (구간 길이 − RAMP_DECEL) 지점부터 decelMarkSpeed 감속
-   return toEncoderCounts(DIST_TRACK_NODE_SPAN_CM -
-                          RAMP_DECEL_CM * rampCruiseFactor(cruiseSpeed));
- }
+inline long trackLegApproachStartCounts(float legSpanCm, int cruiseSpeed) {
+  return toEncoderCounts(legSpanCm - RAMP_DECEL_CM * rampCruiseFactor(cruiseSpeed));
+}
+
+inline long trackNodeApproachStartCounts(int cruiseSpeed) {
+  return trackLegApproachStartCounts(DIST_TRACK_NODE_SPAN_CM, cruiseSpeed);
+}
  
  // ============================================================
  // [11] 맵 경로 — 스타트 · 13번 · 9번
@@ -307,47 +316,59 @@
  constexpr float DIST_START_TO_13_CM = 90.0f;
  // 스타트 → 13번 노드 맹목 거리
  
- constexpr int HEADING_13_TO_9 = 305;
- // 13번 → 9번 방향 (도)
- 
- constexpr int HEADING_9_TO_13 = 150;
- // 9번 → 13번 방향 (도)
- 
- constexpr float DIST_9_TO_13_CM = 40.0f;
- // 9번 ↔ 13번 구간 (피니시 경로)
- 
- // ============================================================
+constexpr int HEADING_13_TO_9 = 305;
+// 13번 → 9번 방향 (도)
+
+// ============================================================
  // [12] 맵 경로 — 10 · 11 · 12 · 9 (남쪽 루프)
  // ============================================================
  
- constexpr int HEADING_10_TO_12 = 210;
+ constexpr int HEADING_10_TO_12 = 240;
  constexpr float DIST_10_TO_12_CM = 50.0f;
  
  constexpr int HEADING_11_TO_12 = 250;
- constexpr float DIST_11_TO_12_CM = 110.0f;
+ constexpr float DIST_11_TO_12_CM = 120.0f;
  
  constexpr int HEADING_12_TO_9_2 = 310;
  // 12번 근처 → 9번 교차로 접근 방향
  
- constexpr int HEADING_9_TO_10 = 87;
- constexpr int HEADING_9_TO_11 = 88;
- constexpr int HEADING_10_TO_11 = 88;
- constexpr int HEADING_11_TO_10 = 272;
+constexpr int HEADING_9_TO_10 = 87;
+constexpr int HEADING_9_TO_11 = 88;
+constexpr int HEADING_10_TO_11 = 88;
+constexpr int HEADING_11_TO_10 = 272;
+
+constexpr float DIST_TRACK_9_TO_10_CM = 60.0f;
+// 9↔10 노드 간 직선 (cm) — 접근 감속 계산용, 정지는 라인 센서
+
+constexpr float DIST_TRACK_10_TO_11_CM = 70.0f;
+// 10↔11 노드 간 직선 (cm) — 접근 감속 계산용, 정지는 라인 센서
+
+constexpr float DIST_TRACK_9_TO_11_CM = 130.0f;
+// 9→11 직행 (cm) — 접근 감속 계산용, 정지는 라인 센서 (10·11 교차 2회)
+
+constexpr float DIST_TRACK_12_TO_9_CM = 45.0f;
+// 12→9 접근 (cm) — 접근 감속 계산용, 정지는 라인 센서
+
+constexpr float DIST_TRACK_13_TO_9_CM = 70.0f;
+// 13→9 접근 (cm) — 접근 감속 계산용, 정지는 라인 센서
  
- // ============================================================
- // [13] 맵 경로 — 13번 · 10번 · 피니시
- // ============================================================
- 
- constexpr int HEADING_10_TO_13 = 180;
- constexpr float DIST_10_TO_13_CM = 55.0f;
- 
- constexpr int HEADING_13_TO_START = 90;
- // 13번 → 피니시 방향
- 
- constexpr float DIST_FINISH_ENTRY_CM = 40.0f;
- // 피니시 라인 진입 맹목 거리
- 
- // ============================================================
+// ============================================================
+// [13] 맵 경로 — 피니시 (11번 경유 → 스타트)
+// ============================================================
+
+constexpr int HEADING_11_TO_FINISH = 0;
+// 11번 → 스타트 피니시 진입 시 바라볼 방향 (북)
+
+constexpr int HEADING_FINISH_PARK = 270;
+// 피니시(스타트) 주차 방향 — 서쪽 (0=북 90=동 180=남 270=서)
+
+constexpr float DIST_FINISH_LINE_PAST_CM = 30.0f;
+// 피니시 라인 감지 후 추가 후진 (cm)
+
+constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;
+// 서쪽(270°) 정렬 후 최종 후진 (cm)
+
+// ============================================================
  // [14] PID 라인 추종 · 직진 보정
  // ============================================================
  
@@ -425,7 +446,7 @@
  constexpr int LIFT_UP_SLOW_POWER_R = 40;
  // 상승 막바지 좌·우 출력
  
- constexpr float LIFT_DOWN_SLOW_ZONE_CM = 8.0f;
+ constexpr float LIFT_DOWN_SLOW_ZONE_CM = 10.0f;
  // 하강 막바지 감속 구간 (cm)
  
  constexpr int LIFT_DOWN_SLOW_POWER_L = 20;

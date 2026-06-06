@@ -325,11 +325,12 @@
    }
  }
  
- void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int baseSpeed) {
+ void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int baseSpeed,
+     float kpSoft, float kpHard) {
    int leftSpeed  = baseSpeed;
    int rightSpeed = baseSpeed;
    int posFront = 0, posRear = 0;
- 
+
    if      (fl && !fc && !fr) { posFront = -2; lineTraceLastEdge = 1; }
    else if (fl && fc && !fr)  { posFront = -1; lineTraceLastEdge = 1; }
    else if (!fl && fc && !fr) { posFront =  0; lineTraceLastEdge = 0; }
@@ -337,37 +338,41 @@
    else if (!fl && !fc && fr) { posFront =  2; lineTraceLastEdge = 2; }
    else if (fl && fc && fr)   { posFront =  0; lineTraceLastEdge = 0; }
    else { posFront = (lineTraceLastEdge == 1) ? -3 : ((lineTraceLastEdge == 2) ? 3 : 0); }
- 
+
    if      (rl && !rc && !rr) posRear = -2;
    else if (rl && rc && !rr)  posRear = -1;
    else if (!rl && rc && !rr) posRear =  0;
    else if (!rl && rc && rr)  posRear =  1;
    else if (!rl && !rc && rr) posRear =  2;
    else posRear = 0;
- 
+
    float error = (float)posFront;
    lineFwdIntegral += error;
    float derivative = error - lineFwdLastError;
-   float kp = (abs((int)error) >= 2) ? LINE_KP_FWD_HARD : LINE_KP_FWD_SOFT;
+   float kp = (abs((int)error) >= 2) ? kpHard : kpSoft;
    float steer = error * kp + lineFwdIntegral * LINE_KI + derivative * LINE_KD;
- 
+
    leftSpeed  += (int)iround(steer);
    rightSpeed -= (int)iround(steer);
- 
+
    if ((fl || fc || fr) && (rl || rc || rr) && !(fl && fc && fr) && !(rl && rc && rr)) {
      float align = (posFront - posRear) * LINE_ALIGN_GAIN;
      leftSpeed  += (int)iround(align);
      rightSpeed -= (int)iround(align);
    }
- 
+
    if (fl == 1 && fc == 0 && fr == 0 && rl == 1 && rc == 0 && rr == 0) {
      leftSpeed -= EDGE_SYNC_GAIN; rightSpeed += EDGE_SYNC_GAIN;
    } else if (fl == 0 && fc == 0 && fr == 1 && rl == 0 && rc == 0 && rr == 1) {
      leftSpeed += EDGE_SYNC_GAIN; rightSpeed -= EDGE_SYNC_GAIN;
    }
- 
+
    lineFwdLastError = error;
    setWheelSpeeds(leftSpeed, rightSpeed);
+ }
+
+ void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int baseSpeed) {
+   traceLineForward(fl, fc, fr, rl, rc, rr, baseSpeed, LINE_KP_FWD_SOFT, LINE_KP_FWD_HARD);
  }
  
  void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr) {

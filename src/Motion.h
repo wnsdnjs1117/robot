@@ -25,6 +25,8 @@ void driveLoopTick(); // lift tick + (QR 스캔 중일 때만) pollZoneScan
 
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr);
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int speed);
+void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int speed,
+    float kpSoft, float kpHard);
 void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr);
 void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr, int speed);
 void resetLineTracePid();

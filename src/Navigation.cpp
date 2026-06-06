@@ -73,7 +73,44 @@
    for (int z = 1; z <= 4; z++) if (boxes[z].found) count++;
    return count;
  }
- 
+
+ // 11번 → 피니시: 북(0°) 후진 → 라인 → 30cm → 서(270°) 후진 10cm
+ void runFinishApproachFrom11() {
+   rotateToHeading(HEADING_11_TO_FINISH);
+   resetLineTracePid();
+   resetRampSpeedLimiter(RAMP_MIN_SPEED);
+   const int cruiseSpeed = SPEED_OPEN_TRACK_REV;
+   DriveEncMark motionStart = captureDriveEnc();
+   long accelSpan = rampAccelSpanCounts(cruiseSpeed);
+   long pastSpan = toEncoderCounts(DIST_FINISH_LINE_PAST_CM);
+   DriveEncMark lineMark = {0, 0};
+
+   while (true) {
+     int fl, fc, fr, rl, rc, rr;
+     readLineSensors(fl, fc, fr, rl, rc, rr);
+     if (rearOnLine(rl, rc, rr)) {
+       lineMark = captureDriveEnc();
+       break;
+     }
+     long traveled = encoderTraveledSince(motionStart);
+     int speed = smoothRampSpeed(calcRampUpSpeed(traveled, accelSpan, cruiseSpeed));
+     setWheelSpeeds(-speed, -speed);
+     driveLoopTick();
+   }
+
+   while (true) {
+     int speed = decelMarkSpeed(lineMark, pastSpan, cruiseSpeed);
+     if (finishEncoderSpan(lineMark, pastSpan, speed)) break;
+     setWheelSpeeds(-speed, -speed);
+     driveLoopTick();
+   }
+
+   stopMotors();
+   rotateToHeading(HEADING_FINISH_PARK);
+   driveDistanceCm(DIST_FINISH_PARK_REV_CM, -SPEED_OPEN_TRACK_REV, true);
+   stopMotors();
+ }
+
  } // namespace
  
  void alignOnTrackHeading(int openSpeed, float alignCm) {
@@ -230,37 +267,20 @@
    }
  
    driveDistanceCm(DIST_START_TO_13_CM, SPEED_OPEN_TRACK_FWD, true);
-   rotateToHeading(HEADING_13_TO_9);
-   driveOverLinesAndAlign(1, DIST_CROSS_ALIGN_CM, SPEED_OPEN_TRACK_FWD, true);
+   driveTrackLegBlind(HEADING_13_TO_9, -1, true, DIST_TRACK_13_TO_9_CM);
    rotateToHeading(270);
    traceUntilIntersection(true);
    intersectionNode = 8;
  }
  
- void driveToFinishArea() {
-   if (intersectionNode == 11) {
-     rotateToHeading(160);
-     driveOverLinesAndAlign(1, DIST_FINISH_ENTRY_CM, SPEED_OPEN_TRACK_FWD, true);
-   }
-   else if (intersectionNode == 10) {
-     rotateToHeading(HEADING_10_TO_13);
-     driveDistanceCm(DIST_10_TO_13_CM, SPEED_OPEN_TRACK_FWD, true);
-     rotateToHeading(HEADING_13_TO_START);
-     driveOverLinesAndAlign(1, DIST_FINISH_ENTRY_CM, SPEED_OPEN_TRACK_FWD, true);
-   }
-   else {
-     driveToIntersectionNode(9);
-     rotateToHeading(HEADING_9_TO_13);
-     driveDistanceCm(DIST_9_TO_13_CM, SPEED_OPEN_TRACK_FWD, true);
-     rotateToHeading(HEADING_13_TO_START);
-     driveOverLinesAndAlign(1, DIST_FINISH_ENTRY_CM, SPEED_OPEN_TRACK_FWD, true);
-   }
- 
-   stopMotors();
-   rotateToHeading(90);
-   stopMotors();
- 
-   pinMode(PIN_BUZZER, OUTPUT);
+void driveToFinishArea() {
+  if (intersectionNode != 11) {
+    driveToIntersectionNode(11);
+  }
+
+  runFinishApproachFrom11();
+
+  pinMode(PIN_BUZZER, OUTPUT);
    unsigned long beepEnd = millis() + 1500;
    while (millis() < beepEnd) {
      digitalWrite(PIN_BUZZER, HIGH); delayMicroseconds(500);
