@@ -103,15 +103,15 @@ inline ZoneCfg zoneCfg(int z) {
 }
 
 // ── [4] 속도 및 조향 제어 ─────────────────────────────────────────
-constexpr int SPEED = 35;
-constexpr int BACK_SPEED = 30;
-constexpr int STRAIGHT_SPEED = 40;
-constexpr int BLIND_SPEED = 40;
+constexpr int SPEED = 50;
+constexpr int BACK_SPEED = 50;
+constexpr int STRAIGHT_SPEED = 50;
+constexpr int BLIND_SPEED = 60;
 
-constexpr int ZONE_ENTRY_BLIND_SPEED = 40;
-constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 40;
-constexpr int ZONE_EXIT_BLIND_SPEED = 40;
-constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;
+constexpr int ZONE_ENTRY_BLIND_SPEED = 60;
+constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 60;
+constexpr int ZONE_EXIT_BLIND_SPEED = 60;
+constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 60;
 
 // ── 라인 감지 안정화 ──
 constexpr int EXIT_LINE_CONFIRM = 2;        // 탈출 시 목표 라인 감지 확정 횟수(노이즈 조기트리거 방지)
@@ -147,7 +147,7 @@ constexpr float DIST_11_TO_12_CM = 110.0f;
 constexpr int HEADING_12_TO_9_2 = 310;
 
 constexpr float DIST_START_TO_13_CM = 90.0f;
-constexpr int HEADING_13_TO_9 = 305.0;
+constexpr int HEADING_13_TO_9 = 310.0;
 constexpr int HEADING_9_TO_13 = 150;
 constexpr float DIST_9_TO_13_CM = 40.0f;
 constexpr int HEADING_10_TO_13 = 180;
@@ -155,8 +155,8 @@ constexpr float DIST_10_TO_13_CM = 55.0f;
 constexpr int HEADING_13_TO_START = 90;
 constexpr float DIST_FINISH_ENTRY_CM = 40.0f;
 
-constexpr int HEADING_9_TO_10 = 83;
-constexpr int HEADING_9_TO_11 = 87;
+constexpr int HEADING_9_TO_10 = 85;
+constexpr int HEADING_9_TO_11 = 88;
 constexpr float DIST_IGNORE_NODE_CM = 5.0f;
 constexpr int HEADING_10_TO_11 = 90;
 constexpr int HEADING_11_TO_10 = 270;
