@@ -21,6 +21,43 @@ void deliverBoxBetweenZones(int fromZone, int toZone, bool alreadyInFromZone = f
   liftDownWait();
 }
 
+// 박스 z가 '1~4존 내 · 목표도 1~4존 · 그 목표존이 빔' 조기 배송 대상인지
+bool boxReadyForEarlyDelivery(int z) {
+  if (z < 1 || z > 4) return false;
+  if (!boxes[z].found || !boxes[z].present) return false;
+  int dest = boxes[z].destination;
+  return dest >= 1 && dest <= 4 && dest != z && !boxes[dest].present;
+}
+
+// from→to 이동 완료 후 전역 상태 갱신: 목적지 도착 = 제자리(STAY)
+void markBoxMoved(int from, int to) {
+  boxes[to].present = true;
+  boxes[to].found = true;
+  boxes[to].destination = to;
+  boxes[from].present = false;
+  boxes[from].found = false;
+  boxes[from].destination = 0;
+}
+
+// 1~4존 박스 중 목표가 '빈 1~4존'인 것을 5/6 스캔 전에 먼저 배송.
+// inZone: 검색 종료 시 로봇이 들어가 있는 존(없으면 0). 그 존의 박스가 대상이면
+//         나가지 않고 '그 자리에서' 바로 배송해 불필요한 탈출·재진입 왕복을 없앤다.
+void deliverReadyBoxesWithinZones1to4(int inZone) {
+  // 1) 현재 들어가 있는 존의 박스 우선 — 재진입 없이 바로 픽업·배송
+  if (boxReadyForEarlyDelivery(inZone)) {
+    int dest = boxes[inZone].destination;
+    deliverBoxBetweenZones(inZone, dest, /*alreadyInFromZone=*/true);
+    markBoxMoved(inZone, dest);
+    inZone = 0;
+  }
+  if (inZone >= 1 && inZone <= 4) leaveZone(inZone);
+  for (int z = 1; z <= 4; z++) {
+    if (!boxReadyForEarlyDelivery(z)) continue;
+    deliverBoxBetweenZones(z, boxes[z].destination);
+    markBoxMoved(z, boxes[z].destination);
+  }
+}
+
 } // namespace
 
 void runSearchPhase() {
@@ -40,8 +77,15 @@ void runSearchPhase() {
   DPRINT(currentZone);
   DPRINTLNF("구역. 5,6구역 스캔으로 이동합니다.");
 
-  leaveZone(currentZone);
-  rescanMissingQrZones1to4();
+  if (countScannedBoxesInZones1to4() >= 2) {
+    // 2개 모두 인식 완료 → currentZone 박스는 나가기 전에 그 자리에서 바로 배송(왕복 제거)
+    deliverReadyBoxesWithinZones1to4(currentZone);
+  } else {
+    // 아직 2개를 못 찾음 → 먼저 재탐색(이때 currentZone을 떠남) 후 배송
+    leaveZone(currentZone);
+    rescanMissingQrZones1to4();
+    deliverReadyBoxesWithinZones1to4(0);
+  }
 
   beginZoneScan(5);
   navigateToZone(5);

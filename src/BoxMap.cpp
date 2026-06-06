@@ -115,6 +115,7 @@ bool waitForZoneScan(int zone) {
 }
 
 void printSearchResult() {
+#if ROBOT_DEBUG
   DPRINTLNF("\n========== [현재까지 확정된 QR 정보] ==========");
   for (int z = 1; z <= 6; z++) {
     if (boxes[z].found) {
@@ -123,4 +124,5 @@ void printSearchResult() {
     }
   }
   DPRINTLNF("==============================================");
+#endif
 }

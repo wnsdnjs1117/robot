@@ -17,5 +17,6 @@ void driveOntoMainTrack();
 void driveToFinishArea();
 int  searchQrInZones1to4();
 void rescanMissingQrZones1to4();
+int  countScannedBoxesInZones1to4();
 
 #endif

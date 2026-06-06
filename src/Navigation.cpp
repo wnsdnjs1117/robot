@@ -69,12 +69,6 @@
    DPRINT((float)encoderTraveledSince(motionStart) / COUNTS_PER_CM);
    DPRINTLNF(" cm)");
  }
- 
- int countScannedBoxesInZones1to4() {
-   int count = 0;
-   for (int z = 1; z <= 4; z++) if (boxes[z].found) count++;
-   return count;
- }
 
  void runFinishApproachFrom11() {
    rotateToHeading(HEADING_11_TO_FINISH);
@@ -129,76 +123,14 @@
    stopMotors();
  }
 
- // 6번 탈출 후: 남은 라인 후진 추종 → 라인 끝 → 스타트 라인까지 직진
- void runFinishApproachFromZone6() {
-   resetLineTracePid();
-   resetRampSpeedLimiter(RAMP_MIN_SPEED);
-   const int revSpeed = SPEED_FINISH_Z6_REV;
-   bool lineSeen = false;
-
-   while (true) {
-     int fl, fc, fr, rl, rc, rr;
-     readLineSensors(fl, fc, fr, rl, rc, rr);
-     if (rearOnLine(rl, rc, rr)) {
-       lineSeen = true;
-       int speed = smoothRampSpeed(revSpeed);
-       traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
-     } else if (lineSeen) {
-       break;
-     } else {
-       setWheelSpeeds(-RAMP_MIN_SPEED, -RAMP_MIN_SPEED);
-     }
-     driveLoopTick();
-   }
-   stopMotors();
-
-   resetLineTracePid();
-   resetRampSpeedLimiter(RAMP_MIN_SPEED);
-  rotateToHeading(HEADING_11_TO_FINISH);
-  DriveEncMark motionStart = captureDriveEnc();
-  long accelSpan = rampAccelSpanCounts(SPEED_FINISH_Z6_FWD);
-  long blindSpan = toEncoderCounts(DIST_FINISH_BLIND_CONFIRM_CM);
-
-  // 11번 선 → 끊김(블라인드) → 다시 라인 = 스타트박스.
-  bool seenBlind = false;
-  bool blindArmed = false;
-  DriveEncMark blindMark = {0, 0};
-
-  while (true) {
-    int fl, fc, fr;
-    readFrontLineSensors(fl, fc, fr);
-    bool onLine = frontOnLine(fl, fc, fr);
-    long traveled = encoderTraveledSince(motionStart);
-
-    if (!seenBlind) {
-      if (!onLine) {  // 11번 선을 벗어나 블라인드 진입 — 연속 거리로 확정
-        if (!blindArmed) { blindArmed = true; blindMark = captureDriveEnc(); }
-        else if (encoderTraveledSince(blindMark) >= blindSpan) seenBlind = true;
-      } else {
-        blindArmed = false;  // 아직 11번 선 위 — 리셋
-      }
-    } else if (onLine) {  // 블라인드를 밟은 뒤 다시 만난 라인 = 스타트박스
-      break;
-    }
-
-    int speed = smoothRampSpeed(
-        calcRampUpSpeed(traveled, accelSpan, SPEED_FINISH_Z6_FWD));
-    setWheelSpeeds(speed, speed);
-    driveLoopTick();
-  }
-   stopMotors();
-
-   // 스타트박스 선에 닿은 뒤 박스 안으로 마저 후진 (전진 오버슈트로 빠져나가지 않도록)
-   driveDistanceCm(DIST_FINISH_LINE_PAST_CM, -SPEED_FINISH_Z6_REV, true);
-   stopMotors();
-
-   rotateToHeading(HEADING_FINISH_PARK);
-   driveDistanceCm(DIST_FINISH_PARK_REV_CM, -SPEED_OPEN_TRACK_REV, true);
-   stopMotors();
- }
-
  } // namespace
- 
+
+int countScannedBoxesInZones1to4() {
+  int count = 0;
+  for (int z = 1; z <= 4; z++) if (boxes[z].found) count++;
+  return count;
+}
+
  void alignOnTrackHeading(int openSpeed, float alignCm) {
    resetLineTracePid();
    lineTraceLastEdge = 0;
@@ -222,7 +154,7 @@
          speed = smoothRampSpeed(speed);
          lastCurSpeed = speed; // 실제 속도 기록
          setWheelSpeeds(speed, speed);
-         liftUpTick(); liftDownTick();
+         driveLoopTick();
          continue;
        }
      }
@@ -320,13 +252,11 @@
      int speed = rampMarkSpeed(motionStart, SPEED_OPEN_ZONE_REV);
      speed = smoothRampSpeed(speed);
      setWheelSpeeds(-speed, -speed);
-    liftUpTick(); liftDownTick();
+    driveLoopTick();
   }
 
   if (enableScan) beginZoneScan(targetZone);
- 
-   DriveEncMark lineStartMark = captureDriveEnc();
- 
+
    while (true) {
      int fl, fc, fr, rl, rc, rr;
      readLineSensors(fl, fc, fr, rl, rc, rr);
@@ -345,11 +275,11 @@
          speed = smoothRampSpeed(speed);
         if (finishEncoderSpan(pastLineMark, extraSpan, speed)) break;
         setWheelSpeeds(-speed, -speed);
-        liftUpTick(); liftDownTick();
+        driveLoopTick();
       }
       break;
     }
-    liftUpTick(); liftDownTick();
+    driveLoopTick();
   }
 
   stopMotors();
@@ -369,7 +299,7 @@
      int speed = calcRampUpSpeed(traveled, accelSpan, START_LINE_SEARCH_SPEED);
      speed = smoothRampSpeed(speed);
      setWheelSpeeds(speed, speed);
-     liftUpTick(); liftDownTick();
+     driveLoopTick();
    }
  
    driveDistanceCm(DIST_START_TO_13_CM, SPEED_OPEN_TRACK_FWD, true);
@@ -381,7 +311,7 @@
  
 void driveToFinishArea() {
   if (finishFromZone6Exit && intersectionNode == 11) {
-    runFinishApproachFromZone6();
+    runFinishApproachFrom11();
   } else {
     if (intersectionNode != 11) {
       driveToIntersectionNode(11);

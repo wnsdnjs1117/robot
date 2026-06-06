@@ -134,7 +134,7 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  void delayWithTicks(unsigned long ms) {
    unsigned long start = millis();
    while (millis() - start < ms) {
-     liftUpTick(); liftDownTick();
+     driveLoopTick();
      checkDebugKey();
    }
  }
@@ -233,7 +233,7 @@ static void spinPlainCounts(bool clockwise, long counts) {
               + labs(prizm.readEncoderCount(2) - startR)) / 2;
     if (pos >= counts) break;
     spinMotorSpeeds(clockwise, RAMP_MIN_SPEED);
-    liftUpTick(); liftDownTick();
+    driveLoopTick();
   }
   spinMotorSpeeds(clockwise, 0);
   delayWithTicks(40);
@@ -320,7 +320,7 @@ static void spinPlainCounts(bool clockwise, long counts) {
     lastCurSpeed = curSpeed; 
 
     spinMotorSpeeds(clockwise, curSpeed);
-    liftUpTick(); liftDownTick();
+    driveLoopTick();
   }
 
   spinMotorSpeeds(clockwise, 0);
@@ -398,12 +398,12 @@ int lineTraceCruiseSpeed(int baseSpeed, int absError) {
      readFrontLineSensors(fl, fc, fr);
      if (!(fl == 1 && fc == 1 && fr == 1)) break;
      traceLineForward(fl, fc, fr, 0, 0, 0, RAMP_MIN_SPEED);
-     liftUpTick(); liftDownTick();
+     driveLoopTick();
    }
    long creepSpan = toEncoderCounts(3.0f);
    while (labs(prizm.readEncoderCount(1) - clearEnc) < creepSpan) {
      setWheelSpeeds(RAMP_MIN_SPEED, RAMP_MIN_SPEED);
-     liftUpTick(); liftDownTick();
+     driveLoopTick();
    }
  }
  

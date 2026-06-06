@@ -5,13 +5,13 @@
 #include "Config.h"
 #include "Motion.h"
 #include "Navigation.h"
-#include "Lift.h"
 #include "BoxMap.h"
 
 int  headingDeg = 0;
 int  intersectionNode = 11;
 bool enteredZoneForward = true;
 bool finishFromZone6Exit = false;
+static int g_seamlessTo = 0;  // 1↔3 배송: leaveZone 직후 무정지 진입 대상 존
 
 static int zoneToIntersection(int zone) {
   if (zone == 1 || zone == 3) return 7;
@@ -165,7 +165,6 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
   DriveEncMark motionStart = captureDriveEnc();
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
   long approachStart = trackNodeApproachStartCounts(SPEED_TRACK_7_9_LINE);
-  long approachDecelSpan = rampDecelSpanCounts(SPEED_TRACK_7_9_LINE);
   
   bool crossFound = false;
   bool approachDecel = false;
@@ -245,7 +244,6 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   bool approachDecel = false;
   bool lineSeen = false;
   DriveEncMark approachMark = {0, 0};
-  int lastCurSpeed = RAMP_MIN_SPEED;
 
   while (true) {
     int fl, fc, fr, rl, rc, rr;
@@ -262,7 +260,6 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
         && frontCrossFull(fl, fc, fr)) {
       resetRampSpeedLimiter(speed);
       speed = smoothRampSpeed(speed);
-      lastCurSpeed = speed;
       traceLineForward(fl, fc, fr, rl, rc, rr, speed,
           LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
       driveLoopTick();
@@ -277,7 +274,6 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
     }
     resetRampSpeedLimiter(speed);
     speed = smoothRampSpeed(speed);
-    lastCurSpeed = speed;
     traceLineForward(fl, fc, fr, rl, rc, rr, speed,
         LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
     driveLoopTick();
@@ -338,6 +334,18 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
   intersectionNode = toNode;
 }
 
+static int nextIntersectionNode(int cur, int target) {
+  if (cur < 9 && target >= 9) return cur + 1;
+  if (cur > 9 && target <= 9) return 9;
+  if (cur == 9 && target == 11) return 11;
+  if (cur == 9 && target == 10) return 10;
+  if (cur == 10 && target == 11) return 11;
+  if (cur == 11 && target == 10) return 10;
+  if (cur == 9 && target == 8) return 8;
+  if (cur == 8 && target == 7) return 7;
+  return (cur < target) ? cur + 1 : cur - 1;
+}
+
 void driveToIntersectionNode(int targetNode) {
   if (intersectionNode == targetNode) return;
   finishFromZone6Exit = false;
@@ -347,17 +355,8 @@ void driveToIntersectionNode(int targetNode) {
     if (targetNode == 9) return;
   }
   while (intersectionNode != targetNode) {
-    int nextNode = targetNode;
-    if (intersectionNode < 9 && targetNode >= 9) nextNode = intersectionNode + 1;
-    else if (intersectionNode > 9 && targetNode <= 9) nextNode = 9;
-    else if (intersectionNode == 9 && targetNode == 11) nextNode = 11;
-    else if (intersectionNode == 9 && targetNode == 10) nextNode = 10;
-    else if (intersectionNode == 10 && targetNode == 11) nextNode = 11;
-    else if (intersectionNode == 11 && targetNode == 10) nextNode = 10;
-    else if (intersectionNode == 9 && targetNode == 8) nextNode = 8;
-    else if (intersectionNode == 8 && targetNode == 7) nextNode = 7;
-    else nextNode = (intersectionNode < targetNode) ? intersectionNode + 1 : intersectionNode - 1;
-    stepBetweenNodes(intersectionNode, nextNode, nextNode == targetNode);
+    int next = nextIntersectionNode(intersectionNode, targetNode);
+    stepBetweenNodes(intersectionNode, next, next == targetNode);
   }
 }
 
@@ -391,6 +390,7 @@ void leaveZone(int zone) {
   lineTraceLastEdge = 0;
   resetLineTracePid();
   DriveEncMark motionStart = captureDriveEnc();
+  int lastExitSp = RAMP_MIN_SPEED;
 
   DPRINTF("\n-Exit Z:"); DPRINT(zone);
 
@@ -431,7 +431,8 @@ void leaveZone(int zone) {
               : rampMarkSpeed(motionStart, openSpeed);
           
           speed = smoothRampSpeed(speed);
-          lastCurSpeed = speed; // 실제 속도 기록
+          lastCurSpeed = speed;
+          lastExitSp = speed;
 
           bool traceRev = false;
           if (rearOnLine(rl, rc, rr)) {
@@ -445,8 +446,9 @@ void leaveZone(int zone) {
           }
         }
       } else {
-        int speed = decelMarkSpeed(lineMark, extraSpan, lastCurSpeed); // 실제 최고속도 기반 감속
+        int speed = decelMarkSpeed(lineMark, extraSpan, lastCurSpeed);
         speed = smoothRampSpeed(speed);
+        lastExitSp = speed;
         if (finishEncoderSpan(lineMark, extraSpan, speed)) break;
         if (zone == 2 || zone == 4) {
           setWheelSpeeds(-speed, -speed);
@@ -492,6 +494,7 @@ void leaveZone(int zone) {
               : rampMarkSpeed(motionStart, openSpeed);
           
           speed = smoothRampSpeed(speed);
+          lastExitSp = speed;
 
           if (crossZone && frontOnLine(fl, fc, fr) && !frontCrossFull(fl, fc, fr)) {
             traceLineForward(fl, fc, fr, rl, rc, rr, speed,
@@ -507,6 +510,7 @@ void leaveZone(int zone) {
         int down = decelMarkSpeed(lineMark, extraSpan, openSpeed);
         int speed = (up < down) ? up : down;
         speed = smoothRampSpeed(speed);
+        lastExitSp = speed;
         if (finishEncoderSpan(lineMark, extraSpan, speed)) break;
         if (zone == 2 || zone == 4 || zone == 5 || zone == 6) {
           setWheelSpeeds(speed, speed);
@@ -519,6 +523,50 @@ void leaveZone(int zone) {
     }
   }
 
+  if (g_seamlessTo && (zone == 1 || zone == 3)) {
+    ZoneMotionProfile tp = getZoneProfile(g_seamlessTo);
+    bool eFwd = (g_seamlessTo == 1);
+    int dir = eFwd ? 1 : -1;
+    int sp = eFwd ? SPEED_OPEN_ZONE_FWD : SPEED_OPEN_ZONE_REV;
+    long entSp = toEncoderCounts(eFwd ? tp.entryForwardExtra : tp.entryReverseExtra);
+    DriveEncMark pm = {0, 0};
+    bool sawL, past = false;
+    int fl, fc, fr, rl, rc, rr;
+    readLineSensors(fl, fc, fr, rl, rc, rr);
+    sawL = eFwd ? frontOnLine(fl, fc, fr) : rearOnLine(rl, rc, rr);
+    while (true) {
+      readLineSensors(fl, fc, fr, rl, rc, rr);
+      bool on = eFwd ? frontOnLine(fl, fc, fr) : rearOnLine(rl, rc, rr);
+      if (!past) {
+        if (on) {
+          sawL = true;
+          lastExitSp = smoothRampSpeed(rampMarkSpeed(motionStart, sp));
+          if (eFwd) traceLineForward(fl, fc, fr, rl, rc, rr, lastExitSp);
+          else traceLineReverse(rl, rc, rr, fl, fc, fr, lastExitSp);
+        } else if (sawL) {
+          pm = captureDriveEnc();
+          if (entSp <= 0) break;
+          past = true;
+        } else {
+          lastExitSp = smoothRampSpeed(rampMarkSpeed(motionStart, sp));
+          setWheelSpeeds(dir * lastExitSp, dir * lastExitSp);
+        }
+      } else {
+        lastExitSp = smoothRampSpeed(decelMarkSpeed(pm, entSp, lastExitSp));
+        if (finishEncoderSpan(pm, entSp, lastExitSp)) break;
+        setWheelSpeeds(dir * lastExitSp, dir * lastExitSp);
+      }
+      driveLoopTick();
+    }
+    endZoneScan();
+    enableTeeZoneSteering = false;
+    intersectionNode = 7;
+    enteredZoneForward = eFwd;
+    finishFromZone6Exit = false;
+    stopMotors();
+    return;
+  }
+
   if (zone == 2 || zone == 4) setWheelSpeeds(0, 0);
   else stopMotors();
   endZoneScan();
@@ -529,15 +577,6 @@ void leaveZone(int zone) {
   if (targetNode == 7) enableTeeZoneSteering = false;
   intersectionNode = targetNode;
   finishFromZone6Exit = (zone == 6);
-}
-
-bool zonesAreVerticalOpposites(int zoneA, int zoneB) {
-  return (zoneA == 1 && zoneB == 3) || (zoneA == 3 && zoneB == 1)
-      || (zoneA == 2 && zoneB == 4) || (zoneA == 4 && zoneB == 2);
-}
-
-void moveBetweenOppositeZones(int fromZone, int toZone) {
-  moveBetweenZones(fromZone, toZone, zoneMoveOpts(false, true));
 }
 
 void enterZoneAt(int zone) {
@@ -569,7 +608,19 @@ void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts) {
   DPRINTF(" -> ");
   DPRINTLN(toZone);
 
-  if (zonesAreVerticalOpposites(fromZone, toZone)) {
+  // 1↔3 배송: 무정지 연속 직진
+  if (!opts.scanQr && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1))) {
+    rotateToHeading(0);
+    enteredZoneForward = (fromZone == 1);
+    g_seamlessTo = toZone;
+    leaveZone(fromZone);
+    g_seamlessTo = 0;
+    return;
+  }
+
+  if (opts.scanQr
+      && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1)
+       || (fromZone == 2 && toZone == 4) || (fromZone == 4 && toZone == 2))) {
     bool teeSteer = (fromZone == 1 || fromZone == 3 || toZone == 1 || toZone == 3);
     if (teeSteer) enableTeeZoneSteering = true;
     crossToOppositeZone(toZone, fromZone, opts.scanQr);
@@ -581,7 +632,6 @@ void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts) {
 
   leaveZone(fromZone);
 
-  int fromNode = zoneToIntersection(fromZone);
   int toNode = zoneToIntersection(toZone);
   if (opts.scanQr) endZoneScan();
   driveToIntersectionNode(toNode);

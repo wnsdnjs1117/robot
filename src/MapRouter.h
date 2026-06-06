@@ -15,6 +15,7 @@ void rotateToHeading(int targetDeg);
 void driveTrackLegBlind(int targetHeading, int alignHeading, bool stopAtEnd,
     float legSpanCm, int lineCount = 1, bool anyFrontLine = false);
 void driveToIntersectionNode(int targetNode);
+
 struct ZoneMoveOptions {
   bool scanQr;
   bool alreadyInFromZone;
@@ -31,7 +32,5 @@ void enterZoneAt(int zone);
 void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts);
 void leaveZone(int zone);
 void navigateToZone(int zone);
-bool zonesAreVerticalOpposites(int zoneA, int zoneB);
-void moveBetweenOppositeZones(int fromZone, int toZone); // zoneMoveOpts(false,true) 단축
 
 #endif

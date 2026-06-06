@@ -55,7 +55,7 @@ inline void checkDebugKey() {
 constexpr int MAX_RESCAN_TRIES = 99;
 // 1~4구역 QR 미발견 시 leave→재진입 최대 반복 (무한루프 방지)
 
-constexpr unsigned long SCAN_DWELL_MS = 1000;
+constexpr unsigned long SCAN_DWELL_MS = 1500;
 // 존 진입 후 QR 읽기 대기 시간 (ms)
 
 constexpr unsigned long SCAN_POLL_MS = 30;
@@ -268,13 +268,13 @@ constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;
 // 회전 시작 시 관성 오버슈트 보정 — 목표 각의 0.5%(0.005)만큼 목표를 미리 단축
 
 // --- 회전 중 라인 감지 기반 오버슈트 억제 ---
-constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.70f;
+constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.50f;
 // 목표 각의 이 비율(70%) 이상 회전한 뒤부터 반대쪽 라인 감지를 본다
 
 constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.5f;
 // 위 시점에 반대쪽 센서가 라인을 잡으면: 남은 각도의 이 비율만 마저 회전 (0.5=절반)
 
-constexpr float SPIN_LINE_RECOVER_DEG = 10.0f;
+constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;
 // 절반 회전 완료 후 그 반대쪽 센서에서 라인이 사라졌으면 역방향으로 이만큼 복구 (°)
 
 inline float rampSpinAccelDeg(int spinSpeed) {
@@ -289,7 +289,7 @@ inline float rampSpinDecelDeg(int spinSpeed) {
 // [10] 메인 트랙 가로축 노드 7 — 8 — 9 (동서 직선, 실측 ~70cm)
 // ============================================================
 
-constexpr int SPEED_TRACK_7_9_LINE = 60;
+constexpr int SPEED_TRACK_7_9_LINE = 55;
 // 가로(동서) 라인 추종 속도: 7→8, 8→9, 8→7, 7→9 (9→8은 SPEED_9_TO_8)
 
 constexpr float LINE_KP_TRACK_7_9_SOFT = 1.2f;
@@ -344,7 +344,7 @@ constexpr float DIST_TRACK_13_TO_9_CM = 70.0f;
 // ============================================================
 
 constexpr int HEADING_9_TO_10 = 88;
-constexpr int HEADING_9_TO_11 = 88;
+constexpr int HEADING_9_TO_11 = 89;
 constexpr int HEADING_10_TO_11 = 88;
 constexpr int HEADING_11_TO_10 = 272;
 // 9·10·11 노드 간 진행 방향 (°)
@@ -353,7 +353,7 @@ constexpr int HEADING_10_TO_12 = 240;
 constexpr float DIST_10_TO_12_CM = 50.0f;
 
 constexpr int HEADING_11_TO_12 = 250;
-constexpr float DIST_11_TO_12_CM = 120.0f;
+constexpr float DIST_11_TO_12_CM = 110.0f;
 
 constexpr int HEADING_12_TO_9_2 = 310;
 // 12번 근처 → 9번 교차로 접근 방향 (°)
@@ -377,10 +377,10 @@ constexpr float DIST_TRACK_12_TO_9_CM = 45.0f;
 constexpr int HEADING_11_TO_FINISH = 0;
 // 11번 → 스타트 피니시 진입 시 바라볼 방향 (북)
 
-constexpr int HEADING_FINISH_PARK = 270;
+constexpr int HEADING_FINISH_PARK = 277;
 // 피니시(스타트) 최종 주차 방향 — 서쪽
 
-constexpr float DIST_FINISH_LINE_PAST_CM = 50.0f;
+constexpr float DIST_FINISH_LINE_PAST_CM = 15.0f;
 // 피니시 라인 감지 후 추가 후진 (cm)
 
 constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
@@ -389,12 +389,6 @@ constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
 
 constexpr float DIST_FINISH_PARK_REV_CM = 0.0f;
 // 서쪽(270°) 정렬 후 최종 후진 (cm)
-
-constexpr int SPEED_FINISH_Z6_REV = SPEED_OPEN_ZONE_REV;
-// 6번 탈출 후 피니시 — 남은 라인 후진 추종 속도
-
-constexpr int SPEED_FINISH_Z6_FWD = SPEED_OPEN_TRACK_FWD;
-// 6번 탈출 후 피니시 — 스타트 라인까지 직진 속도
 
 // ============================================================
 // [14] PID 라인 추종 · 직진 보정

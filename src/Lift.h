@@ -11,8 +11,6 @@ void liftUpStart();
 bool liftUpClearReached();
 void liftUpWaitClear();
 void liftUpTick();
-void liftUpWait();
-void liftDown();
 void liftDownStart();
 void liftDownTick();
 void liftDownWait();
