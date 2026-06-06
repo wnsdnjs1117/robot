@@ -269,14 +269,9 @@ void driveOntoMainTrack() {
 }
 
 void driveToFinishArea() {
-  if (finishFromZone6Exit && intersectionNode == 11) {
-    runFinishApproachFrom11();
-  } else {
-    if (intersectionNode != 11) {
-      driveToIntersectionNode(11);
-    }
-    runFinishApproachFrom11();
-  }
+  // node==11이면 어느 경우든 추가 주행 없이 접근, 아니면 11번까지 이동 후 접근.
+  if (intersectionNode != 11) driveToIntersectionNode(11);
+  runFinishApproachFrom11();
 
   finishFromZone6Exit = false;
 
@@ -284,42 +279,31 @@ void driveToFinishArea() {
   prizm.setGreenLED(HIGH);
 }
 
+static int finishZoneSearch(int z) {
+  endZoneScan();
+  stopMotors();
+  printSearchResult();
+  return z;
+}
+
 int searchQrInZones1to4() {
   beginZoneScan(2);
   rotateToHeading(0.0f);
   enterZoneAt(2);
   waitForZoneScan(2);
-  if (countScannedBoxesInZones1to4() >= 2) {
-    endZoneScan();
-    stopMotors();
-    printSearchResult();
-    return 2;
-  }
+  if (countScannedBoxesInZones1to4() >= 2) return finishZoneSearch(2);
 
   moveBetweenZones(2, 4, zoneMoveOpts(true, true));
   waitForZoneScan(4);
-  if (countScannedBoxesInZones1to4() >= 2) {
-    endZoneScan();
-    stopMotors();
-    printSearchResult();
-    return 4;
-  }
+  if (countScannedBoxesInZones1to4() >= 2) return finishZoneSearch(4);
 
   moveBetweenZones(4, 1, zoneMoveOpts(true, true));
   waitForZoneScan(1);
-  if (countScannedBoxesInZones1to4() >= 2) {
-    endZoneScan();
-    stopMotors();
-    printSearchResult();
-    return 1;
-  }
+  if (countScannedBoxesInZones1to4() >= 2) return finishZoneSearch(1);
 
   moveBetweenZones(1, 3, zoneMoveOpts(true, true));
   waitForZoneScan(3);
-  endZoneScan();
-  stopMotors();
-  printSearchResult();
-  return 3;
+  return finishZoneSearch(3);
 }
 
 int rescanMissingQrZones1to4() {

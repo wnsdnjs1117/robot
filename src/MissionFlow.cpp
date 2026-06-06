@@ -49,6 +49,19 @@ void markBoxMoved(int from, int to) {
   boxes[from].destination = 0;
 }
 
+void scanZoneWithRescan(int z, bool leaveAfter) {
+  beginZoneScan(z);
+  navigateToZone(z);
+  waitForZoneScan(z);
+  for (int t = 0; !boxes[z].found && t < MAX_RESCAN_TRIES; t++) {
+    leaveZone(z);
+    navigateToZone(z);
+    waitForZoneScan(z);
+  }
+  if (leaveAfter) leaveZone(z);
+  endZoneScan();
+}
+
 void deliverReadyBoxesWithinZones1to4(int inZone) {
   if (boxReadyForEarlyDelivery(inZone)) {
     int dest = boxes[inZone].destination;
@@ -91,26 +104,8 @@ void runSearchPhase() {
     deliverReadyBoxesWithinZones1to4(rescanZone);
   }
 
-  beginZoneScan(5);
-  navigateToZone(5);
-  waitForZoneScan(5);
-  for (int t = 0; !boxes[5].found && t < MAX_RESCAN_TRIES; t++) {
-    leaveZone(5);
-    navigateToZone(5);
-    waitForZoneScan(5);
-  }
-  leaveZone(5);
-  endZoneScan();
-
-  beginZoneScan(6);
-  navigateToZone(6);
-  waitForZoneScan(6);
-  for (int t = 0; !boxes[6].found && t < MAX_RESCAN_TRIES; t++) {
-    leaveZone(6);
-    navigateToZone(6);
-    waitForZoneScan(6);
-  }
-  endZoneScan();
+  scanZoneWithRescan(5, true);
+  scanZoneWithRescan(6, false);
 
   DPRINTLNF(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!");
   DPRINTLNF("========================================\n");

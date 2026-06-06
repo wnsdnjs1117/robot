@@ -22,10 +22,15 @@ static int zoneToIntersection(int zone) {
   return 8;
 }
 
+static float normDeg(float d) {
+  while (d >= 360.0f) d -= 360.0f;
+  while (d < 0.0f) d += 360.0f;
+  return d;
+}
+
 void rotateToHeading(float targetDeg) {
-  while (targetDeg >= 360.0f) targetDeg -= 360.0f;
-  while (targetDeg < 0.0f) targetDeg += 360.0f;
-  
+  targetDeg = normDeg(targetDeg);
+
   float diff = targetDeg - headingDeg;
   while (diff > 180.0f) diff -= 360.0f;
   while (diff < -180.0f) diff += 360.0f;
@@ -583,20 +588,14 @@ void enterZoneAt(int zone) {
   int targetNode = zoneToIntersection(zone);
   float zoneHeading = (zone == 3 || zone == 4) ? 180.0f : 0.0f;
   
-  float modH = headingDeg;
-  while (modH >= 360.0f) modH -= 360.0f;
-  while (modH < 0.0f) modH += 360.0f;
-  
+  float modH = normDeg(headingDeg);
   bool isNorth = (modH < 0.1f || modH > 359.9f);
   bool isSouth = (modH > 179.9f && modH < 180.1f);
   if (!isNorth && !isSouth) rotateToHeading(zoneHeading);
 
   if (targetNode == 7) enableTeeZoneSteering = true;
   
-  modH = headingDeg;
-  while (modH >= 360.0f) modH -= 360.0f;
-  while (modH < 0.0f) modH += 360.0f;
-  
+  modH = normDeg(headingDeg);
   bool isSame = (modH > zoneHeading - 0.1f && modH < zoneHeading + 0.1f) ||
                 (modH > zoneHeading + 359.9f && modH < zoneHeading + 360.1f);
                 

@@ -136,15 +136,11 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  static unsigned long g_beepLastToggleUs = 0;
  static bool          g_beepPinHigh      = false;
 
+ void updateBeep();
+
  void playBeep(unsigned long ms) {
-   g_beepEndMs = 0;
-   pinMode(PIN_BUZZER, OUTPUT);
-   unsigned long end = millis() + ms;
-   while (millis() < end) {
-     digitalWrite(PIN_BUZZER, HIGH); delayMicroseconds(500);
-     digitalWrite(PIN_BUZZER, LOW);  delayMicroseconds(500);
-   }
-   digitalWrite(PIN_BUZZER, LOW);
+   startBeep(ms);
+   while (g_beepEndMs != 0) updateBeep();
  }
 
  void startBeep(unsigned long ms) {
@@ -345,6 +341,9 @@ static void spinPlainCounts(bool clockwise, long counts) {
   spinMotorSpeeds(clockwise, 0);
   delayWithTicks(40);
   setWheelSpeeds(0, 0);
+
+  // 회전 종료 후 100ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
+  delayWithTicks(100);
 
   if (lineTrimmed) {
     int fl, fc, fr;
