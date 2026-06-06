@@ -112,8 +112,8 @@ inline ZoneCfg zoneCfg(int z) {
     cfg.exitRevExtra = 35.0f;  // 후진 탈출: 선 감지 후 35cm 추종
   }
   else if (z == 5 || z == 6) {
-    // 5/6번 존: 메인 라인(가로선) 감지 후 28cm 추종 후 정지
-    cfg.exitFwdExtra = 28.0f;
+    // 5/6번 존: 항상 전진 진입 → 항상 후진 탈출만 존재
+    // 메인 라인(가로선) 감지 후 28cm 라인 추종 후 정지
     cfg.exitRevExtra = 28.0f;
   }
   // 2, 4번 존은 십자(┼) 교차로 — 교차 감지로 탈출하므로 exit extra 불필요 (기본값 0)
