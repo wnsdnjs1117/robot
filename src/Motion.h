@@ -32,8 +32,10 @@ int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed);
 struct DriveEncMark { long left; long right; };
 DriveEncMark captureDriveEnc();
 long encoderTraveledSince(DriveEncMark mark);
-long rampAccelSpanCounts();
-int blindRampSpeed(DriveEncMark start, int maxSpeed);
-int blindDecelSpeed(DriveEncMark mark, long totalSpan, int cruiseSpeed);
+bool finishEncoderRemaining(long remainingCounts, int curSpeed);
+bool finishEncoderSpan(DriveEncMark mark, long targetSpan, int curSpeed);
+int rampMarkSpeed(DriveEncMark start, int maxSpeed);
+int decelMarkSpeed(DriveEncMark mark, long totalSpan, int cruiseSpeed);
+int crossAlignSpeed(DriveEncMark mark, long alignSpan);
 
 #endif

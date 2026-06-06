@@ -48,11 +48,13 @@ void pollZoneScan() {
 #endif
 }
 
+#if ROBOT_DEBUG
 static void printZoneLabel(int zone) {
   if (zone == ZONE_IN) DPRINTF("입고(5)");
   else if (zone == ZONE_OUT) DPRINTF("출고(6)");
   else { DPRINT(zone); DPRINTF("구역"); }
 }
+#endif
 
 void setupRandomLayout() {
   for (int i = 0; i < 7; i++) {
@@ -82,6 +84,7 @@ void setupRandomLayout() {
   boxes[ZONE_IN].destination = destPool[2];
   boxes[ZONE_OUT].destination = destPool[3];
 
+#if ROBOT_DEBUG
   DPRINTLNF("\n===== [시뮬레이션: 이번 판 정답지] =====");
   DPRINTF("  랜덤 박스 ["); printZoneLabel(zoneA);
   DPRINTF("] -> 목적지: "); DPRINTLN(destPool[0]);
@@ -90,11 +93,14 @@ void setupRandomLayout() {
   DPRINTF("  고정 박스 [입고(5)] -> 목적지: "); DPRINTLN(destPool[2]);
   DPRINTF("  고정 박스 [출고(6)] -> 목적지: "); DPRINTLN(destPool[3]);
   DPRINTLNF("========================================");
+#endif
 }
 
 bool waitForZoneScan(int zone) {
+#if ROBOT_DEBUG
   DPRINTF(">> [SCAN] ");
   printZoneLabel(zone);
+#endif
   beginZoneScan(zone);
   unsigned long deadline = millis() + SCAN_DWELL_MS;
   while (millis() < deadline && !boxes[zone].found) pollZoneScan();

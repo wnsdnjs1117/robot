@@ -11,16 +11,11 @@
 
 namespace {
 
-void deliverBoxBetweenZones(int fromZone, int toZone) {
-  navigateToZone(fromZone);
-  liftUp();
-  liftUpWait();
-  if (zonesAreVerticalOpposites(fromZone, toZone)) {
-    moveBetweenOppositeZones(fromZone, toZone);
-  } else {
-    leaveZone(fromZone);
-    navigateToZone(toZone);
-  }
+void deliverBoxBetweenZones(int fromZone, int toZone, bool alreadyInFromZone = false) {
+  if (!alreadyInFromZone) navigateToZone(fromZone);
+  liftUpStart();
+  liftUpWaitClear();
+  moveBetweenZones(fromZone, toZone, zoneMoveOpts(false, true));
   liftDownUntilClear();
   leaveZone(toZone);
   liftDownWait();
@@ -97,15 +92,8 @@ void runDeliveryPhase() {
           DPRINTF("\n[ROUTE] 6 -> ");
           DPRINTLN(dest);
 
-          liftUp();
-          leaveZone(6);
-          liftUpWait();
+          deliverBoxBetweenZones(6, dest, true);
           insideZone6 = false;
-
-          navigateToZone(dest);
-          liftDownUntilClear();
-          leaveZone(dest);
-          liftDownWait();
 
           boxes[6].present = false;
           boxes[dest].present = true;

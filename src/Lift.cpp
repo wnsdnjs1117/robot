@@ -64,35 +64,27 @@ static unsigned long calcNearFloorDur(float h) {
   return (unsigned long)(remaining / refDist * LIFT_FLOOR_TIME_MS);
 }
 
-// ── 상승 ─────────────────────────────────────────────────────
+// ── 상승 (nonblocking: liftUpStart → liftUpWaitClear(5cm) → 주행 중 liftUpTick) ──
 
-void liftUp() {
+void liftUpStart() {
   resetState();
-  liftUpRunning = false;
-
-  do {
-    int basePwrL = (heightL >= LIFT_UP_CLEAR_CM) ? 0 : ((heightL >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_L : LIFT_UP_POWER);
-    int basePwrR = (heightR >= LIFT_UP_CLEAR_CM) ? 0 : ((heightR >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_R : LIFT_UP_POWER);
-
-    int syncOffset = 0;
-    if (basePwrL > 0 && basePwrR > 0) {
-      syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
-    }
-
-    int pwrL = basePwrL - syncOffset;
-    int pwrR = basePwrR + syncOffset;
-
-    if (basePwrL > 0 && pwrL < 5) pwrL = 5;
-    if (basePwrR > 0 && pwrR < 5) pwrR = 5;
-    if (basePwrL == 0) pwrL = 0;
-    if (basePwrR == 0) pwrR = 0;
-
-    exc.setMotorPowers(EXP_ID, pwrL, -pwrR);
-    updateHeight();
-  } while (heightL < LIFT_UP_CLEAR_CM || heightR < LIFT_UP_CLEAR_CM);
-
   liftUpRunning = true;
-  DPRINTLNF(">> [LIFT] 주행 허가 기준 높이 통과 (배경 상승 계속)");
+}
+
+bool liftUpClearReached() {
+  return heightL >= LIFT_UP_CLEAR_CM && heightR >= LIFT_UP_CLEAR_CM;
+}
+
+void liftUpWaitClear() {
+  while (!liftUpClearReached()) {
+    liftUpTick();
+    liftDownTick();
+  }
+}
+
+static int liftUpBasePower(float h, bool done, int slowPwr) {
+  if (done) return 0;
+  return (h >= LIFT_UP_SLOW_ZONE_CM) ? slowPwr : LIFT_UP_POWER;
 }
 
 void liftUpTick() {
@@ -101,9 +93,8 @@ void liftUpTick() {
 
   bool doneL = (heightL >= LIFT_MAX_HEIGHT_CM);
   bool doneR = (heightR >= LIFT_MAX_HEIGHT_CM);
-
-  int basePwrL = doneL ? 0 : ((heightL >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_L : LIFT_UP_POWER);
-  int basePwrR = doneR ? 0 : ((heightR >= LIFT_UP_SLOW_ZONE_CM) ? LIFT_UP_SLOW_POWER_R : LIFT_UP_POWER);
+  int basePwrL = liftUpBasePower(heightL, doneL, LIFT_UP_SLOW_POWER_L);
+  int basePwrR = liftUpBasePower(heightR, doneR, LIFT_UP_SLOW_POWER_R);
 
   int syncOffset = 0;
   if (basePwrL > 0 && basePwrR > 0) {
@@ -120,10 +111,7 @@ void liftUpTick() {
 
   exc.setMotorPowers(EXP_ID, pwrL, -pwrR);
 
-  if (doneL && doneR) {
-    liftUpRunning = false;
-    DPRINTLNF(">> [LIFT] 상승 완료");
-  }
+  if (doneL && doneR) liftUpRunning = false;
 }
 
 void liftUpWait() {
@@ -260,7 +248,7 @@ void runLiftTestMode() {
     if (c == 'u' || c == 'U') {
       Serial.println(F("[UP]"));
       _ltState = LT_UP;
-      liftUp(); 
+      liftUpStart();
     }
     else if (c == 'd' || c == 'D') {
       Serial.println(F("[DOWN]"));

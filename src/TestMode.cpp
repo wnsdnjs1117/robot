@@ -80,7 +80,7 @@ static bool loopLiftTest() {
     else if (c == 'u' || c == 'U') {
       Serial.println(F("[UP]"));
       _ltState = LT_UP;
-      liftUp();   
+      liftUpStart();
     }
     else if (c == 'd' || c == 'D') {
       Serial.println(F("[DOWN]"));

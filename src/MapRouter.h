@@ -12,9 +12,23 @@ extern bool enteredZoneForward; // 마지막 구역 진입이 전진이었는지
 
 void rotateToHeading(int targetDeg);
 void driveToIntersectionNode(int targetNode);
+struct ZoneMoveOptions {
+  bool scanQr;
+  bool alreadyInFromZone;
+};
+
+inline ZoneMoveOptions zoneMoveOpts(bool scanQr = false, bool alreadyInFromZone = false) {
+  ZoneMoveOptions o;
+  o.scanQr = scanQr;
+  o.alreadyInFromZone = alreadyInFromZone;
+  return o;
+}
+
+void enterZoneAt(int zone);
+void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts);
 void leaveZone(int zone);
 void navigateToZone(int zone);
 bool zonesAreVerticalOpposites(int zoneA, int zoneB);
-void moveBetweenOppositeZones(int fromZone, int toZone);
+void moveBetweenOppositeZones(int fromZone, int toZone); // zoneMoveOpts(false,true) 단축
 
 #endif

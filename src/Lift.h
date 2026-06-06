@@ -7,7 +7,9 @@
 #include <Arduino.h>
 #include <PRIZM.h>
 
-void liftUp();
+void liftUpStart();
+bool liftUpClearReached();
+void liftUpWaitClear();
 void liftUpTick();
 void liftUpWait();
 void liftDown();
