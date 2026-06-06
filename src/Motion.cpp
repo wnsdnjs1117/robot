@@ -140,6 +140,7 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  }
  
  void playBeep(unsigned long ms) {
+   noTone(PIN_BUZZER);  // 배경에서 재생 중인 비차단 비프(tone)가 있으면 정지 후 직접 토글
    pinMode(PIN_BUZZER, OUTPUT);
    unsigned long end = millis() + ms;
    while (millis() < end) {
@@ -147,6 +148,11 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
      digitalWrite(PIN_BUZZER, LOW);  delayMicroseconds(500);
    }
    digitalWrite(PIN_BUZZER, LOW);
+ }
+
+ // 비차단 비프 — 하드웨어 타이머(tone)로 배경 재생. 호출 직후 바로 주행을 이어갈 수 있다.
+ void startBeep(unsigned long ms) {
+   tone(PIN_BUZZER, BUZZER_TONE_HZ, ms);
  }
  
  void setWheelSpeeds(int left, int right) {

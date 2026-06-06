@@ -62,7 +62,10 @@ constexpr unsigned long SCAN_POLL_MS = 30;
 // pollZoneScan() HuskyLens I2C 폴링 주기 (ms)
 
 constexpr unsigned long BUZZER_QR_FOUND_MS = 1000;
-// QR 박스 인식 성공 알림 (ms)
+// QR 박스 인식 성공 알림 (ms) — 비차단(tone)으로 울리며 즉시 출발
+
+constexpr unsigned int BUZZER_TONE_HZ = 1000;
+// 비차단 비프(tone) 주파수 (Hz)
 
 // ============================================================
 // [3] 핀 · 센서 하드웨어

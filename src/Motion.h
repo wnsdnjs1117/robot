@@ -8,6 +8,7 @@ extern bool enableTeeZoneSteering; // T자 구역(1·3) 탈출 시 엣지 동기
 
 void delayWithTicks(unsigned long ms);
 void playBeep(unsigned long ms);
+void startBeep(unsigned long ms);  // 비차단 비프(tone): 즉시 반환, 배경에서 ms동안 재생
 void setWheelSpeeds(int left, int right);
 void stopMotors();
 void rotateByDegrees(int degrees, bool clockwise);
