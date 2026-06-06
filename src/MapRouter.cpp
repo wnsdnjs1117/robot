@@ -144,6 +144,8 @@ void exitZone(int zone) {
   ZoneCfg c = zoneCfg(zone);
   if (targetNode == 7) enableEdgeSteering = true;
 
+  scanSetAuthoritative(true); // ★ 탈출 중 인식된 QR은 그 탈출 존 박스로 확정 저장(오배정 정정)
+
   lastSensorState = 0;
   long startEnc = labs(prizm.readEncoderCount(1));
 
@@ -312,6 +314,7 @@ void exitZone(int zone) {
   
   // 모든 탈출 로직 및 바퀴축 정렬이 종료되면 모터 강제 정지
   stopAll();
+  scanSetAuthoritative(false);
   scanDisarm(); // ★ 탈출 완료 후 스캔 종료: 이후 노드 이동 중 엉뚱한 QR 오기록 방지
 
   float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - startEnc)) / COUNTS_PER_CM;
