@@ -28,23 +28,24 @@ long encoderTraveledSince(DriveEncMark mark) {
 
 int rampMarkSpeed(DriveEncMark start, int maxSpeed) {
   return calcRampUpSpeed(encoderTraveledSince(start),
-      rampCmCountsAtSpeed(RAMP_ACCEL_CM, maxSpeed), maxSpeed);
+      rampAccelSpanCounts(maxSpeed), maxSpeed);
 }
 
 int decelMarkSpeed(DriveEncMark mark, long totalSpan, int cruiseSpeed) {
   long remaining = totalSpan - encoderTraveledSince(mark);
   if (remaining <= 0) return RAMP_MIN_SPEED;
-  long decelSpan = rampCmCountsAtSpeed(RAMP_DECEL_CM, cruiseSpeed);
+  long decelSpan = rampDecelSpanCounts(cruiseSpeed);
   if (totalSpan <= decelSpan)
     return calcRampDownSpeed(remaining, totalSpan, cruiseSpeed);
-  if (decelSpan > totalSpan / 3) decelSpan = totalSpan / 3;
   if (remaining > decelSpan) return cruiseSpeed;
   return calcRampDownSpeed(remaining, decelSpan, cruiseSpeed);
 }
 
-int crossAlignSpeed(DriveEncMark mark, long alignSpan) {
+int crossAlignSpeed(DriveEncMark mark, long alignSpan, int cruiseSpeed) {
   if (alignSpan <= 0) return RAMP_MIN_SPEED;
-  return calcRampDownSpeed(encoderRemaining(mark, alignSpan), alignSpan, SPEED_LINE_FOLLOW_FWD);
+  long decelSpan = rampDecelSpanCounts(cruiseSpeed);
+  if (decelSpan > alignSpan) decelSpan = alignSpan;
+  return calcRampDownSpeed(encoderRemaining(mark, alignSpan), decelSpan, cruiseSpeed);
 }
 
 bool finishEncoderRemaining(long remainingCounts, int curSpeed) {
@@ -65,15 +66,15 @@ bool finishEncoderSpan(DriveEncMark mark, long targetSpan, int curSpeed) {
 }
 
 int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed) {
-  if (accelCounts <= 0) return maxSpeed;
-  int speed = (traveledCounts < accelCounts)
-      ? RAMP_MIN_SPEED + (int)((long)(maxSpeed - RAMP_MIN_SPEED) * traveledCounts / accelCounts)
-      : maxSpeed;
+  if (accelCounts <= 0 || traveledCounts >= accelCounts) return maxSpeed;
+  int speed = RAMP_MIN_SPEED
+      + (int)((long)(maxSpeed - RAMP_MIN_SPEED) * traveledCounts / accelCounts);
   return (speed < RAMP_MIN_SPEED) ? RAMP_MIN_SPEED : speed;
 }
 
 int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed) {
-  if (decelCounts <= 0) return (startSpeed < RAMP_MIN_SPEED) ? RAMP_MIN_SPEED : startSpeed;
+  if (decelCounts <= 0 || remainingCounts >= decelCounts) return startSpeed;
+  if (remainingCounts <= 0) return RAMP_MIN_SPEED;
   int speed = RAMP_MIN_SPEED
       + (int)((long)(startSpeed - RAMP_MIN_SPEED) * remainingCounts / decelCounts);
   return (speed < RAMP_MIN_SPEED) ? RAMP_MIN_SPEED : speed;
@@ -153,37 +154,8 @@ static long spinDegToCounts(float deg) {
   return (long)((SPIN_90_COUNTS / 90.0f) * deg + 0.5f);
 }
 
-// setWheelSpeeds(L,R) → prizm(-L*7, R*7) — TestMode t 명령과 동일 부호
-static void spinMotorSpeeds(bool clockwise, int speed) {
-  if (speed <= 0) {
-    prizm.setMotorSpeeds(0, 0);
-    return;
-  }
-  speed = constrain(speed, RAMP_MIN_SPEED, 100);
-  int left  = clockwise ?  speed : -speed;
-  int right = clockwise ? -speed :  speed;
-  prizm.setMotorSpeeds(-left * 7, right * 7);
-}
-
-static void spinSoftStop(bool clockwise, int fromSpeed) {
-  int s = fromSpeed;
-  while (s > RAMP_MIN_SPEED) {
-    s -= 4;
-    if (s < RAMP_MIN_SPEED) s = RAMP_MIN_SPEED;
-    spinMotorSpeeds(clockwise, s);
-    delayWithTicks(20);
-  }
-  if (s > 0) {
-    spinMotorSpeeds(clockwise, RAMP_MIN_SPEED);
-    delayWithTicks(30);
-  }
-  prizm.setMotorSpeeds(0, 0);
-  delayWithTicks(40);
-  setWheelSpeeds(0, 0);
-}
-
 void rotateByDegrees(int degrees, bool clockwise) {
-  prizm.setMotorSpeeds(0, 0);
+  setWheelSpeeds(0, 0);
   delayWithTicks(40);
   int absDeg = degrees >= 0 ? degrees : -degrees;
   long targetCounts = spinDegToCounts((float)absDeg);
@@ -191,14 +163,13 @@ void rotateByDegrees(int degrees, bool clockwise) {
 
   long startL = prizm.readEncoderCount(1);
   long startR = prizm.readEncoderCount(2);
-  long accelSpan = min(spinDegToCounts(rampDegAtSpeed(RAMP_SPIN_ACCEL_DEG, SPIN_SPEED)), targetCounts / 2);
-  long decelSpan = min(spinDegToCounts(rampDegAtSpeed(RAMP_SPIN_DECEL_DEG, SPIN_SPEED)), targetCounts / 2);
+  long accelSpan = min(spinDegToCounts(rampSpinAccelDeg(SPIN_SPEED)), targetCounts / 2);
+  long decelSpan = min(spinDegToCounts(rampSpinDecelDeg(SPIN_SPEED)), targetCounts / 2);
   int fl0, fc0, fr0;
   readFrontLineSensors(fl0, fc0, fr0);
   bool skipLineTrim = (fc0 != 0);
   bool oppositeWasOn = clockwise ? (fl0 != 0) : (fr0 != 0);
   bool lineTrimmed = false;
-  int curSpeed = RAMP_MIN_SPEED;
 
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1) - startL) + labs(prizm.readEncoderCount(2) - startR)) / 2;
@@ -220,6 +191,7 @@ void rotateByDegrees(int degrees, bool clockwise) {
 
     long effDecelSpan = min(decelSpan, targetCounts - pos);
     if (effDecelSpan <= 0) effDecelSpan = 1;
+    int curSpeed;
     if (pos < accelSpan)
       curSpeed = calcRampUpSpeed(pos, accelSpan, SPIN_SPEED);
     else if (remaining <= effDecelSpan)
@@ -227,10 +199,12 @@ void rotateByDegrees(int degrees, bool clockwise) {
     else
       curSpeed = SPIN_SPEED;
 
-    spinMotorSpeeds(clockwise, curSpeed);
+    if (clockwise) setWheelSpeeds(curSpeed, -curSpeed);
+    else           setWheelSpeeds(-curSpeed, curSpeed);
     liftUpTick(); liftDownTick();
   }
-  spinSoftStop(clockwise, curSpeed);
+  setWheelSpeeds(0, 0);
+  delayWithTicks(40);
 }
 
 void readFrontLineSensors(int& left, int& center, int& right) {
@@ -371,8 +345,8 @@ void driveDistanceCm(float cm, int speed, bool stopAtEnd) {
 
   DriveEncMark startEnc = captureDriveEnc();
   long targetCounts = toEncoderCounts(absCm);
-  long accelSpan  = min((long)rampCmCountsAtSpeed(RAMP_ACCEL_CM, maxSpeed), targetCounts / 2);
-  long decelSpan  = stopAtEnd ? min((long)rampCmCountsAtSpeed(RAMP_DECEL_CM, maxSpeed), targetCounts / 2) : 0;
+  long accelSpan  = min((long)rampAccelSpanCounts(maxSpeed), targetCounts / 2);
+  long decelSpan  = stopAtEnd ? min((long)rampDecelSpanCounts(maxSpeed), targetCounts / 2) : 0;
 
   while (true) {
     long traveled = encoderTraveledSince(startEnc);
@@ -405,7 +379,7 @@ void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAt
   int phase = 0; // 0=무시구간 1=라인탐색 2=정렬
 
   int maxSpeed = abs(speed);
-  long accelSpan = rampCmCountsAtSpeed(RAMP_ACCEL_CM, maxSpeed);
+  long accelSpan = rampAccelSpanCounts(maxSpeed);
   long alignSpan = toEncoderCounts(alignCm);
   DriveEncMark alignMark = {0, 0};
   int speedAtLine = maxSpeed;
@@ -445,16 +419,15 @@ void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAt
 
     if (phase == 2) {
       long remaining = encoderRemaining(alignMark, alignSpan);
-      int curSpeed = calcRampDownSpeed(remaining, alignSpan, speedAtLine);
+      long decelSpan = rampDecelSpanCounts(speedAtLine);
+      if (decelSpan > alignSpan) decelSpan = alignSpan;
+      int curSpeed = calcRampDownSpeed(remaining, decelSpan, speedAtLine);
       if (stopAtEnd) {
         if (finishEncoderRemaining(remaining, curSpeed)) break;
       } else if (remaining <= 0) {
         break;
       }
-      int fl, fc, fr, rl, rc, rr;
-      readFrontLineSensors(fl, fc, fr);
-      readRearLineSensors(rl, rc, rr);
-      traceLineForward(fl, fc, fr, rl, rc, rr, curSpeed);
+      setWheelSpeeds(curSpeed, curSpeed);
     }
 
     liftUpTick(); liftDownTick(); pollZoneScan();

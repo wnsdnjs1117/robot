@@ -125,7 +125,7 @@ void traceUntilIntersection(bool stopAtEnd) {
   }
 
   long startEnc = labs(prizm.readEncoderCount(1));
-  long accelSpan = rampCmCountsAtSpeed(RAMP_ACCEL_CM, SPEED_LINE_FOLLOW_FWD);
+  long accelSpan = rampAccelSpanCounts(SPEED_LINE_FOLLOW_FWD);
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
 
   intersectionArmed = true;
@@ -159,7 +159,7 @@ void traceUntilIntersection(bool stopAtEnd) {
       }
     }
 
-    int speed = crossAlignSpeed(crossMark, alignSpan);
+    int speed = crossAlignSpeed(crossMark, alignSpan, SPEED_LINE_FOLLOW_FWD);
     if (finishEncoderSpan(crossMark, alignSpan, speed)) break;
     traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
     liftUpTick(); liftDownTick();
@@ -234,7 +234,7 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
 void driveOntoMainTrack() {
   headingDeg = 270;
   long startEnc = labs(prizm.readEncoderCount(1));
-  long accelSpan = rampCmCountsAtSpeed(RAMP_ACCEL_CM, START_LINE_SEARCH_SPEED);
+  long accelSpan = rampAccelSpanCounts(START_LINE_SEARCH_SPEED);
 
   while (true) {
     long traveled = labs(prizm.readEncoderCount(1)) - startEnc;

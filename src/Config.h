@@ -102,29 +102,44 @@ inline ZoneMotionProfile getZoneProfile(int zone) {
     p.exitForwardExtra = 36.0f;
     p.exitReverseExtra = 34.0f;
   }
+  // 2·4: 십자(┼) 센서로 회전 위치 결정 — exit extra 없음 (crossToOppositeZone은 별도)
   // 5·6구역: 항상 전진 진입 → 후진 탈출만
   else if (zone == 5 || zone == 6) {
     p.exitReverseExtra = 26.0f;
   }
-  // 2·4구역: 십자(┼) 교차로 — 교차 감지로 탈출 (exit extra = 0)
   return p;
+}
+
+// 2·4번 존 → 8번 노드: 1·3 탈출 거리는 교차로 접근 감속 구간 참고용만
+inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
+  if (zone == 2) {
+    float cm = reverse ? getZoneProfile(1).exitReverseExtra
+                         : getZoneProfile(1).exitForwardExtra;
+    return toEncoderCounts(cm);
+  }
+  if (zone == 4) {
+    float cm = reverse ? getZoneProfile(3).exitReverseExtra
+                         : getZoneProfile(3).exitForwardExtra;
+    return toEncoderCounts(cm);
+  }
+  return 0;
 }
 
 // ============================================================
 // [8] 주행 속도
 // ============================================================
-// ── 가감속 구간 (cm·deg) — cruise = RAMP_REF_SPEED 일 때의 거리 ──
-constexpr int RAMP_MIN_SPEED = 20;               // 가속 시작·감속 끝 최저 속도
-constexpr int RAMP_REF_SPEED = 40;               // 아래 cm·deg 입력 기준 cruise
-constexpr float RAMP_ACCEL_CM = 8.0f;  // 가속 구간 @ RAMP_REF_SPEED
-constexpr float RAMP_DECEL_CM = 10.0f; // 감속 구간 @ RAMP_REF_SPEED (총 거리가 더 짧으면 전 구간 감속)
+// ── 가·감속 — cruise 속도 40 기준 cm(·deg) 입력, cruise≠40이면 거리만 ×(speed/40) ──
+constexpr int RAMP_MIN_SPEED = 15;       // 가속 시작·감속 끝 최저 속도
+constexpr int RAMP_REF_SPEED = 40;       // 아래 거리 입력 기준 cruise
+constexpr float RAMP_ACCEL_CM = 12.0f;  // 가속 거리 (cm) @ cruise 40
+constexpr float RAMP_DECEL_CM = 18.0f;  // 감속 거리 (cm) @ cruise 40
 
 // ── 속도 ──
-constexpr int SPEED_LINE_FOLLOW_FWD = 40; // 라인 추종 전진
-constexpr int SPEED_LINE_FOLLOW_REV = 35; // 라인 추종 후진
-constexpr int SPEED_OPEN_ZONE_FWD = 40;   // 맹목 전진 — 박스 존 안
-constexpr int SPEED_OPEN_ZONE_REV = 40;   // 맹목 후진 — 박스 존 안
-constexpr int SPEED_OPEN_TRACK_FWD = 50;  // 맹목 전진 — 메인 트랙(존 밖)
+constexpr int SPEED_LINE_FOLLOW_FWD = 50; // 라인 추종 전진
+constexpr int SPEED_LINE_FOLLOW_REV = 50; // 라인 추종 후진
+constexpr int SPEED_OPEN_ZONE_FWD = 50;   // 맹목 전진 — 박스 존 안
+constexpr int SPEED_OPEN_ZONE_REV = 50;   // 맹목 후진 — 박스 존 안
+constexpr int SPEED_OPEN_TRACK_FWD = 50;  // 맹목 전진 — 메인 트랙
 constexpr int SPEED_OPEN_TRACK_REV = 50;  // 맹목 후진 — 메인 트랙
 
 // ============================================================
@@ -138,27 +153,27 @@ constexpr int START_LINE_SEARCH_SPEED = 25; // 스타트→메인라인 최초 �
 // ============================================================
 constexpr int SPIN_SPEED = 40;               // 회전 모터 출력
 constexpr int SPIN_90_COUNTS = 1170;         // 90° 회전 엔코더 카운트 (실측)
-constexpr float RAMP_SPIN_ACCEL_DEG = 12.0f; // 회전 가속 구간 (각도) @ RAMP_REF_SPEED
-constexpr float RAMP_SPIN_DECEL_DEG = 12.0f; // 회전 감속 구간 (각도) @ RAMP_REF_SPEED
+constexpr float RAMP_SPIN_ACCEL_DEG = 12.0f; // 회전 가속 거리 (deg) @ SPIN_SPEED 40
+constexpr float RAMP_SPIN_DECEL_DEG = 12.0f; // 회전 감속 거리 (deg) @ SPIN_SPEED 40
 constexpr float SPIN_LINE_TRIM_MIN_FRAC =
     0.70f; // 오버슈팅 방지: 목표 각도의 70% 이후부터 라인 감지
 
-// cruise 대비 가감속 거리 스케일: (speed - MIN) / (REF - MIN), REF에서 입력값 그대로
-inline float rampSpeedFactor(int speed) {
+inline float rampCruiseFactor(int speed) {
   int s = speed < 0 ? -speed : speed;
-  if (s <= RAMP_MIN_SPEED) return 0.0f;
-  int refDelta = RAMP_REF_SPEED - RAMP_MIN_SPEED;
-  if (refDelta <= 0) return 1.0f;
-  return (float)(s - RAMP_MIN_SPEED) / (float)refDelta;
+  if (s <= 0) return 0.0f;
+  return (float)s / (float)RAMP_REF_SPEED;
 }
-inline float rampCmAtSpeed(float cmAtRef, int speed) {
-  return cmAtRef * rampSpeedFactor(speed);
+inline int rampAccelSpanCounts(int cruiseSpeed) {
+  return toEncoderCounts(RAMP_ACCEL_CM * rampCruiseFactor(cruiseSpeed));
 }
-inline int rampCmCountsAtSpeed(float cmAtRef, int speed) {
-  return toEncoderCounts(rampCmAtSpeed(cmAtRef, speed));
+inline int rampDecelSpanCounts(int cruiseSpeed) {
+  return toEncoderCounts(RAMP_DECEL_CM * rampCruiseFactor(cruiseSpeed));
 }
-inline float rampDegAtSpeed(float degAtRef, int speed) {
-  return degAtRef * rampSpeedFactor(speed);
+inline float rampSpinAccelDeg(int spinSpeed) {
+  return RAMP_SPIN_ACCEL_DEG * rampCruiseFactor(spinSpeed);
+}
+inline float rampSpinDecelDeg(int spinSpeed) {
+  return RAMP_SPIN_DECEL_DEG * rampCruiseFactor(spinSpeed);
 }
 
 // ============================================================

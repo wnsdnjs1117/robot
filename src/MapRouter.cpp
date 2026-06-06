@@ -82,7 +82,8 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
             crossMark = captureDriveEnc();
             if (alignSpan <= 0) break;
           } else {
-            traceLineForward(fl, fc, fr, rl, rc, rr, SPEED_LINE_FOLLOW_FWD);
+            int speed = rampMarkSpeed(motionStart, SPEED_LINE_FOLLOW_FWD);
+            traceLineForward(fl, fc, fr, rl, rc, rr, speed);
             liftUpTick(); liftDownTick();
             continue;
           }
@@ -93,7 +94,7 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
         }
       }
 
-      int speed = crossAlignSpeed(crossMark, alignSpan);
+      int speed = crossAlignSpeed(crossMark, alignSpan, SPEED_LINE_FOLLOW_FWD);
       if (finishEncoderSpan(crossMark, alignSpan, speed)) break;
       traceLineForward(fl, fc, fr, rl, rc, rr, speed);
       liftUpTick(); liftDownTick();
@@ -191,13 +192,18 @@ void leaveZone(int zone) {
 
   if (enteredZoneForward) {
     DPRINTF(" Rev");
-    long extraSpan = (zone == 5 || zone == 6 || zone == 1 || zone == 3)
-        ? toEncoderCounts(profile.exitReverseExtra)
-        : toEncoderCounts(DIST_AXIS_TO_REAR_SENSOR_CM);
+    const bool crossZone = (zone == 2 || zone == 4);
+    long extraSpan = crossZone ? toEncoderCounts(DIST_AXIS_TO_REAR_SENSOR_CM)
+        : toEncoderCounts(profile.exitReverseExtra);
+    if (extraSpan <= 0)
+      extraSpan = toEncoderCounts(DIST_AXIS_TO_REAR_SENSOR_CM);
+    long approachDecelSpan = zoneCrossApproachDecelSpan(zone, true);
     int openSpeed = SPEED_OPEN_ZONE_REV;
 
     bool lineDetected = false;
     DriveEncMark lineMark = {0, 0};
+    DriveEncMark approachMark = {0, 0};
+    bool approachDecel = false;
     int confirmCount = 0;
 
     while (true) {
@@ -212,11 +218,17 @@ void leaveZone(int zone) {
           DPRINTF(" L_ON");
           if (extraSpan <= 0) break;
         } else {
-          int speed = rampMarkSpeed(motionStart, openSpeed);
+          if (crossZone && rearOnLine(rl, rc, rr) && !approachDecel) {
+            approachDecel = true;
+            approachMark = captureDriveEnc();
+          }
+          int speed = (crossZone && approachDecel)
+              ? decelMarkSpeed(approachMark, approachDecelSpan, openSpeed)
+              : rampMarkSpeed(motionStart, openSpeed);
           bool traceRev = false;
           if (rearOnLine(rl, rc, rr)) {
             if (zone == 5 || zone == 6) traceRev = true;
-            else if ((zone == 2 || zone == 4) && !(rl && rc && rr)) traceRev = true;
+            else if (crossZone && !(rl && rc && rr)) traceRev = true;
           }
           if (traceRev) {
             traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
@@ -237,13 +249,18 @@ void leaveZone(int zone) {
     }
   } else {
     DPRINTF(" Fwd");
-    long extraSpan = (zone == 5 || zone == 6 || zone == 1 || zone == 3)
-        ? toEncoderCounts(profile.exitForwardExtra)
-        : toEncoderCounts(DIST_AXIS_TO_FRONT_SENSOR_CM);
+    const bool crossZone = (zone == 2 || zone == 4);
+    long extraSpan = crossZone ? toEncoderCounts(DIST_AXIS_TO_FRONT_SENSOR_CM)
+        : toEncoderCounts(profile.exitForwardExtra);
+    if (extraSpan <= 0)
+      extraSpan = toEncoderCounts(DIST_AXIS_TO_FRONT_SENSOR_CM);
+    long approachDecelSpan = zoneCrossApproachDecelSpan(zone, false);
     int openSpeed = SPEED_OPEN_ZONE_FWD;
 
     bool lineDetected = false;
     DriveEncMark lineMark = {0, 0};
+    DriveEncMark approachMark = {0, 0};
+    bool approachDecel = false;
     int confirmCount = 0;
 
     while (true) {
@@ -258,11 +275,16 @@ void leaveZone(int zone) {
           DPRINTF(" L_ON");
           if (extraSpan <= 0) break;
         } else {
-          if ((zone == 2 || zone == 4) && frontOnLine(fl, fc, fr) && !(fl && fc && fr)) {
-            int speed = rampMarkSpeed(motionStart, openSpeed);
+          if (crossZone && frontOnLine(fl, fc, fr) && !(fl && fc && fr) && !approachDecel) {
+            approachDecel = true;
+            approachMark = captureDriveEnc();
+          }
+          int speed = (crossZone && approachDecel)
+              ? decelMarkSpeed(approachMark, approachDecelSpan, openSpeed)
+              : rampMarkSpeed(motionStart, openSpeed);
+          if (crossZone && frontOnLine(fl, fc, fr) && !(fl && fc && fr)) {
             traceLineForward(fl, fc, fr, rl, rc, rr, speed);
           } else {
-            int speed = rampMarkSpeed(motionStart, openSpeed);
             setWheelSpeeds(speed, speed);
           }
         }
@@ -279,7 +301,8 @@ void leaveZone(int zone) {
     }
   }
 
-  stopMotors();
+  if (zone == 2 || zone == 4) setWheelSpeeds(0, 0);
+  else stopMotors();
   endZoneScan();
   DPRINTF(" Done (실제 이동: ");
   DPRINT((float)encoderTraveledSince(motionStart) / COUNTS_PER_CM);
@@ -340,12 +363,6 @@ void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts) {
 
   int fromNode = zoneToIntersection(fromZone);
   int toNode = zoneToIntersection(toZone);
-  if (fromNode == 8 && toNode == 7 && headingDeg == 0) {
-    rotateToHeading(270);
-    alignOnTrackHeading(SPEED_OPEN_TRACK_FWD, DIST_CROSS_ALIGN_CM);
-    intersectionNode = 8;
-  }
-
   if (opts.scanQr) endZoneScan();
   driveToIntersectionNode(toNode);
   if (opts.scanQr) beginZoneScan(toZone);
