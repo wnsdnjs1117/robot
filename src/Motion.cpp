@@ -139,8 +139,14 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
    }
  }
  
+ // ── 비프(부저) ─────────────────────────────────────────────
+ // PRIZM 보드 코어에는 tone()/noTone()이 없어 직접 핀 토글로 구현한다.
+ static unsigned long g_beepEndMs        = 0;  // 0 = 비차단 비프 비활성
+ static unsigned long g_beepLastToggleUs = 0;
+ static bool          g_beepPinHigh      = false;
+
  void playBeep(unsigned long ms) {
-   noTone(PIN_BUZZER);  // 배경에서 재생 중인 비차단 비프(tone)가 있으면 정지 후 직접 토글
+   g_beepEndMs = 0;  // 진행 중인 비차단 비프 취소 (핀 충돌 방지)
    pinMode(PIN_BUZZER, OUTPUT);
    unsigned long end = millis() + ms;
    while (millis() < end) {
@@ -150,9 +156,31 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
    digitalWrite(PIN_BUZZER, LOW);
  }
 
- // 비차단 비프 — 하드웨어 타이머(tone)로 배경 재생. 호출 직후 바로 주행을 이어갈 수 있다.
+ // 비차단 비프 — 즉시 반환하고, 이후 updateBeep()(driveLoopTick) 호출로 ms동안 배경 재생.
  void startBeep(unsigned long ms) {
-   tone(PIN_BUZZER, BUZZER_TONE_HZ, ms);
+   pinMode(PIN_BUZZER, OUTPUT);
+   g_beepEndMs        = millis() + ms;
+   if (g_beepEndMs == 0) g_beepEndMs = 1;  // 0(=비활성)과 충돌 회피
+   g_beepLastToggleUs = micros();
+   g_beepPinHigh      = false;
+   digitalWrite(PIN_BUZZER, LOW);
+ }
+
+ // 비차단 비프 구동 — 주행 루프(driveLoopTick)에서 매 틱 호출. 반주기마다 핀 토글.
+ void updateBeep() {
+   if (g_beepEndMs == 0) return;
+   if (millis() >= g_beepEndMs) {
+     g_beepEndMs   = 0;
+     g_beepPinHigh = false;
+     digitalWrite(PIN_BUZZER, LOW);
+     return;
+   }
+   unsigned long nowUs = micros();
+   if (nowUs - g_beepLastToggleUs >= BUZZER_TONE_HALF_US) {
+     g_beepLastToggleUs = nowUs;
+     g_beepPinHigh      = !g_beepPinHigh;
+     digitalWrite(PIN_BUZZER, g_beepPinHigh ? HIGH : LOW);
+   }
  }
  
  void setWheelSpeeds(int left, int right) {
@@ -366,6 +394,7 @@ void driveLoopTick() {
   // 수행한다 — request()가 최대 30ms 블로킹이라 주행 루프 속도를 떨어뜨려 위치 오차를 유발.
   liftUpTick();
   liftDownTick();
+  updateBeep();  // 비차단 비프(QR 인식 알림)를 주행 중 배경 재생
 }
  
  bool frontOnLine(int left, int center, int right) { return left || center || right; }
