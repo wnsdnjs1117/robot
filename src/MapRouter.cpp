@@ -37,73 +37,137 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
   if (alignHeading != -1 && !stopAtEnd) rotateToHeading(alignHeading);
 }
 
-static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
-  if (fromNode == 8 && toNode == 9) {
-    rotateToHeading(90);
-    while (true) {
-      int fl, fc, fr, rl, rc, rr;
-      readFrontLineSensors(fl, fc, fr);
-      readRearLineSensors(rl, rc, rr);
-      if (!frontOnLine(fl, fc, fr)) {
-        if (stopAtEnd) stopMotors();
-        break;
-      }
-      traceLineForward(fl, fc, fr, rl, rc, rr, SPEED_LINE_FOLLOW_FWD);
-      liftUpTick(); liftDownTick();
-    }
+static int trackLegSpeed(DriveEncMark motionStart, long ignoreSpan, long approachStart,
+    bool& approachDecel, DriveEncMark& approachMark, int cruiseSpeed) {
+  long traveled = encoderTraveledSince(motionStart);
+  if (traveled < ignoreSpan)
+    return RAMP_MIN_SPEED;
+  if (traveled < approachStart)
+    return rampMarkSpeed(motionStart, cruiseSpeed);
+  if (!approachDecel) {
+    approachDecel = true;
+    approachMark = captureDriveEnc();
   }
-  else if (fromNode == 8 && toNode == 7) {
-    rotateToHeading(270);
-    resetLineTracePid();
-    DriveEncMark motionStart = captureDriveEnc();
-    long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
-    long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
-    intersectionArmed = true;
-    intersectionHitCount = 0;
-    bool crossFound = false;
-    DriveEncMark crossMark = {0, 0};
+  return decelMarkSpeed(approachMark, rampDecelSpanCounts(cruiseSpeed), cruiseSpeed);
+}
 
-    while (true) {
-      int fl, fc, fr, rl, rc, rr;
-      readFrontLineSensors(fl, fc, fr);
-      readRearLineSensors(rl, rc, rr);
+// 7↔8 직선 — RAMP_DECEL 접근 감속, stopAtEnd=false면 교차 통과(정지 없음)
+static void stepTrackLeg78(int heading, bool stopAtEnd) {
+  rotateToHeading(heading);
+  resetLineTracePid();
+  clearIntersectionCross();
+  DriveEncMark motionStart = captureDriveEnc();
+  long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
+  long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
+  long approachStart = trackNodeApproachStartCounts(SPEED_LINE_FOLLOW_FWD);
+  long approachDecelSpan = rampDecelSpanCounts(SPEED_LINE_FOLLOW_FWD);
+  intersectionArmed = true;
+  intersectionHitCount = 0;
+  bool crossFound = false;
+  bool approachDecel = false;
+  DriveEncMark crossMark = {0, 0};
+  DriveEncMark approachMark = {0, 0};
 
-      if (!crossFound) {
-        if (encoderTraveledSince(motionStart) < ignoreSpan) {
-          int speed = rampMarkSpeed(motionStart, SPEED_LINE_FOLLOW_FWD);
-          traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+  while (true) {
+    int fl, fc, fr, rl, rc, rr;
+    readFrontLineSensors(fl, fc, fr);
+    readRearLineSensors(rl, rc, rr);
+
+    if (!crossFound) {
+      if (encoderTraveledSince(motionStart) < ignoreSpan) {
+        traceLineForward(fl, fc, fr, rl, rc, rr, RAMP_MIN_SPEED);
+      } else {
+        bool isCross = (fl == 1 && fc == 1 && fr == 1);
+        if (isCross) intersectionHitCount++;
+        else { intersectionHitCount = 0; intersectionArmed = true; }
+        if (intersectionArmed && intersectionHitCount >= CROSS_CONFIRM) {
+          if (!stopAtEnd) break;
+          crossFound = true;
+          crossMark = captureDriveEnc();
+          if (alignSpan <= 0) break;
         } else {
-          bool isCross = (fl == 1 && fc == 1 && fr == 1);
-          if (isCross) intersectionHitCount++;
-          else { intersectionHitCount = 0; intersectionArmed = true; }
-          if (intersectionArmed && intersectionHitCount >= CROSS_CONFIRM) {
-            if (!stopAtEnd) break;
-            crossFound = true;
-            crossMark = captureDriveEnc();
-            if (alignSpan <= 0) break;
-          } else {
-            int speed = rampMarkSpeed(motionStart, SPEED_LINE_FOLLOW_FWD);
-            traceLineForward(fl, fc, fr, rl, rc, rr, speed);
-            liftUpTick(); liftDownTick();
-            continue;
-          }
-        }
-        if (!crossFound) {
+          int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
+              approachMark, SPEED_LINE_FOLLOW_FWD);
+          traceLineForward(fl, fc, fr, rl, rc, rr, speed);
           liftUpTick(); liftDownTick();
           continue;
         }
       }
-
-      int speed = crossAlignSpeed(crossMark, alignSpan, SPEED_LINE_FOLLOW_FWD);
-      if (finishEncoderSpan(crossMark, alignSpan, speed)) break;
-      traceLineForward(fl, fc, fr, rl, rc, rr, speed);
-      liftUpTick(); liftDownTick();
+      if (!crossFound) {
+        liftUpTick(); liftDownTick();
+        continue;
+      }
     }
+
+    int alignStart = approachDecel
+        ? decelMarkSpeed(approachMark, approachDecelSpan, SPEED_LINE_FOLLOW_FWD)
+        : SPEED_LINE_FOLLOW_FWD;
+    int speed = crossAlignSpeed(crossMark, alignSpan, alignStart);
+    if (finishEncoderSpan(crossMark, alignSpan, speed)) break;
+    traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+    liftUpTick(); liftDownTick();
+  }
+  if (stopAtEnd)
+    correctTrackLegOvershoot(motionStart, DIST_TRACK_NODE_SPAN_CM);
+}
+
+// 8→9 / 7→9 — 라인 끝에서 정지. legSpanCm=전체 직선(7→9는 140cm)
+static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
+  rotateToHeading(90);
+  resetLineTracePid();
+  clearIntersectionCross();
+  DriveEncMark motionStart = captureDriveEnc();
+  long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
+  long approachStart = toEncoderCounts(legSpanCm
+      - RAMP_DECEL_CM * rampCruiseFactor(SPEED_LINE_FOLLOW_FWD));
+  bool approachDecel = false;
+  bool lineSeen = false;
+  DriveEncMark approachMark = {0, 0};
+
+  while (true) {
+    int fl, fc, fr, rl, rc, rr;
+    readFrontLineSensors(fl, fc, fr);
+    readRearLineSensors(rl, rc, rr);
+    if (frontOnLine(fl, fc, fr)) lineSeen = true;
+
+    long traveled = encoderTraveledSince(motionStart);
+    int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
+        approachMark, SPEED_LINE_FOLLOW_FWD);
+
+    if (!frontOnLine(fl, fc, fr)) {
+      if (lineSeen && traveled >= approachStart) {
+        if (stopAtEnd) stopMotors();
+        break;
+      }
+      setWheelSpeeds(speed, speed);
+    } else {
+      traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+    }
+    liftUpTick(); liftDownTick();
+  }
+  if (stopAtEnd)
+    correctTrackLegOvershoot(motionStart, legSpanCm);
+}
+
+static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
+  if (fromNode == 8 && toNode == 9) {
+    stepTrackLegToLineEnd(DIST_TRACK_NODE_SPAN_CM, stopAtEnd);
+  }
+  else if (fromNode == 7 && toNode == 8) {
+    stepTrackLeg78(90, stopAtEnd);
+  }
+  else if (fromNode == 7 && toNode == 9) {
+    stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, stopAtEnd);
+  }
+  else if (fromNode == 8 && toNode == 7) {
+    stepTrackLeg78(270, stopAtEnd);
   }
   else if (fromNode == 9 && toNode == 8) {
     rotateToHeading(270);
-    driveOverLinesAndAlign(1, 0, SPEED_OPEN_TRACK_FWD, false);
-    traceUntilIntersection(stopAtEnd);
+    driveOverLinesAndAlign(1, 0, SPEED_9_TO_8, false);
+    setWheelSpeeds(0, 0);
+    delayWithTicks(40);
+    traceUntilIntersection(stopAtEnd, SPEED_9_TO_8);
   }
   else if (fromNode == 9 && toNode == 10) {
     blindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd);
@@ -142,6 +206,11 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
 
 void driveToIntersectionNode(int targetNode) {
   if (intersectionNode == targetNode) return;
+  if (intersectionNode == 7 && targetNode == 9) {
+    stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, true);
+    intersectionNode = 9;
+    return;
+  }
   while (intersectionNode != targetNode) {
     int nextNode = targetNode;
     if (intersectionNode < 9 && targetNode >= 9) nextNode = intersectionNode + 1;

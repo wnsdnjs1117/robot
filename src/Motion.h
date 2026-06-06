@@ -22,18 +22,22 @@ void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int speed)
 void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr);
 void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr, int speed);
 void resetLineTracePid();
+void clearIntersectionCross(); // 111 교차 패턴 저속 이탈 + 3cm 크립
 
 void driveDistanceCm(float cm, int speed, bool stopAtEnd = true);
 void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAtEnd = true);
+
+struct DriveEncMark { long left; long right; };
+void correctTrackLegOvershoot(DriveEncMark legStart, float plannedSpanCm);
 
 // 선형 가속 RAMP_MIN→max, 구간=rampAccelSpanCounts(cruise)
 int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed);
 // 선형 감속 start→RAMP_MIN, 구간=rampDecelSpanCounts(cruise)
 int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed);
 
-struct DriveEncMark { long left; long right; };
 DriveEncMark captureDriveEnc();
 long encoderTraveledSince(DriveEncMark mark);
+// 정지 목표 도달 시 stopMotors(125) — finishEncoderRemaining / finishEncoderSpan
 bool finishEncoderRemaining(long remainingCounts, int curSpeed);
 bool finishEncoderSpan(DriveEncMark mark, long targetSpan, int curSpeed);
 int rampMarkSpeed(DriveEncMark start, int maxSpeed);

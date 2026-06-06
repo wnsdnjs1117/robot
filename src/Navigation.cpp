@@ -107,25 +107,15 @@ void alignOnTrackHeading(int openSpeed, float alignCm) {
 }
 
 void traceUntilIntersection(bool stopAtEnd) {
+  traceUntilIntersection(stopAtEnd, SPEED_LINE_FOLLOW_FWD);
+}
+
+void traceUntilIntersection(bool stopAtEnd, int cruiseSpeed) {
   resetLineTracePid();
-  int fl, fc, fr;
-  readFrontLineSensors(fl, fc, fr);
-  if (fl == 1 && fc == 1 && fr == 1) {
-    long clearEnc = labs(prizm.readEncoderCount(1));
-    while (true) {
-      readFrontLineSensors(fl, fc, fr);
-      if (!(fl == 1 && fc == 1 && fr == 1)) break;
-      traceLineForward(fl, fc, fr, 0, 0, 0, RAMP_MIN_SPEED);
-      liftUpTick(); liftDownTick();
-    }
-    while (labs(labs(prizm.readEncoderCount(1)) - clearEnc) < toEncoderCounts(3.0f)) {
-      setWheelSpeeds(RAMP_MIN_SPEED, RAMP_MIN_SPEED);
-      liftUpTick(); liftDownTick();
-    }
-  }
+  clearIntersectionCross();
 
   long startEnc = labs(prizm.readEncoderCount(1));
-  long accelSpan = rampAccelSpanCounts(SPEED_LINE_FOLLOW_FWD);
+  long accelSpan = rampAccelSpanCounts(cruiseSpeed);
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
 
   intersectionArmed = true;
@@ -152,14 +142,14 @@ void traceUntilIntersection(bool stopAtEnd) {
         crossMark = captureDriveEnc();
         if (alignSpan <= 0) break;
       } else {
-        int speed = calcRampUpSpeed(traveled, accelSpan, SPEED_LINE_FOLLOW_FWD);
+        int speed = calcRampUpSpeed(traveled, accelSpan, cruiseSpeed);
         traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
         liftUpTick(); liftDownTick();
         continue;
       }
     }
 
-    int speed = crossAlignSpeed(crossMark, alignSpan, SPEED_LINE_FOLLOW_FWD);
+    int speed = crossAlignSpeed(crossMark, alignSpan, cruiseSpeed);
     if (finishEncoderSpan(crossMark, alignSpan, speed)) break;
     traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
     liftUpTick(); liftDownTick();

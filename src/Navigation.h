@@ -6,6 +6,7 @@
 
 void traceUntilIntersection();
 void traceUntilIntersection(bool stopAtEnd);
+void traceUntilIntersection(bool stopAtEnd, int cruiseSpeed);
 
 void enterZoneForward(int zone);
 void enterZoneReverse(int zone);
