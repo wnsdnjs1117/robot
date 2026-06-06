@@ -123,10 +123,10 @@ inline int toEncoderCounts(float cm) {
 constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;
 // 교차로(1·1·1) 감지 후 바퀴축을 교차 중심에 맞추는 전진 거리 (= 6cm)
 
-constexpr float DIST_BRAKE_CATCH_CM = 0.3f;
+constexpr float DIST_BRAKE_CATCH_CM = 0.5f;
 // 급제동 시작 거리(저속 기준). 목표가 이만큼 남으면 stopMotors() 급제동.
 
-constexpr float DIST_BRAKE_CATCH_MAX_CM = 2.0f;
+constexpr float DIST_BRAKE_CATCH_MAX_CM = 3.0f;
 // 급제동 시작 거리(속도 100 기준) = 고속에서의 실제 정지거리.
 // 현재속도(명령·실측 중 큰 값)에 비례해 DIST_BRAKE_CATCH_CM → 이 값으로 선형 증가.
 // 코너 정렬(전진 6cm)에서 고속 진입 시 인식 직후부터 제동 → 정렬 구간 내 정지(오버슈트 방지).
