@@ -33,6 +33,9 @@ void scanTick() {
   static unsigned long last = 0;
   if (millis() - last < SCAN_POLL_MS) return;    // 스티어링 루프 보호용 throttle
   last = millis();
+  // 라인 위에 있으면 스캔 안 함 — 존 내부 빈 공간(센서 off)에서만 QR 인식
+  { int L, C, R, RL, RC, RR; readSensors(L,C,R); readRearSensors(RL,RC,RR);
+    if (anyLine(L,C,R) || anyRearLine(RL,RC,RR)) return; }
 #if QR_SIMULATION
   // 가상: 박스 존재를 곧 인식으로 간주(목적지는 setupRandomLayout가 채움)
   if (boxes[z].present) { boxes[z].found = true; beep(120); }
