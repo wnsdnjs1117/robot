@@ -128,6 +128,7 @@ inline ZoneCfg zoneCfg(int z) {
 constexpr int   RAMP_MIN_SPEED = 20;    // 가속 시작·감속 끝 최저 속도 (이하면 모터 실속)
 constexpr float RAMP_ACCEL_CM  =  8.0f; // 가속 구간 거리 (cm)
 constexpr float RAMP_DECEL_CM  = 12.0f; // 감속 구간 거리 (cm) — 제동 여유를 위해 가속보다 길게
+
 constexpr int SPEED               = 35;  // 라인 트레이싱 전진 기본 속도
 constexpr int BACK_SPEED          = 30;  // 라인 트레이싱 후진 기본 속도
 constexpr int STRAIGHT_SPEED      = 40;  // 노드 간 맹목 직진 속도
@@ -137,7 +138,6 @@ constexpr int ZONE_ENTRY_BLIND_SPEED      = 40;  // 존 진입 전진 속도
 constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 40;  // 존 진입 후진 속도
 constexpr int ZONE_EXIT_BLIND_SPEED       = 40;  // 존 탈출 전진 속도
 constexpr int ZONE_EXIT_BLIND_BACK_SPEED  = 40;  // 존 탈출 후진 속도
->>>>>>> 11ffb1c1a183366f3262ffe228533970c0baa2dc
 
 // ============================================================
 // [9] 라인 감지 안정화
@@ -176,21 +176,6 @@ constexpr int MOTOR_OFFSET_L = 0;   // 좌측 모터 직진 오프셋 (직진 �
 constexpr int MOTOR_OFFSET_R = 0;   // 우측 모터 직진 오프셋
 constexpr int CROSS_CONFIRM  = 1;   // 교차로(1.1.1) 연속 감지 횟수 (1=즉시 인정)
 
-<<<<<<< HEAD
-constexpr float DIST_START_TO_13_CM = 90.0f;
-constexpr int HEADING_13_TO_9 = 310.0;
-constexpr int HEADING_9_TO_13 = 150;
-constexpr float DIST_9_TO_13_CM = 40.0f;
-constexpr int HEADING_10_TO_13 = 180;
-constexpr float DIST_10_TO_13_CM = 55.0f;
-constexpr int HEADING_13_TO_START = 90;
-constexpr float DIST_FINISH_ENTRY_CM = 40.0f;
-
-constexpr int HEADING_9_TO_10 = 85;
-constexpr int HEADING_9_TO_11 = 88;
-constexpr float DIST_IGNORE_NODE_CM = 5.0f;
-constexpr int HEADING_10_TO_11 = 90;
-=======
 // ============================================================
 // [12] 노드 이동 방위각 및 거리
 // ============================================================
@@ -215,7 +200,6 @@ constexpr float DIST_FINISH_ENTRY_CM = 40.0f;  // 피니시 진입 최종 전진
 constexpr int HEADING_9_TO_10  =  83;
 constexpr int HEADING_9_TO_11  =  87;
 constexpr int HEADING_10_TO_11 =  90;
->>>>>>> 11ffb1c1a183366f3262ffe228533970c0baa2dc
 constexpr int HEADING_11_TO_10 = 270;
 
 // ============================================================
