@@ -15,23 +15,16 @@ BoxInfo boxes[7];
 
 // ── QR 연속 스캔 상태 ──
 volatile int g_scanTargetZone = 0;
-volatile bool g_scanAuthoritative = false; // true: 탈출 스캔(권위) — 중복 거부 무시 + 오배정 정정
 
 void scanArm(int zone) {
 #if !QR_SIMULATION
   HuskyQR::flush(); // 새 구역 스캔 전 이전 구역의 버퍼된 데이터 비우기
 #endif
   g_scanTargetZone = zone;
-  g_scanAuthoritative = false; // 진입/대기/횡단 스캔은 기본 비권위(중복 거부 적용)
 }
 
 void scanDisarm() {
   g_scanTargetZone = 0;
-  g_scanAuthoritative = false;
-}
-
-void scanSetAuthoritative(bool on) {
-  g_scanAuthoritative = on;
 }
 
 void scanTick() {
@@ -46,25 +39,9 @@ void scanTick() {
 #else
   int id = HuskyQR::readBoxId();
   if (id >= 1 && id <= 6) {
-    // id(=목적지)는 순열이라 두 존이 같은 id를 가질 수 없다 → 같은 id가 다른 존에 있으면 오인식
-    if (!g_scanAuthoritative) {
-      // 비권위(진입·대기·횡단): 이미 다른 발견된 존에 배정된 id면 래치하지 않음(횡단 오인식 차단)
-      for (int z2 = 1; z2 <= 6; z2++) {
-        if (z2 != z && boxes[z2].found && boxes[z2].destination == id) return;
-      }
-    } else {
-      // 권위(탈출): 같은 id가 다른 존에 잘못 들어가 있었다면 그 존을 정정(초기화)
-      for (int z2 = 1; z2 <= 6; z2++) {
-        if (z2 != z && boxes[z2].found && boxes[z2].destination == id) {
-          boxes[z2].found = false;
-          boxes[z2].present = false;
-          boxes[z2].destination = 0;
-        }
-      }
-    }
     boxes[z].found = true;
     boxes[z].present = true;
-    boxes[z].destination = id;   // 읽은 QR ID가 곧 목적지 존
+    boxes[z].destination = id;
     beep(120);
   }
 #endif

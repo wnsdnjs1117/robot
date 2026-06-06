@@ -139,13 +139,16 @@ void reverseEnterZone(int zone) {
   DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
 }
 
-void reverseAcrossToOppositeZone(int zone) {
+void reverseAcrossToOppositeZone(int zone, int fromZone) {
   ZoneCfg c = zoneCfg(zone);
   lastSensorState = 0;
 
   DPRINTF("\n+Cross Z:"); DPRINT(zone);
 
-  // 첫번째 선 넘기
+  // 출발 존 QR 스캔: 첫 번째 선을 넘기 전까지는 출발 존 박스를 바라보고 있음
+  if (fromZone > 0) scanArm(fromZone);
+
+  // 첫번째 선 넘기 (출발 존 탈출 구간 — 카메라가 출발 존 박스를 향하고 있으므로 fromZone 스캔)
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -153,6 +156,9 @@ void reverseAcrossToOppositeZone(int zone) {
     drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick(); scanTick();
   }
+
+  // 첫 번째 선 통과 후: 이제 도착 존 쪽으로 이동 중 → 도착 존 스캔으로 전환
+  scanArm(zone);
 
   long s = labs(prizm.readEncoderCount(1));
   bool armed = false;
@@ -266,9 +272,9 @@ int qrSearchStage() {
   scanArm(2); turnToHeading(0); enterZone(2); lastEntryWasForward = true;
   scanZone(2);
   if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 2; }
-  scanDisarm();
 
-  scanArm(4); reverseAcrossToOppositeZone(4); lastEntryWasForward = false;
+  // scanDisarm 없이 fromZone=2로 전달: 첫 번째 선 전까지 2번 존 스캔, 이후 4번 존 스캔
+  reverseAcrossToOppositeZone(4, 2); lastEntryWasForward = false;
   scanZone(4);
   if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 4; }
   scanDisarm();
@@ -277,9 +283,9 @@ int qrSearchStage() {
   scanArm(1); enterZone(1); lastEntryWasForward = true;
   scanZone(1);
   if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 1; }
-  scanDisarm();
 
-  scanArm(3); enableEdgeSteering = true; reverseAcrossToOppositeZone(3); enableEdgeSteering = false;
+  // scanDisarm 없이 fromZone=1로 전달: 첫 번째 선 전까지 1번 존 스캔, 이후 3번 존 스캔
+  enableEdgeSteering = true; reverseAcrossToOppositeZone(3, 1); enableEdgeSteering = false;
   lastEntryWasForward = false; scanZone(3); scanDisarm();
   stopAll(); printSearchResult();
   return 3;
