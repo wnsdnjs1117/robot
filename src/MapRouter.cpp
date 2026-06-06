@@ -166,7 +166,11 @@ void leaveZone(int zone) {
           if (extraSpan <= 0) break;
         } else {
           int speed = blindRampSpeed(motionStart, openSpeed);
-          setWheelSpeeds(-speed, -speed);
+          if ((zone == 2 || zone == 4) && rearOnLine(rl, rc, rr) && !(rl && rc && rr)) {
+            traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
+          } else {
+            setWheelSpeeds(-speed, -speed);
+          }
         }
       } else {
         long traveled = encoderTraveledSince(lineMark);
@@ -205,7 +209,11 @@ void leaveZone(int zone) {
           if (extraSpan <= 0) break;
         } else {
           int speed = blindRampSpeed(motionStart, openSpeed);
-          setWheelSpeeds(speed, speed);
+          if ((zone == 2 || zone == 4) && frontOnLine(fl, fc, fr) && !(fl && fc && fr)) {
+            traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+          } else {
+            setWheelSpeeds(speed, speed);
+          }
         }
       } else {
         long traveled = encoderTraveledSince(lineMark);

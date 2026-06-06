@@ -104,8 +104,8 @@ constexpr float RAMP_ACCEL_CM  =  8.0f; // 가속 구간 (cm)
 constexpr float RAMP_DECEL_CM  = 12.0f; // 감속 구간 (cm)
 
 // 라인 추종 vs 맹목 직진 속도 (4종)
-constexpr int SPEED_LINE_FOLLOW_FWD = 35; // 라인 추종 전진
-constexpr int SPEED_LINE_FOLLOW_REV = 30; // 라인 추종 후진
+constexpr int SPEED_LINE_FOLLOW_FWD = 40; // 라인 추종 전진
+constexpr int SPEED_LINE_FOLLOW_REV = 35; // 라인 추종 후진
 constexpr int SPEED_OPEN_DRIVE_FWD  = 40; // 맹목 전진 (라인 없음)
 constexpr int SPEED_OPEN_DRIVE_REV  = 40; // 맹목 후진
 

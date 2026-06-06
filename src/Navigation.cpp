@@ -10,12 +10,10 @@
 
 namespace {
 
-// 전진/후진 구역 진입: 맹목 가속 → 입구선 라인추종 → 엑스트라(일정속 맹목)
+// 전진/후진 구역 진입: 맹목 가속 → 입구선 라인추종(동일 cruise) → extra 감속
 void runZoneEntry(bool reverse, int zone, int openSpeed) {
   ZoneMotionProfile profile = getZoneProfile(zone);
   float extraDistance = reverse ? profile.entryReverseExtra : profile.entryForwardExtra;
-  int lineSpeed = reverse ? SPEED_LINE_FOLLOW_REV : SPEED_LINE_FOLLOW_FWD;
-
   lineTraceLastEdge = 0;
   resetLineTracePid();
   DriveEncMark motionStart = captureDriveEnc();
@@ -38,8 +36,9 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
     if (!pastLine) {
       if (onLine) {
         if (!sawLine) { DPRINTF(" L1"); sawLine = true; }
-        if (reverse) traceLineReverse(rl, rc, rr, fl, fc, fr, lineSpeed);
-        else         traceLineForward(fl, fc, fr, rl, rc, rr, lineSpeed);
+        int speed = blindRampSpeed(motionStart, openSpeed);
+        if (reverse) traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
+        else         traceLineForward(fl, fc, fr, rl, rc, rr, speed);
       } else if (sawLine) {
         DPRINTF(" L0");
         pastLine = true;
@@ -65,6 +64,38 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
   DPRINTF(" Done (실제 이동: ");
   DPRINT((float)encoderTraveledSince(motionStart) / COUNTS_PER_CM);
   DPRINTLNF(" cm)");
+}
+
+// 현재 heading 방향으로 라인 확보 후 감속 정렬 (교차로 진입용)
+void alignOnCurrentHeading(int openSpeed, float alignCm) {
+  resetLineTracePid();
+  lineTraceLastEdge = 0;
+  DriveEncMark motionStart = captureDriveEnc();
+  long alignSpan = toEncoderCounts(alignCm);
+  bool onLine = false;
+
+  while (true) {
+    int fl, fc, fr, rl, rc, rr;
+    readFrontLineSensors(fl, fc, fr);
+    readRearLineSensors(rl, rc, rr);
+
+    if (!onLine) {
+      if (frontOnLine(fl, fc, fr)) onLine = true;
+      else {
+        int speed = blindRampSpeed(motionStart, openSpeed);
+        setWheelSpeeds(speed, speed);
+        liftUpTick(); liftDownTick();
+        continue;
+      }
+    }
+
+    if (encoderTraveledSince(motionStart) >= alignSpan) break;
+    int speed = blindDecelSpeed(motionStart, alignSpan, openSpeed);
+    if (speed <= 0) break;
+    traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+    liftUpTick(); liftDownTick();
+  }
+  stopMotors();
 }
 
 int countScannedBoxesInZones1to4() {
@@ -160,7 +191,7 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
   if (enableScan && fromZone > 0) beginZoneScan(fromZone);
 
   DriveEncMark motionStart = captureDriveEnc();
-  long extraSpan = toEncoderCounts(targetProfile.entryReverseExtra);
+  long extraSpan = toEncoderCounts(targetProfile.entryForwardExtra);
 
   // 1) 탈출선까지 맹목 후진 (가속 유지)
   while (true) {
@@ -192,7 +223,8 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
         pastLineMark = captureDriveEnc();
         if (extraSpan <= 0) break;
       } else {
-        traceLineReverse(rl, rc, rr, fl, fc, fr, SPEED_LINE_FOLLOW_REV);
+        int speed = blindRampSpeed(motionStart, SPEED_OPEN_DRIVE_REV);
+        traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
       }
     } else {
       long traveled = encoderTraveledSince(pastLineMark);
@@ -283,9 +315,12 @@ int searchQrInZones1to4() {
   endZoneScan();
 
   leaveZone(4);
-  rotateByDegrees(90, false);
-  traceUntilIntersection();
-  rotateByDegrees(90, true);
+  headingDeg = 0;
+  rotateToHeading(270);
+  alignOnCurrentHeading(SPEED_OPEN_DRIVE_FWD, DIST_CROSS_ALIGN_CM);
+  intersectionNode = 8;
+  driveToIntersectionNode(7);
+  rotateToHeading(0);
 
   beginZoneScan(1);
   enterZoneForward(1);
