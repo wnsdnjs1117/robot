@@ -186,8 +186,8 @@ inline float rampSpinDecelDeg(int spinSpeed) {
 // ============================================================
 
 constexpr int SPEED_TRACK_7_9_LINE = 70;
-constexpr float LINE_KP_TRACK_7_9_SOFT = 1.2f;
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.8f;
+constexpr float LINE_KP_TRACK_7_9_SOFT = 1.4f;
+constexpr float LINE_KP_TRACK_7_9_HARD = 2.2f;
 
 constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
 constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f;
@@ -249,10 +249,10 @@ constexpr float DIST_FINISH_PARK_REV_CM = 15.0f;
 // [14] PID 라인 추종 · 직진 보정
 // ============================================================
 
-constexpr float LINE_KP_FWD_SOFT = 1.0f;
-constexpr float LINE_KP_FWD_HARD = 2.3f;
-constexpr float LINE_KP_REV_SOFT = 0.8f;
-constexpr float LINE_KP_REV_HARD = 1.5f;
+constexpr float LINE_KP_FWD_SOFT = 1.2f;
+constexpr float LINE_KP_FWD_HARD = 1.8f;
+constexpr float LINE_KP_REV_SOFT = 1.0f;
+constexpr float LINE_KP_REV_HARD = 1.3f;
 constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.5f;
 
 constexpr float LINE_KI = 0.0f;
