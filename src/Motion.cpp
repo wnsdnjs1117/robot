@@ -493,24 +493,6 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
    traceLineReverse(rl, rc, rr, fl, fc, fr, SPEED_LINE_FOLLOW_REV);
  }
  
- void correctTrackLegOvershoot(DriveEncMark legStart, float plannedSpanCm) {
-   long planned = toEncoderCounts(plannedSpanCm);
-   long traveled = encoderTraveledSince(legStart);
-   float errorCm = (float)(traveled - planned) / COUNTS_PER_CM;
- 
-   if (errorCm > DIST_TRACK_OVERSHOOT_MIN_CM) {
-     float corr = errorCm;
-     if (corr > DIST_TRACK_OVERSHOOT_MAX_CM) corr = DIST_TRACK_OVERSHOOT_MAX_CM;
-     driveDistanceCm(corr, -SPEED_LINE_FOLLOW_REV, true);
-     playBeep(BUZZER_OVERSHOOT_CORR_MS);
-   } else if (errorCm < -DIST_TRACK_OVERSHOOT_MIN_CM) {
-     float corr = -errorCm;
-     if (corr > DIST_TRACK_OVERSHOOT_MAX_CM) corr = DIST_TRACK_OVERSHOOT_MAX_CM;
-     driveDistanceCm(corr, SPEED_LINE_FOLLOW_FWD, true);
-     playBeep(BUZZER_OVERSHOOT_CORR_MS);
-   }
- }
- 
  void driveDistanceCm(float cm, int speed, bool stopAtEnd) {
    float absCm = cm >= 0.0f ? cm : -cm;
    if (absCm <= 0.0f) { if (stopAtEnd) stopMotors(); return; }
@@ -573,7 +555,6 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
  
  void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAtEnd) {
    resetRampSpeedLimiter(RAMP_MIN_SPEED);
-   DriveEncMark motionStart = captureDriveEnc();
    long startEnc = labs(prizm.readEncoderCount(1));
    long nextIgnoreEnc = startEnc + toEncoderCounts(DIST_IGNORE_NODE_CM);
    int linesPassed = 0;
@@ -585,8 +566,7 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
    DriveEncMark alignMark = {0, 0};
    int speedAtLine = maxSpeed;
    int lastCurSpeed = RAMP_MIN_SPEED;
-   float plannedLegSpanCm = 0.0f;
- 
+
    while (true) {
      long currentEnc = labs(prizm.readEncoderCount(1));
      long traveled = currentEnc - startEnc;
@@ -604,15 +584,13 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
        if (frontOnLine(fl, fc, fr)) {
          linesPassed++;
          if (linesPassed >= lineCount) {
-           plannedLegSpanCm = (float)encoderTraveledSince(motionStart) / COUNTS_PER_CM;
            if (alignSpan <= 0) {
              if (stopAtEnd) stopMotors();
              break;
            }
            phase = 2;
            alignMark = captureDriveEnc();
-           plannedLegSpanCm += alignCm;
-           speedAtLine = lastCurSpeed; 
+           speedAtLine = lastCurSpeed;
          } else {
            phase = 0;
            nextIgnoreEnc = currentEnc + toEncoderCounts(DIST_IGNORE_NODE_CM);
@@ -642,7 +620,4 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
  
      driveLoopTick();
    }
- 
-  if (stopAtEnd && plannedLegSpanCm > 0.0f)
-    correctTrackLegOvershoot(motionStart, plannedLegSpanCm);
 }

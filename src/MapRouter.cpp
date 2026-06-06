@@ -225,8 +225,6 @@ static void stepTrackLeg78(float heading, bool stopAtEnd) {
         LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
     driveLoopTick();
   }
-  if (stopAtEnd)
-    correctTrackLegOvershoot(motionStart, DIST_TRACK_NODE_SPAN_CM);
 }
 
 static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
@@ -284,8 +282,6 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
         LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
     driveLoopTick();
   }
-  if (stopAtEnd)
-    correctTrackLegOvershoot(motionStart, legSpanCm);
 }
 
 static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {

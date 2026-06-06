@@ -37,7 +37,6 @@ void driveDistanceCm(float cm, int speed, bool stopAtEnd = true);
 void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAtEnd = true);
 
 struct DriveEncMark { long left; long right; };
-void correctTrackLegOvershoot(DriveEncMark legStart, float plannedSpanCm);
 
 int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed);
 int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed);
