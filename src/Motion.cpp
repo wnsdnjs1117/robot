@@ -413,6 +413,55 @@ int lineTraceCruiseSpeed(int baseSpeed, int absError) {
   int speed = (int)(baseSpeed * f);
   return speed < RAMP_MIN_SPEED ? RAMP_MIN_SPEED : speed;
 }
+
+// 전진/후진 라인 추종 공용 코어. 주(primary) 센서 p*로 조향, 부(secondary) 센서 s*로
+// 전·후 정렬. dir=+1 전진 / dir=-1 후진(휠 출력 부호만 반전 — 두 방향이 수학적으로 동치).
+void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed,
+    float kpSoft, float kpHard, float& integ, float& lastErr, int dir) {
+  int posP = 0, posS = 0;
+  if      (pl && !pc && !pr) { posP = -2; lineTraceLastEdge = 1; }
+  else if (pl && pc && !pr)  { posP = -1; lineTraceLastEdge = 1; }
+  else if (!pl && pc && !pr) { posP =  0; lineTraceLastEdge = 0; }
+  else if (!pl && pc && pr)  { posP =  1; lineTraceLastEdge = 2; }
+  else if (!pl && !pc && pr) { posP =  2; lineTraceLastEdge = 2; }
+  else if (pl && pc && pr)   { posP =  0; lineTraceLastEdge = 0; }
+  else { posP = (lineTraceLastEdge == 1) ? -3 : ((lineTraceLastEdge == 2) ? 3 : 0); }
+
+  if      (sl && !sc && !sr) posS = -2;
+  else if (sl && sc && !sr)  posS = -1;
+  else if (!sl && sc && !sr) posS =  0;
+  else if (!sl && sc && sr)  posS =  1;
+  else if (!sl && !sc && sr) posS =  2;
+  else posS = 0;
+
+  float error = (float)posP;
+  integ += error;
+  float derivative = error - lastErr;
+  int absError = abs((int)error);
+  bool hardSteer = absError >= 2;
+  float kp = hardSteer ? kpHard : kpSoft;
+  int cruise = lineTraceCruiseSpeed(baseSpeed, absError);
+  if (hardSteer) resetRampSpeedLimiter(cruise);
+  float steer = error * kp + integ * LINE_KI + derivative * LINE_KD;
+
+  int leftSpeed  = cruise + iround(steer);
+  int rightSpeed = cruise - iround(steer);
+
+  if ((pl || pc || pr) && (sl || sc || sr) && !(pl && pc && pr) && !(sl && sc && sr)) {
+    float align = (posP - posS) * LINE_ALIGN_GAIN;
+    leftSpeed  += iround(align);
+    rightSpeed -= iround(align);
+  }
+
+  if (pl == 1 && pc == 0 && pr == 0 && sl == 1 && sc == 0 && sr == 0) {
+    leftSpeed -= EDGE_SYNC_GAIN; rightSpeed += EDGE_SYNC_GAIN;
+  } else if (pl == 0 && pc == 0 && pr == 1 && sl == 0 && sc == 0 && sr == 1) {
+    leftSpeed += EDGE_SYNC_GAIN; rightSpeed -= EDGE_SYNC_GAIN;
+  }
+
+  lastErr = error;
+  setWheelSpeeds(dir * leftSpeed, dir * rightSpeed);
+}
 }
  
  void resetLineTracePid() {
@@ -444,50 +493,8 @@ int lineTraceCruiseSpeed(int baseSpeed, int absError) {
  
  void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int baseSpeed,
      float kpSoft, float kpHard) {
-   int posFront = 0, posRear = 0;
-
-   if      (fl && !fc && !fr) { posFront = -2; lineTraceLastEdge = 1; }
-   else if (fl && fc && !fr)  { posFront = -1; lineTraceLastEdge = 1; }
-   else if (!fl && fc && !fr) { posFront =  0; lineTraceLastEdge = 0; }
-   else if (!fl && fc && fr)  { posFront =  1; lineTraceLastEdge = 2; }
-   else if (!fl && !fc && fr) { posFront =  2; lineTraceLastEdge = 2; }
-   else if (fl && fc && fr)   { posFront =  0; lineTraceLastEdge = 0; }
-   else { posFront = (lineTraceLastEdge == 1) ? -3 : ((lineTraceLastEdge == 2) ? 3 : 0); }
-
-   if      (rl && !rc && !rr) posRear = -2;
-   else if (rl && rc && !rr)  posRear = -1;
-   else if (!rl && rc && !rr) posRear =  0;
-   else if (!rl && rc && rr)  posRear =  1;
-   else if (!rl && !rc && rr) posRear =  2;
-   else posRear = 0;
-
-   float error = (float)posFront;
-   lineFwdIntegral += error;
-   float derivative = error - lineFwdLastError;
-   int absError = abs((int)error);
-   bool hardSteer = absError >= 2;
-   float kp = hardSteer ? kpHard : kpSoft;
-   int cruise = lineTraceCruiseSpeed(baseSpeed, absError);
-   if (hardSteer) resetRampSpeedLimiter(cruise); // 감속 유지 — 다음 프레임 급복귀 방지
-   float steer = error * kp + lineFwdIntegral * LINE_KI + derivative * LINE_KD;
-
-   int leftSpeed  = cruise + (int)iround(steer);
-   int rightSpeed = cruise - (int)iround(steer);
-
-   if ((fl || fc || fr) && (rl || rc || rr) && !(fl && fc && fr) && !(rl && rc && rr)) {
-     float align = (posFront - posRear) * LINE_ALIGN_GAIN;
-     leftSpeed  += (int)iround(align);
-     rightSpeed -= (int)iround(align);
-   }
-
-   if (fl == 1 && fc == 0 && fr == 0 && rl == 1 && rc == 0 && rr == 0) {
-     leftSpeed -= EDGE_SYNC_GAIN; rightSpeed += EDGE_SYNC_GAIN;
-   } else if (fl == 0 && fc == 0 && fr == 1 && rl == 0 && rc == 0 && rr == 1) {
-     leftSpeed += EDGE_SYNC_GAIN; rightSpeed -= EDGE_SYNC_GAIN;
-   }
-
-   lineFwdLastError = error;
-   setWheelSpeeds(leftSpeed, rightSpeed);
+   traceLineCore(fl, fc, fr, rl, rc, rr, baseSpeed, kpSoft, kpHard,
+       lineFwdIntegral, lineFwdLastError, +1);
  }
 
  void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int baseSpeed) {
@@ -499,50 +506,8 @@ int lineTraceCruiseSpeed(int baseSpeed, int absError) {
  }
  
  void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr, int baseSpeed) {
-   int posRear = 0, posFront = 0;
- 
-   if      (rl && !rc && !rr) { posRear = -2; lineTraceLastEdge = 1; }
-   else if (rl && rc && !rr)  { posRear = -1; lineTraceLastEdge = 1; }
-   else if (!rl && rc && !rr) { posRear =  0; lineTraceLastEdge = 0; }
-   else if (!rl && rc && rr)  { posRear =  1; lineTraceLastEdge = 2; }
-   else if (!rl && !rc && rr) { posRear =  2; lineTraceLastEdge = 2; }
-   else if (rl && rc && rr)   { posRear =  0; lineTraceLastEdge = 0; }
-   else { posRear = (lineTraceLastEdge == 1) ? -3 : ((lineTraceLastEdge == 2) ? 3 : 0); }
- 
-   if      (fl && !fc && !fr) posFront = -2;
-   else if (fl && fc && !fr)  posFront = -1;
-   else if (!fl && fc && !fr) posFront =  0;
-   else if (!fl && fc && fr)  posFront =  1;
-   else if (!fl && !fc && fr) posFront =  2;
-   else posFront = 0;
- 
-   float error = (float)posRear;
-   lineRevIntegral += error;
-   float derivative = error - lineRevLastError;
-   int absError = abs((int)error);
-   bool hardSteer = absError >= 2;
-   float kp = hardSteer ? LINE_KP_REV_HARD : LINE_KP_REV_SOFT;
-   int cruise = lineTraceCruiseSpeed(baseSpeed, absError);
-   if (hardSteer) resetRampSpeedLimiter(cruise); // 감속 유지 — 다음 프레임 급복귀 방지
-   float steer = error * kp + lineRevIntegral * LINE_KI + derivative * LINE_KD;
-
-   int leftSpeed  = -cruise - (int)iround(steer);
-   int rightSpeed = -cruise + (int)iround(steer);
- 
-   if ((rl || rc || rr) && (fl || fc || fr) && !(rl && rc && rr) && !(fl && fc && fr)) {
-     float align = (posRear - posFront) * LINE_ALIGN_GAIN;
-     leftSpeed  -= (int)iround(align);
-     rightSpeed += (int)iround(align);
-   }
- 
-   if (rl == 1 && rc == 0 && rr == 0 && fl == 1 && fc == 0 && fr == 0) {
-     leftSpeed += EDGE_SYNC_GAIN; rightSpeed -= EDGE_SYNC_GAIN;
-   } else if (rl == 0 && rc == 0 && rr == 1 && fl == 0 && fc == 0 && fr == 1) {
-     leftSpeed -= EDGE_SYNC_GAIN; rightSpeed += EDGE_SYNC_GAIN;
-   }
- 
-   lineRevLastError = error;
-   setWheelSpeeds(leftSpeed, rightSpeed);
+   traceLineCore(rl, rc, rr, fl, fc, fr, baseSpeed, LINE_KP_REV_SOFT, LINE_KP_REV_HARD,
+       lineRevIntegral, lineRevLastError, -1);
  }
  
  void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr) {

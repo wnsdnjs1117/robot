@@ -69,6 +69,20 @@ static unsigned long calcNearFloorDur(float h) {
   return (unsigned long)(remaining / refDist * LIFT_FLOOR_TIME_MS);
 }
 
+// 좌·우 동기화 보정 + 최저출력 클램프 + 모터 출력 (상승 dir=+1 / 하강 dir=-1 공용)
+static void applyLiftPowers(int basePwrL, int basePwrR, int dir) {
+  int syncOffset = 0;
+  if (basePwrL > 0 && basePwrR > 0)
+    syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
+  int pwrL = basePwrL - dir * syncOffset;
+  int pwrR = basePwrR + dir * syncOffset;
+  if (basePwrL > 0 && pwrL < 5) pwrL = 5;
+  if (basePwrR > 0 && pwrR < 5) pwrR = 5;
+  if (basePwrL == 0) pwrL = 0;
+  if (basePwrR == 0) pwrR = 0;
+  exc.setMotorPowers(EXP_ID, dir * pwrL, -dir * pwrR);
+}
+
 // ── 상승 (nonblocking: liftUpStart → liftUpWaitClear(5cm) → 주행 중 liftUpTick) ──
 
 void liftUpStart(float targetCm) {
@@ -103,21 +117,7 @@ void liftUpTick() {
   bool doneR = (heightR >= liftUpTargetCm);
   int basePwrL = liftUpBasePower(heightL, doneL, LIFT_UP_SLOW_POWER_L);
   int basePwrR = liftUpBasePower(heightR, doneR, LIFT_UP_SLOW_POWER_R);
-
-  int syncOffset = 0;
-  if (basePwrL > 0 && basePwrR > 0) {
-    syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
-  }
-
-  int pwrL = basePwrL - syncOffset;
-  int pwrR = basePwrR + syncOffset;
-
-  if (basePwrL > 0 && pwrL < 5) pwrL = 5;
-  if (basePwrR > 0 && pwrR < 5) pwrR = 5;
-  if (basePwrL == 0) pwrL = 0;
-  if (basePwrR == 0) pwrR = 0;
-
-  exc.setMotorPowers(EXP_ID, pwrL, -pwrR);
+  applyLiftPowers(basePwrL, basePwrR, +1);
 
   if (doneL && doneR) liftUpRunning = false;
 }
@@ -148,82 +148,44 @@ void liftDownTick() {
   updateHeight();
 
   unsigned long now = millis();
+  // 부분 하강(목표 높이 >0): 바닥 착지 타이머 없이 목표 높이 도달 시 정지(엔코더·높이 유지)
+  bool partial = (liftDownTargetCm > 0.0f);
 
-  // 부분 하강: 목표 높이 도달 시 각 측 개별 정지(바닥 착지 아님 → 엔코더·높이 유지)
-  if (liftDownTargetCm > 0.0f) {
+  if (partial) {
     if (!stoppedL && heightL <= liftDownTargetCm) stoppedL = true;
     if (!stoppedR && heightR <= liftDownTargetCm) stoppedR = true;
-
-    int basePwrL = stoppedL ? 0 : LIFT_DOWN_POWER;
-    int basePwrR = stoppedR ? 0 : LIFT_DOWN_POWER;
-
-    int syncOffset = 0;
-    if (basePwrL > 0 && basePwrR > 0) {
-      syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
+  } else {
+    if (!nearFloorL && heightL <= LIFT_NEAR_FLOOR_CM) {
+      nearFloorL = true; nearFloorDurL = calcNearFloorDur(heightL); nearFloorStartL = now;
+      DPRINTLNF(">> [LIFT-L] 바닥 근접 — 타이머 시작");
     }
-    int pwrL = basePwrL + syncOffset;
-    int pwrR = basePwrR - syncOffset;
-    if (basePwrL > 0 && pwrL < 5) pwrL = 5;
-    if (basePwrR > 0 && pwrR < 5) pwrR = 5;
-    if (basePwrL == 0) pwrL = 0;
-    if (basePwrR == 0) pwrR = 0;
-
-    exc.setMotorPowers(EXP_ID, -pwrL, pwrR);
-
-    if (stoppedL && stoppedR) {
-      liftDownRunning = false;
-      DPRINTLNF(">> [LIFT] 중간 높이 하강 완료");
+    if (!nearFloorR && heightR <= LIFT_NEAR_FLOOR_CM) {
+      nearFloorR = true; nearFloorDurR = calcNearFloorDur(heightR); nearFloorStartR = now;
+      DPRINTLNF(">> [LIFT-R] 바닥 근접 — 타이머 시작");
     }
-    return;
+    if (nearFloorL && !stoppedL && (now - nearFloorStartL >= nearFloorDurL)) {
+      stoppedL = true; DPRINTLNF(">> [LIFT-L] 하강 완료");
+    }
+    if (nearFloorR && !stoppedR && (now - nearFloorStartR >= nearFloorDurR)) {
+      stoppedR = true; DPRINTLNF(">> [LIFT-R] 하강 완료");
+    }
   }
 
-  if (!nearFloorL && heightL <= LIFT_NEAR_FLOOR_CM) {
-    nearFloorL      = true;
-    nearFloorDurL   = calcNearFloorDur(heightL);
-    nearFloorStartL = now;
-    DPRINTLNF(">> [LIFT-L] 바닥 근접 — 타이머 시작");
-  }
-  if (!nearFloorR && heightR <= LIFT_NEAR_FLOOR_CM) {
-    nearFloorR      = true;
-    nearFloorDurR   = calcNearFloorDur(heightR);
-    nearFloorStartR = now;
-    DPRINTLNF(">> [LIFT-R] 바닥 근접 — 타이머 시작");
-  }
-
-  if (nearFloorL && !stoppedL && (now - nearFloorStartL >= nearFloorDurL)) {
-    stoppedL = true;
-    DPRINTLNF(">> [LIFT-L] 하강 완료");
-  }
-  if (nearFloorR && !stoppedR && (now - nearFloorStartR >= nearFloorDurR)) {
-    stoppedR = true;
-    DPRINTLNF(">> [LIFT-R] 하강 완료");
-  }
-
-  int basePwrL = stoppedL ? 0 : ((heightL <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER_L : LIFT_DOWN_POWER);
-  int basePwrR = stoppedR ? 0 : ((heightR <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER_R : LIFT_DOWN_POWER);
-
-  int syncOffset = 0;
-  if (basePwrL > 0 && basePwrR > 0) {
-    syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
-  }
-
-  int pwrL = basePwrL + syncOffset;
-  int pwrR = basePwrR - syncOffset;
-
-  if (basePwrL > 0 && pwrL < 5) pwrL = 5;
-  if (basePwrR > 0 && pwrR < 5) pwrR = 5;
-  if (basePwrL == 0) pwrL = 0;
-  if (basePwrR == 0) pwrR = 0;
-
-  exc.setMotorPowers(EXP_ID, -pwrL, pwrR);
+  int basePwrL = stoppedL ? 0
+      : ((!partial && heightL <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER_L : LIFT_DOWN_POWER);
+  int basePwrR = stoppedR ? 0
+      : ((!partial && heightR <= LIFT_DOWN_SLOW_ZONE_CM) ? LIFT_DOWN_SLOW_POWER_R : LIFT_DOWN_POWER);
+  applyLiftPowers(basePwrL, basePwrR, -1);
 
   if (stoppedL && stoppedR) {
-    exc.resetEncoder(EXP_ID, LIFT_L);
-    exc.resetEncoder(EXP_ID, LIFT_R);
-    heightL = 0.0f;
-    heightR = 0.0f;
+    if (!partial) {
+      exc.resetEncoder(EXP_ID, LIFT_L);
+      exc.resetEncoder(EXP_ID, LIFT_R);
+      heightL = 0.0f;
+      heightR = 0.0f;
+      DPRINTLNF(">> [LIFT] 하강 완전 완료");
+    }
     liftDownRunning = false;
-    DPRINTLNF(">> [LIFT] 하강 완전 완료");
   }
 }
 

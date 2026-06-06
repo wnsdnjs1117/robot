@@ -120,43 +120,6 @@ int countScannedBoxesInZones1to4() {
   return count;
 }
 
- void alignOnTrackHeading(int openSpeed, float alignCm) {
-   resetLineTracePid();
-   lineTraceLastEdge = 0;
-   DriveEncMark motionStart = captureDriveEnc();
-   long alignSpan = toEncoderCounts(alignCm);
-   bool onLine = false;
-   DriveEncMark lineMark = {0, 0};
-   int lastCurSpeed = RAMP_MIN_SPEED;
- 
-   while (true) {
-     int fl, fc, fr, rl, rc, rr;
-     readLineSensors(fl, fc, fr, rl, rc, rr);
- 
-     if (!onLine) {
-       if (frontOnLine(fl, fc, fr)) {
-         onLine = true;
-         lineMark = captureDriveEnc(); // 출발점이 아니라 라인에 닿은 시점을 정렬 시작점으로 수정!
-         if (alignSpan <= 0) break;
-       } else {
-         int speed = rampMarkSpeed(motionStart, openSpeed);
-         speed = smoothRampSpeed(speed);
-         lastCurSpeed = speed; // 실제 속도 기록
-         setWheelSpeeds(speed, speed);
-         driveLoopTick();
-         continue;
-       }
-     }
- 
-     // 라인에 닿은 후 부드럽게 감속
-     int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
-     speed = smoothRampSpeed(speed);
-     if (finishAlignSpan(lineMark, alignSpan, speed)) break;
-     traceLineForward(fl, fc, fr, rl, rc, rr, speed);
-     driveLoopTick();
-   }
- }
- 
  void traceUntilIntersection(bool stopAtEnd) {
    traceUntilIntersection(stopAtEnd, SPEED_LINE_FOLLOW_FWD);
  }
@@ -310,14 +273,8 @@ void driveToFinishArea() {
 
   finishFromZone6Exit = false;
 
-  pinMode(PIN_BUZZER, OUTPUT);
-   unsigned long beepEnd = millis() + 1500;
-   while (millis() < beepEnd) {
-     digitalWrite(PIN_BUZZER, HIGH); delayMicroseconds(500);
-     digitalWrite(PIN_BUZZER, LOW);  delayMicroseconds(500);
-   }
-   digitalWrite(PIN_BUZZER, LOW);
-   prizm.setGreenLED(HIGH);
+  playBeep(1500);  // 피니시 알림 (1.5초)
+  prizm.setGreenLED(HIGH);
  }
  
  int searchQrInZones1to4() {

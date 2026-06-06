@@ -12,7 +12,6 @@ void enterZoneForward(int zone);
 void enterZoneReverse(int zone);
 void crossToOppositeZone(int targetZone, int fromZone, bool enableScan = true);
 
-void alignOnTrackHeading(int openSpeed, float alignCm);
 void driveOntoMainTrack();
 void driveToFinishArea();
 int  searchQrInZones1to4();
