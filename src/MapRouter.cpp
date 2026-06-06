@@ -35,7 +35,7 @@ static int trackLegSpeed(DriveEncMark motionStart, long ignoreSpan, long approac
     bool& approachDecel, DriveEncMark& approachMark, int cruiseSpeed) {
   long traveled = encoderTraveledSince(motionStart);
   if (traveled < ignoreSpan)
-    return RAMP_MIN_SPEED;
+    return RAMP_MIN_SPEED; // 무시 구간 동안은 저속 유지
   if (traveled < approachStart)
     return rampMarkSpeed(motionStart, cruiseSpeed);
   if (!approachDecel) {
@@ -45,6 +45,7 @@ static int trackLegSpeed(DriveEncMark motionStart, long ignoreSpan, long approac
   return decelMarkSpeed(approachMark, rampDecelSpanCounts(cruiseSpeed), cruiseSpeed);
 }
 
+// 9->10 등 맹목 주행 이동 함수
 static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd,
     float legSpanCm, int lineCount = 1) {
   rotateToHeading(targetHeading);
@@ -56,17 +57,24 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
   long approachStart = trackLegApproachStartCounts(legSpanCm, cruiseSpeed);
   long approachDecelSpan = rampDecelSpanCounts(cruiseSpeed);
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
+  
   bool approachDecel = false;
   DriveEncMark approachMark = {0, 0};
   int linesPassed = 0;
   bool lineFound = false;
+  
+  // (수정) 출발 직후 내 발밑에 있는 9번 등 현재 위치의 선을 10번으로 오인식하지 않도록 하는 필수 필터
+  bool initialIgnore = true; 
   bool ignoreAfterLine = false;
   DriveEncMark ignoreMark = {0, 0};
   DriveEncMark lineMark = {0, 0};
 
   while (true) {
     if (!lineFound) {
-      if (ignoreAfterLine) {
+      if (initialIgnore) {
+        if (encoderTraveledSince(motionStart) >= ignoreSpan)
+          initialIgnore = false;
+      } else if (ignoreAfterLine) {
         if (encoderTraveledSince(ignoreMark) >= ignoreSpan)
           ignoreAfterLine = false;
       } else {
@@ -87,6 +95,7 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
           }
         }
       }
+      
       if (!lineFound) {
         int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
             approachMark, cruiseSpeed);
@@ -114,50 +123,40 @@ void driveTrackLegBlind(int targetHeading, int alignHeading, bool stopAtEnd,
   blindDriveAndAlign(targetHeading, alignHeading, stopAtEnd, legSpanCm, lineCount);
 }
 
-// 7↔8 직선 — RAMP_DECEL 접근 감속, stopAtEnd=false면 교차 통과(정지 없음)
+// 7↔8 구간 (8->7 갈 때 탐지를 놓쳤던 함수)
 static void stepTrackLeg78(int heading, bool stopAtEnd) {
   rotateToHeading(heading);
   resetLineTracePid();
-  clearIntersectionCross();
+  clearIntersectionCross(); // 이미 물리적으로 교차로를 탈출함
   DriveEncMark motionStart = captureDriveEnc();
-  long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
   long approachStart = trackNodeApproachStartCounts(SPEED_TRACK_7_9_LINE);
   long approachDecelSpan = rampDecelSpanCounts(SPEED_TRACK_7_9_LINE);
-  intersectionArmed = true;
-  intersectionHitCount = 0;
+  
   bool crossFound = false;
   bool approachDecel = false;
   DriveEncMark crossMark = {0, 0};
   DriveEncMark approachMark = {0, 0};
+  
+  long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM); 
 
   while (true) {
     int fl, fc, fr, rl, rc, rr;
     readLineSensors(fl, fc, fr, rl, rc, rr);
 
     if (!crossFound) {
-      if (encoderTraveledSince(motionStart) < ignoreSpan) {
-        traceLineForward(fl, fc, fr, rl, rc, rr, RAMP_MIN_SPEED,
-            LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
+      // (수정) 요청하신 대로 무시구간 필터와 연속 감지 필터를 모두 삭제했습니다. 
+      // 전방 센서가 1.1.1이 되면 조건 따지지 않고 즉시 멈춥니다!
+      if (frontCrossFull(fl, fc, fr)) {
+        if (!stopAtEnd) break;
+        crossFound = true;
+        crossMark = captureDriveEnc();
+        if (alignSpan <= 0) break;
       } else {
-        bool isCross = frontCrossFull(fl, fc, fr);
-        if (isCross) intersectionHitCount++;
-        else { intersectionHitCount = 0; intersectionArmed = true; }
-        if (intersectionArmed && intersectionHitCount >= CROSS_CONFIRM) {
-          if (!stopAtEnd) break;
-          crossFound = true;
-          crossMark = captureDriveEnc();
-          if (alignSpan <= 0) break;
-        } else {
-          int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
-              approachMark, SPEED_TRACK_7_9_LINE);
-          traceLineForward(fl, fc, fr, rl, rc, rr, speed,
-              LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
-          driveLoopTick();
-          continue;
-        }
-      }
-      if (!crossFound) {
+        int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
+            approachMark, SPEED_TRACK_7_9_LINE);
+        traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+            LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
         driveLoopTick();
         continue;
       }
@@ -176,7 +175,7 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
     correctTrackLegOvershoot(motionStart, DIST_TRACK_NODE_SPAN_CM);
 }
 
-// 8→9 / 7→9 — 라인 끝에서 정지. legSpanCm=전체 직선(7→9는 140cm)
+// 8→9 / 7→9 — 라인 끝에서 정지
 static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   rotateToHeading(90);
   resetLineTracePid();

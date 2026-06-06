@@ -279,8 +279,8 @@
  constexpr int SPEED_TRACK_7_9_LINE = 60;
  // 메인 트랙 가로(동서) 라인 추종: 7→8, 8→9, 8→7, 7→9 (9→8은 SPEED_9_TO_8)
 
- constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;
- constexpr float LINE_KP_TRACK_7_9_HARD = 6.5f;
+ constexpr float LINE_KP_TRACK_7_9_SOFT = 1.2f;
+ constexpr float LINE_KP_TRACK_7_9_HARD = 3.0f;
  // 메인 트랙 가로 라인 추종 P 게인 (오차 ±1 / ±2 이상)
  
  constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
@@ -289,7 +289,7 @@
  constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f;
  // 7→8→9 연속 직선 (8번 통과·정지 없음)
  
- constexpr float DIST_TRACK_OVERSHOOT_MIN_CM = 0.05f;
+ constexpr float DIST_TRACK_OVERSHOOT_MIN_CM = 0.5f;
  // 노드 간 위치 보정 — 이보다 작으면 무시 (엔코더 노이즈)
  
  constexpr float DIST_TRACK_OVERSHOOT_MAX_CM = 0.5f;
@@ -362,10 +362,10 @@ constexpr int HEADING_11_TO_FINISH = 0;
 constexpr int HEADING_FINISH_PARK = 270;
 // 피니시(스타트) 주차 방향 — 서쪽 (0=북 90=동 180=남 270=서)
 
-constexpr float DIST_FINISH_LINE_PAST_CM = 30.0f;
+constexpr float DIST_FINISH_LINE_PAST_CM = 50.0f;
 // 피니시 라인 감지 후 추가 후진 (cm)
 
-constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;
+constexpr float DIST_FINISH_PARK_REV_CM = 0.0f;
 // 서쪽(270°) 정렬 후 최종 후진 (cm)
 
 // ============================================================
@@ -375,7 +375,7 @@ constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;
  constexpr float LINE_KP_FWD_SOFT = 1.2f;
  // 전진 P 게인 — 센서 오차 ±1
  
- constexpr float LINE_KP_FWD_HARD = 4.5f;
+ constexpr float LINE_KP_FWD_HARD = 4.0f;
  // 전진 P 게인 — 센서 오차 ±2 이상
  
  constexpr float LINE_KP_REV_SOFT = 1.0f;

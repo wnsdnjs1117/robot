@@ -38,9 +38,10 @@
          if (!sawLine) {
            DPRINTF(" L1");
            sawLine = true;
-           lineStartMark = captureDriveEnc();
+           lineStartMark = captureDriveEnc(); // 위치 기록용으로 유지
          }
-         int speed = rampMarkSpeed(lineStartMark, openSpeed);
+         // [버그 수정] lineStartMark 대신 motionStart를 사용하여 속도가 RAMP_MIN_SPEED로 리셋되는 현상 방지
+         int speed = rampMarkSpeed(motionStart, openSpeed);
          if (reverse) traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
          else         traceLineForward(fl, fc, fr, rl, rc, rr, speed);
        } else if (sawLine) {
@@ -230,7 +231,8 @@
      bool onLine = rearOnLine(rl, rc, rr);
  
      if (onLine) {
-       int speed = rampMarkSpeed(lineStartMark, SPEED_OPEN_ZONE_REV);
+       // [버그 수정] lineStartMark 대신 motionStart를 사용하여 속도가 RAMP_MIN_SPEED로 리셋되는 현상 방지
+       int speed = rampMarkSpeed(motionStart, SPEED_OPEN_ZONE_REV);
        traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
      } else {
        DPRINTF(" L0");
