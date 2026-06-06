@@ -129,7 +129,7 @@ constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;
 constexpr float DIST_BRAKE_CATCH_CM = 0.5f;
 // 급제동 시작 거리(저속 기준). 목표가 이만큼 남으면 stopMotors() 급제동.
 
-constexpr float DIST_BRAKE_CATCH_MAX_CM = 3.0f;
+constexpr float DIST_BRAKE_CATCH_MAX_CM = 4.0f;
 // 급제동 시작 거리(속도 100 기준) = 고속에서의 실제 정지거리.
 // 현재속도(명령·실측 중 큰 값)에 비례해 DIST_BRAKE_CATCH_CM → 이 값으로 선형 증가.
 // 코너 정렬(전진 6cm)에서 고속 진입 시 인식 직후부터 제동 → 정렬 구간 내 정지(오버슈트 방지).
@@ -226,25 +226,25 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // [8] 주행 cruise 속도 (모터 출력 0~100)
 // ============================================================
 
-constexpr int SPEED_LINE_FOLLOW_FWD = 40;
+constexpr int SPEED_LINE_FOLLOW_FWD = 50;
 // 라인 추종 전진 (트랙·교차로)
 
-constexpr int SPEED_LINE_FOLLOW_REV = 30;
+constexpr int SPEED_LINE_FOLLOW_REV = 40;
 // 라인 추종 후진
 
-constexpr int SPEED_OPEN_ZONE_FWD = 60;
+constexpr int SPEED_OPEN_ZONE_FWD = 70;
 // 맹목 전진 — 박스 존 내부
 
-constexpr int SPEED_OPEN_ZONE_REV = 50;
+constexpr int SPEED_OPEN_ZONE_REV = 60;
 // 맹목 후진 — 박스 존 내부
 
-constexpr int SPEED_OPEN_TRACK_FWD = 70;
+constexpr int SPEED_OPEN_TRACK_FWD = 80;
 // 맹목 전진 — 메인 트랙·블라인드 정렬
 
-constexpr int SPEED_OPEN_TRACK_REV = 60;
+constexpr int SPEED_OPEN_TRACK_REV = 70;
 // 맹목 후진 — 메인 트랙
 
-constexpr int SPEED_9_TO_8 = 35;
+constexpr int SPEED_9_TO_8 = 40;
 // 9→8 구간 전용 (13 경유 등 9번 정확 정렬 불가 → 저속)
 
 constexpr int START_LINE_SEARCH_SPEED = 30;
@@ -255,7 +255,7 @@ constexpr int START_LINE_SEARCH_SPEED = 30;
 //     회전 감속 2단계: RAMP_SPIN_DECEL_DEG(메인) → SPIN_END_DECEL_DEG(마지막 마무리)
 // ============================================================
 
-constexpr int SPIN_SPEED = 40;
+constexpr int SPIN_SPEED = 35;
 // 회전 cruise 모터 출력
 
 constexpr int SPIN_90_COUNTS = 1170;
@@ -274,7 +274,7 @@ constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;
 // 회전 시작 시 관성 오버슈트 보정 — 목표 각의 0.5%(0.005)만큼 목표를 미리 단축
 
 // --- 회전 중 라인 감지 기반 오버슈트 억제 ---
-constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.50f;
+constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.70f;
 // 목표 각의 이 비율(70%) 이상 회전한 뒤부터 반대쪽 라인 감지를 본다
 
 constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.5f;
@@ -356,9 +356,9 @@ constexpr int HEADING_11_TO_10 = 272;
 // 9·10·11 노드 간 진행 방향 (°)
 
 constexpr int HEADING_10_TO_12 = 240;
-constexpr float DIST_10_TO_12_CM = 50.0f;
+constexpr float DIST_10_TO_12_CM = 40.0f;
 
-constexpr int HEADING_11_TO_12 = 250;
+constexpr int HEADING_11_TO_12 = 255;
 constexpr float DIST_11_TO_12_CM = 115.0f;
 
 constexpr int HEADING_12_TO_9_2 = 310;
@@ -373,14 +373,14 @@ constexpr float DIST_TRACK_10_TO_11_CM = 70.0f;
 constexpr float DIST_TRACK_9_TO_11_CM = 130.0f;
 // 9→11 직행 (cm) — 접근 감속 계산용, 정지는 라인 센서 (10·11 교차 2회)
 
-constexpr float DIST_TRACK_12_TO_9_CM = 45.0f;
+constexpr float DIST_TRACK_12_TO_9_CM = 35.0f;
 // 12→9 접근 (cm) — 접근 감속 계산용, 정지는 라인 센서
 
 // ============================================================
 // [13] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
 // ============================================================
 
-constexpr int HEADING_11_TO_FINISH = 345;
+constexpr int HEADING_11_TO_FINISH = 350;
 // 11번 → 스타트 피니시 진입 시 바라볼 방향 (북에서 약간 서쪽, °)
 
 constexpr int HEADING_FINISH_PARK = 0;
@@ -390,7 +390,7 @@ constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
 // 11번 선이 끊긴 '블라인드(라인 없음)' 구간을 이 거리만큼 연속 통과해야 블라인드로 확정
 // (센서 깜빡임 디바운스). 이후 다시 만나는 라인 = 스타트박스
 
-constexpr float DIST_FINISH_PARK_REV_CM = 17.0f;
+constexpr float DIST_FINISH_PARK_REV_CM = 15.0f;
 // 북(0°) 정렬 후 최종 후진 (cm)
 
 // ============================================================
@@ -400,7 +400,7 @@ constexpr float DIST_FINISH_PARK_REV_CM = 17.0f;
 constexpr float LINE_KP_FWD_SOFT = 1.2f;
 // 전진 P 게인 — 센서 오차 ±1
 
-constexpr float LINE_KP_FWD_HARD = 4.0f;
+constexpr float LINE_KP_FWD_HARD = 5.0f;
 // 전진 P 게인 — 센서 오차 ±2 이상
 
 constexpr float LINE_KP_REV_SOFT = 1.0f;
@@ -496,7 +496,7 @@ constexpr float LIFT_SYNC_GAIN = 5.0f;
 constexpr unsigned long LIFT_TICK_INTERVAL_MS = 15;
 // liftUpTick / liftDownTick 주기 (ms)
 
-constexpr unsigned long LIFT_FLOOR_TIME_MS = 1500;
+constexpr unsigned long LIFT_FLOOR_TIME_MS = 2000;
 // 바닥 근접 후 완전 하강 대기 (ms)
 
 // ============================================================
