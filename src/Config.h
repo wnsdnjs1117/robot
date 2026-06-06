@@ -65,7 +65,10 @@ constexpr unsigned long BUZZER_QR_FOUND_MS = 1000;
 // QR 박스 인식 성공 알림 (ms) — 비차단(tone)으로 울리며 즉시 출발
 
 constexpr unsigned int BUZZER_TONE_HZ = 1000;
-// 비차단 비프(tone) 주파수 (Hz)
+// 비차단 비프 목표 주파수 (Hz) — 실제 주파수는 주행 루프 주기에 의해 제한될 수 있음
+
+constexpr unsigned long BUZZER_TONE_HALF_US = 500000UL / BUZZER_TONE_HZ;
+// 비차단 비프 반주기 (us) — 이 시간마다 부저 핀 토글
 
 // ============================================================
 // [3] 핀 · 센서 하드웨어
