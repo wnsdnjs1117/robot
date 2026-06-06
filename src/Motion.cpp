@@ -111,8 +111,8 @@ void turnAngle(int degrees, bool isRight) {
   
   // ★ 스마트 각도 보정 (Dynamic Overshoot Compensation)
   // 회전량에 비례하여 미끄러짐(관성)을 선형적으로 예측하여 빼줍니다.
-  // 예: 90도 회전 시 2.5도 보정, 9도 회전 시 0.25도 보정
-  float slipCompensation = (absDeg / 90.0) * 2.5; 
+  // 보정량 1% : 예) 90도 회전 시 0.9도 보정, 9도 회전 시 0.09도 보정
+  float slipCompensation = absDeg * 0.01;
   float compDeg = absDeg - slipCompensation;
   
   long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg);

@@ -70,16 +70,19 @@ void enterZone(int zone) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
+    bool onLine = anyLine(L, C, R);
 
-    if (currentDist > CM(8.0f)) { 
-        if (anyLine(L, C, R)) { 
-            if(!armed) DPRINTF(" L1");
-            armed = true; 
-        }
+    if (currentDist > CM(8.0f) && onLine) {
+        if(!armed) DPRINTF(" L1");
+        armed = true;
     }
-    if (armed && !anyLine(L, C, R)) { DPRINTF(" L0"); break; }
+    if (armed && !onLine) { DPRINTF(" L0"); break; }
+    // ★ 폭주/한쪽 쏠림 방지: 라인을 끝내 못 만나면 최대 거리에서 강제 종료
+    if (currentDist > CM(ZONE_ENTRY_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
-    lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_ENTRY_BLIND_SPEED);
+    // ★ 라인 위에서만 추종, 공백 구간에서는 직진(외삽 ±3 급조향으로 한쪽으로 틀어지는 것 방지)
+    if (onLine) lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_ENTRY_BLIND_SPEED);
+    else        drive(ZONE_ENTRY_BLIND_SPEED, ZONE_ENTRY_BLIND_SPEED);
     liftUpTick(); liftDownTick(); scanTick();
   }
 
@@ -111,16 +114,19 @@ void reverseEnterZone(int zone) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
+    bool onLine = anyRearLine(RL, RC, RR);
 
-    if (currentDist > CM(8.0f)) { 
-        if (anyRearLine(RL, RC, RR)) { 
-            if(!armed) DPRINTF(" L1");
-            armed = true; 
-        }
+    if (currentDist > CM(8.0f) && onLine) {
+        if(!armed) DPRINTF(" L1");
+        armed = true;
     }
-    if (armed && !anyRearLine(RL, RC, RR)) { DPRINTF(" L0"); break; }
+    if (armed && !onLine) { DPRINTF(" L0"); break; }
+    // ★ 폭주/한쪽 쏠림 방지: 라인을 끝내 못 만나면 최대 거리에서 강제 종료
+    if (currentDist > CM(ZONE_ENTRY_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
-    reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
+    // ★ 라인 위에서만 추종, 공백 구간에서는 직진(외삽 ±3 급조향 방지)
+    if (onLine) reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
+    else        drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick(); scanTick();
   }
 
@@ -133,8 +139,8 @@ void reverseEnterZone(int zone) {
         liftUpTick(); liftDownTick(); scanTick();
     }
   }
-  
-  stopAll(); 
+
+  stopAll();
   float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - s)) / COUNTS_PER_CM;
   DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
 }
@@ -191,11 +197,12 @@ void reverseAcrossToOppositeZone(int zone) {
 }
 
 void goToMainLine() {
-  robotHeading = 270; 
+  robotHeading = 270;
+  // ★ 스타트 지점 첫 라인 탐색은 저속으로(빠르면 얇은 선을 한 프레임 새에 건너뛰어 놓침)
   while (true) {
     int L, C, R; readSensors(L, C, R);
     if (anyLine(L, C, R)) break;
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED);
+    drive(START_LINE_SEARCH_SPEED, START_LINE_SEARCH_SPEED);
     liftUpTick(); liftDownTick();
   }
   driveExtraDecel(DIST_START_TO_13_CM, STRAIGHT_SPEED);

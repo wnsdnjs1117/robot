@@ -24,7 +24,7 @@
 // ── HuskyLens / 스캔 파라미터 ──
 constexpr int MAX_RESCAN_TRIES = 5;            // 재스캔 무한루프 안전 상한
 constexpr unsigned long SCAN_DWELL_MS = 3000;  // 존 내 정지 스캔(대기) 시간
-constexpr unsigned long SCAN_POLL_MS = 50;     // scanTick I2C 폴링 간격(스티어링 보호)
+constexpr unsigned long SCAN_POLL_MS = 30;     // scanTick I2C 폴링 간격(↓: 탈출 중 인식률↑, 스티어링 보호 균형)
 
 // ── [디버깅 모드] ──────────────────────────────────────────
 #define ROBOT_DEBUG 1
@@ -112,6 +112,12 @@ constexpr int ZONE_ENTRY_BLIND_SPEED = 40;
 constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 40;
 constexpr int ZONE_EXIT_BLIND_SPEED = 40;
 constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;
+
+// ── 진입/탈출 안전 가드 및 라인 감지 안정화 ──
+constexpr float ZONE_ENTRY_MAX_CM = 45.0f;  // 진입 라인 탐색 최대 거리(미검출 시 폭주/틀어짐 방지)
+constexpr float ZONE_EXIT_MAX_CM = 60.0f;   // 탈출 라인 탐색 최대 거리(미검출 시 폭주 방지)
+constexpr int EXIT_LINE_CONFIRM = 2;        // 탈출 시 목표 라인 감지 확정 횟수(노이즈 조기트리거 방지)
+constexpr int START_LINE_SEARCH_SPEED = 25; // 스타트→메인라인 첫 탐색 저속(얇은 선 놓침 방지)
 
 constexpr int SPIN_SPEED = 40;
 constexpr int SPIN_90_COUNTS = 1185;

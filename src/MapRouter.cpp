@@ -149,47 +149,58 @@ void exitZone(int zone) {
 
   DPRINTF("\n-Exit Z:"); DPRINT(zone);
 
-  if (lastEntryWasForward) {   
+  if (lastEntryWasForward) {
     DPRINTF(" Rev");
     bool lineHit = false;
-    
+    int conf = 0;  // ★ 라인 감지 확정 카운터(노이즈로 인한 조기 회전 방지)
+
     // 1. 공백 구간(Gap)을 먼저 통과하여 목표 라인을 밟을 때까지 후진
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
        long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-       
-       if (dist > CM(10.0f)) { 
+
+       if (dist > CM(10.0f)) {
            if (zone == 1 || zone == 3) {
                // ★ 1, 3번 존: 사거리(1.1.1) 감지 절대 안 함! 오직 공백이 끝나고 선이 시작되는 지점만 찾음
+               // ★ 노이즈 한 프레임에 즉시 break 하던 것을 EXIT_LINE_CONFIRM 연속 감지로 확정(조기 회전 버그 수정)
                if (anyRearLine(RL, RC, RR)) {
-                   lineHit = true;
-                   DPRINTF(" L_ON (Gap Crossed)"); 
-                   break; 
-               }
+                   if (++conf >= EXIT_LINE_CONFIRM) {
+                       lineHit = true;
+                       DPRINTF(" L_ON (Gap Crossed)");
+                       break;
+                   }
+               } else conf = 0;
            } else if (zone == 2 || zone == 4) {
                // 2, 4번 존: 십자(┼) 교차로이므로 1.1.1 감지 사용
                if (RL == 1 && RC == 1 && RR == 1) {
                    lineHit = true;
-                   DPRINTF(" 1.1.1_CROSS_ON"); 
-                   break; 
+                   DPRINTF(" 1.1.1_CROSS_ON");
+                   break;
                }
            } else {
                // 5, 6번 존: 메인 라인 진입 감지
                if (anyRearLine(RL, RC, RR)) {
-                   lineHit = true;
-                   DPRINTF(" L_ON"); 
-                   break;
-               }
+                   if (++conf >= EXIT_LINE_CONFIRM) {
+                       lineHit = true;
+                       DPRINTF(" L_ON");
+                       break;
+                   }
+               } else conf = 0;
            }
        }
+
+       // ★ 미검출 폭주 방지 안전 가드
+       if (dist > CM(ZONE_EXIT_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
        reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
        liftUpTick(); liftDownTick(); scanTick();
     }
-    
+
     // 2. 라인을 만난 이후의 마무리 축 정렬 동작
     if (zone == 5 || zone == 6) {
-       // 5, 6번 존: 선에서 완전히 벗어날 때까지 추가 후진 후 칼정지
+       // 5, 6번 존: 선에 닿은 뒤 선에서 완전히 벗어날 때까지만 추가 후진 후 칼정지
+       // ★ 추종(reverseLineFollowStep) 대신 직진 후진 → 가로지르는 메인라인을 따라 휘지 않고
+       //    최단거리로 통과(과다 이동 버그 수정)
        if (lineHit) {
            while (true) {
               int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -197,11 +208,11 @@ void exitZone(int zone) {
                  DPRINTF(" L_OFF");
                  break;
               }
-              reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
+              drive(-ZONE_EXIT_BLIND_BACK_SPEED, -ZONE_EXIT_BLIND_BACK_SPEED);
               liftUpTick(); liftDownTick(); scanTick();
            }
        }
-    } else if (zone == 1 || zone == 3) { 
+    } else if (zone == 1 || zone == 3) {
        // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
        long remain = CM(c.exitRevExtra);
        if (remain > 0) {
@@ -225,39 +236,48 @@ void exitZone(int zone) {
        }
     }
 
-  } else {  
+  } else {
     DPRINTF(" Fwd");
     bool lineHit = false;
-    
+    int conf = 0;  // ★ 라인 감지 확정 카운터(노이즈로 인한 조기 회전 방지)
+
     // 1. 공백 구간(Gap)을 먼저 통과하여 목표 라인을 밟을 때까지 전진
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
        long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-       
-       if (dist > CM(10.0f)) { 
+
+       if (dist > CM(10.0f)) {
            if (zone == 1 || zone == 3) {
                // ★ 1, 3번 존: 사거리(1.1.1) 감지 절대 안 함! 오직 공백이 끝나고 선이 시작되는 지점만 찾음
+               // ★ 노이즈 한 프레임에 즉시 break 하던 것을 EXIT_LINE_CONFIRM 연속 감지로 확정(조기 회전 버그 수정)
                if (anyLine(L, C, R)) {
-                   lineHit = true;
-                   DPRINTF(" L_ON (Gap Crossed)"); 
-                   break; 
-               }
+                   if (++conf >= EXIT_LINE_CONFIRM) {
+                       lineHit = true;
+                       DPRINTF(" L_ON (Gap Crossed)");
+                       break;
+                   }
+               } else conf = 0;
            } else if (zone == 2 || zone == 4) {
                // 2, 4번 존: 십자(┼) 교차로이므로 1.1.1 감지 사용
                if (L == 1 && C == 1 && R == 1) {
                    lineHit = true;
-                   DPRINTF(" 1.1.1_CROSS_ON"); 
-                   break; 
+                   DPRINTF(" 1.1.1_CROSS_ON");
+                   break;
                }
            } else {
                // 5, 6번 존: 메인 라인 진입 감지
                if (anyLine(L, C, R)) {
-                   lineHit = true;
-                   DPRINTF(" L_ON"); 
-                   break;
-               }
+                   if (++conf >= EXIT_LINE_CONFIRM) {
+                       lineHit = true;
+                       DPRINTF(" L_ON");
+                       break;
+                   }
+               } else conf = 0;
            }
        }
+
+       // ★ 미검출 폭주 방지 안전 가드
+       if (dist > CM(ZONE_EXIT_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
        lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
        liftUpTick(); liftDownTick(); scanTick();
@@ -265,7 +285,9 @@ void exitZone(int zone) {
 
     // 2. 라인을 만난 이후의 마무리 축 정렬 동작
     if (zone == 5 || zone == 6) {
-       // 5, 6번 존: 선이 완전히 끝날 때까지 추가 전진 후 칼정지
+       // 5, 6번 존: 선에 닿은 뒤 선이 완전히 끝날 때까지만 추가 전진 후 칼정지
+       // ★ 추종(lineFollowStepFull) 대신 직진 전진 → 가로지르는 메인라인을 따라 휘지 않고
+       //    최단거리로 통과(과다 이동 버그 수정)
        if (lineHit) {
            while (true) {
               int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
@@ -273,11 +295,11 @@ void exitZone(int zone) {
                  DPRINTF(" L_OFF");
                  break;
               }
-              lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
+              drive(ZONE_EXIT_BLIND_SPEED, ZONE_EXIT_BLIND_SPEED);
               liftUpTick(); liftDownTick(); scanTick();
            }
        }
-    } else if (zone == 1 || zone == 3) { 
+    } else if (zone == 1 || zone == 3) {
        // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
        long remain = CM(c.exitFwdExtra);
        if (remain > 0) {
