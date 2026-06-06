@@ -1,30 +1,27 @@
 /* ============================================================
- * BoxMap.h - 가상 랜덤 박스 데이터 구조 선언
+ * BoxMap.h - 박스·QR 스캔 상태
  * ============================================================ */
 #ifndef BOXMAP_H
 #define BOXMAP_H
 
-const int ZONE_IN = 5;
-const int ZONE_OUT = 6;
+const int ZONE_IN  = 5;  // 입고 구역
+const int ZONE_OUT = 6;  // 출고 구역
 
 struct BoxInfo {
-  bool present;
-  bool found;
-  int destination;
+  bool present;      // 박스 존재 여부
+  bool found;        // QR 인식 완료
+  int  destination;  // 목적지 구역 (1~6)
 };
 
 extern BoxInfo boxes[7];
 
 void setupRandomLayout();
-bool scanZone(int zone);          // 존에서 정지 대기하며 QR 스캔(최대 SCAN_DWELL_MS)
+bool waitForZoneScan(int zone);
 void printSearchResult();
 
-// ── QR 연속 스캔 상태 ──
-//  g_scanTargetZone 이 1~6일 때만 scanTick()이 실제로 카메라를 읽어 해당 존에 래치한다.
-//  (배송 단계·노드 이동 중에는 0이라 무비용 no-op)
-extern volatile int g_scanTargetZone;
-void scanArm(int zone);   // 스캔 대상 존 설정 (진입 직전 호출)
-void scanDisarm();        // 스캔 종료 (탈출 완료 후 호출)
-void scanTick();          // 모션 루프에서 호출: 1회 폴링(throttle), 성공 시 래치+부저
+extern volatile int activeScanZone; // 1~6: 스캔 중인 구역 / 0: 비활성
+void beginZoneScan(int zone);
+void endZoneScan();
+void pollZoneScan();
 
 #endif

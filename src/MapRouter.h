@@ -1,18 +1,20 @@
 /* ============================================================
- * MapRouter.h - 다이나믹 방위 제어 기반 격자 맵 라우터
+ * MapRouter.h - 교차로 노드 기반 경로 이동
  * ============================================================ */
 #ifndef MAP_ROUTER_H
 #define MAP_ROUTER_H
 
 #include <Arduino.h>
 
-extern int  robotHeading;
-extern int  currentNode;         // 현재 로봇이 서 있는 교차로 노드 (7,8,9,10,11)
-extern bool lastEntryWasForward; // 마지막 구역 진입이 전진이었는가
+extern int  headingDeg;           // 현재 방위각 (0=북, 90=동, 180=남, 270=서)
+extern int  intersectionNode;     // 현재 교차로 노드 (7~11)
+extern bool enteredZoneForward; // 마지막 구역 진입이 전진이었는지
 
-void turnToHeading(int target);  // 현재 헤딩 → 목표 헤딩 최소 회전
-void moveToNode(int toNode);
-void exitZone(int zone);
-void goToZoneDirect(int zone);
+void rotateToHeading(int targetDeg);
+void driveToIntersectionNode(int targetNode);
+void leaveZone(int zone);
+void navigateToZone(int zone);
+bool zonesAreVerticalOpposites(int zoneA, int zoneB);
+void moveBetweenOppositeZones(int fromZone, int toZone);
 
 #endif

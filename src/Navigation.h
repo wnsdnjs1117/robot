@@ -1,19 +1,19 @@
 /* ============================================================
- * Navigation.h - 고수준 주행 시나리오 제어 헤더
+ * Navigation.h - 고수준 주행 시나리오
  * ============================================================ */
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
 
-void followToCrossing();
-void followToCrossing(bool stopAtEnd);
+void traceUntilIntersection();
+void traceUntilIntersection(bool stopAtEnd);
 
-void enterZone(int zone);
-void reverseEnterZone(int zone);
-// ★ 불필요해진 reverseAcrossToOppositeZone 삭제로 메모리 절약
+void enterZoneForward(int zone);
+void enterZoneReverse(int zone);
+void crossToOppositeZone(int targetZone, int fromZone, bool enableScan = true);
 
-void goToMainLine();
-void returnToFinish();
-int qrSearchStage();
-void rescanZones1to4();
+void driveOntoMainTrack();
+void driveToFinishArea();
+int  searchQrInZones1to4();
+void rescanMissingQrZones1to4();
 
 #endif

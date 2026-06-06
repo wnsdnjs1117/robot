@@ -1,18 +1,54 @@
 /* ============================================================
- * Motion.cpp - 듀얼 PID 조향 및 칼각(일정 속도→즉시 정지) 이동
+ * Motion.cpp - 듀얼 PID 조향 및 가감속 거리 주행
  * ============================================================ */
 #include "Motion.h"
 #include "Config.h"
-#include "MapRouter.h"
 #include "Lift.h"
-#include "BoxMap.h"   // scanTick (QR 연속 스캔)
-#include "TestMode.h" // 디버그 키 감지용
+#include "BoxMap.h"
 #include <math.h>
 
-bool enableEdgeSteering = false;
+bool enableTeeZoneSteering = false;
 
-// ── [0] Non-Blocking 비동기 대기 ──
-void safeDelay(unsigned long ms) {
+DriveEncMark captureDriveEnc() {
+  return { prizm.readEncoderCount(1), prizm.readEncoderCount(2) };
+}
+
+long encoderTraveledSince(DriveEncMark mark) {
+  long dl = labs(prizm.readEncoderCount(1) - mark.left);
+  long dr = labs(prizm.readEncoderCount(2) - mark.right);
+  return (dl + dr) / 2;
+}
+
+long rampAccelSpanCounts() { return toEncoderCounts(RAMP_ACCEL_CM); }
+
+int blindRampSpeed(DriveEncMark start, int maxSpeed) {
+  return calcRampUpSpeed(encoderTraveledSince(start), rampAccelSpanCounts(), maxSpeed);
+}
+
+int blindDecelSpeed(DriveEncMark mark, long totalSpan, int cruiseSpeed) {
+  long remaining = totalSpan - encoderTraveledSince(mark);
+  if (remaining <= 0) return 0;
+  long decelSpan = (long)toEncoderCounts(RAMP_DECEL_CM);
+  if (decelSpan > totalSpan / 2) decelSpan = totalSpan / 2;
+  if (remaining > decelSpan) return cruiseSpeed;
+  return (int)((long)cruiseSpeed * remaining / decelSpan);
+}
+
+int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed) {
+  if (accelCounts <= 0) return maxSpeed;
+  int speed = (traveledCounts < accelCounts)
+      ? RAMP_MIN_SPEED + (int)((long)(maxSpeed - RAMP_MIN_SPEED) * traveledCounts / accelCounts)
+      : maxSpeed;
+  return (speed < 10) ? 10 : speed;
+}
+
+int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed) {
+  if (decelCounts <= 0) return (startSpeed < 10) ? 10 : startSpeed;
+  int speed = 10 + (int)((long)(startSpeed - 10) * remainingCounts / decelCounts);
+  return (speed < 10) ? 10 : speed;
+}
+
+void delayWithTicks(unsigned long ms) {
   unsigned long start = millis();
   while (millis() - start < ms) {
     liftUpTick(); liftDownTick();
@@ -20,302 +56,297 @@ void safeDelay(unsigned long ms) {
   }
 }
 
-// ── 부저 (QR 인식음 / 종료음 공용) ──
-void beep(unsigned long ms) {
-  pinMode(BUZZER_PIN, OUTPUT);
+void playBeep(unsigned long ms) {
+  pinMode(PIN_BUZZER, OUTPUT);
   unsigned long end = millis() + ms;
   while (millis() < end) {
-    digitalWrite(BUZZER_PIN, HIGH); delayMicroseconds(500);
-    digitalWrite(BUZZER_PIN, LOW);  delayMicroseconds(500);
+    digitalWrite(PIN_BUZZER, HIGH); delayMicroseconds(500);
+    digitalWrite(PIN_BUZZER, LOW);  delayMicroseconds(500);
   }
-  digitalWrite(BUZZER_PIN, LOW);
+  digitalWrite(PIN_BUZZER, LOW);
 }
 
-// ── [1] 모터 구동 및 급정지 ───────────────
-void drive(int l, int r) {
+void setWheelSpeeds(int left, int right) {
   checkDebugKey();
-  
-  if (l == 0 && r == 0) { prizm.setMotorSpeeds(0, 0); return; }
-  
+
+  if (left == 0 && right == 0) { prizm.setMotorSpeeds(0, 0); return; }
+
   static unsigned long lastTime = 0;
-  static long lastEncL = 0;
-  static long lastEncR = 0;
+  static long lastEncL = 0, lastEncR = 0;
   static int outL = 0, outR = 0, lastReqL = 0, lastReqR = 0;
 
   unsigned long now = millis();
   unsigned long dt = now - lastTime;
 
-  if (l != lastReqL || r != lastReqR) { outL = l; outR = r; }
-  lastReqL = l; lastReqR = r;
+  if (left != lastReqL || right != lastReqR) { outL = left; outR = right; }
+  lastReqL = left; lastReqR = right;
 
-  if (dt >= 10) {  // ★ 기존 20에서 10으로 변경하여 조향 반응 속도를 2배 높임
+  if (dt >= 10) {
     long encL = prizm.readEncoderCount(1);
     long encR = prizm.readEncoderCount(2);
-
-    long curVelL_mag = labs(encL - lastEncL);
-    long curVelR_mag = labs(encR - lastEncR);
-
-    float targetVelL_mag = abs(l) * VELOCITY_TARGET_FACTOR;
-    float targetVelR_mag = abs(r) * VELOCITY_TARGET_FACTOR;
-
-    float errL = targetVelL_mag - curVelL_mag;
-    float errR = targetVelR_mag - curVelR_mag;
-
-    int outL_mag = abs(l) + (int)(errL * VELOCITY_KP);
-    int outR_mag = abs(r) + (int)(errR * VELOCITY_KP);
-
-    outL = (l >= 0) ? outL_mag : -outL_mag;
-    outR = (r >= 0) ? outR_mag : -outR_mag;
-
-    outL = constrain(outL, l - VELOCITY_MAX_CORRECTION, l + VELOCITY_MAX_CORRECTION);
-    outR = constrain(outR, r - VELOCITY_MAX_CORRECTION, r + VELOCITY_MAX_CORRECTION);
-
+    long curVelL = labs(encL - lastEncL);
+    long curVelR = labs(encR - lastEncR);
+    float targetL = abs(left) * VELOCITY_TARGET_FACTOR;
+    float targetR = abs(right) * VELOCITY_TARGET_FACTOR;
+    int outLmag = abs(left) + (int)((targetL - curVelL) * VELOCITY_KP);
+    int outRmag = abs(right) + (int)((targetR - curVelR) * VELOCITY_KP);
+    outL = (left >= 0) ? outLmag : -outLmag;
+    outR = (right >= 0) ? outRmag : -outRmag;
+    outL = constrain(outL, left - VELOCITY_MAX_CORRECTION, left + VELOCITY_MAX_CORRECTION);
+    outR = constrain(outR, right - VELOCITY_MAX_CORRECTION, right + VELOCITY_MAX_CORRECTION);
     lastTime = now; lastEncL = encL; lastEncR = encR;
   }
 
-  int finalL = outL; int finalR = outR;
-  
+  int finalL = outL, finalR = outR;
   float speedMag = abs(finalL);
-  if (speedMag < 20.0) speedMag = 20.0;
-  if (speedMag > 100.0) speedMag = 100.0;
-  
-  float compLow = 1.021; 
-  float compHigh = 0.985; 
-  float comp = compLow + (compHigh - compLow) * ((speedMag - 20.0) / 80.0);
-  
-  if (finalL > 0) {
-    finalL = (int)(finalL * comp + 0.5);
-  } else if (finalL < 0) {
-    finalL = (int)(finalL * comp - 0.5);
-  }
-  
-  if (finalL > 0 && finalR > 0) { finalL += MOTOR_OFFSET_L; finalR += MOTOR_OFFSET_R; } 
+  if (speedMag < 20.0f) speedMag = 20.0f;
+  if (speedMag > 100.0f) speedMag = 100.0f;
+  float comp = 1.021f + (0.985f - 1.021f) * ((speedMag - 20.0f) / 80.0f);
+  if (finalL > 0) finalL = (int)(finalL * comp + 0.5f);
+  else if (finalL < 0) finalL = (int)(finalL * comp - 0.5f);
+
+  if (finalL > 0 && finalR > 0) { finalL += MOTOR_OFFSET_L; finalR += MOTOR_OFFSET_R; }
   else if (finalL < 0 && finalR < 0) { finalL -= MOTOR_OFFSET_L; finalR -= MOTOR_OFFSET_R; }
-  
+
   prizm.setMotorSpeeds(-(constrain(finalL, -100, 100) * 7), constrain(finalR, -100, 100) * 7);
 }
 
-void stopAll() {
+void stopMotors() {
   prizm.setMotorPower(1, 125);
   prizm.setMotorPower(2, 125);
-  safeDelay(80); 
+  delayWithTicks(80);
   prizm.setMotorSpeeds(0, 0);
 }
 
-// ── [2] ★ 제자리 칼각 회전 (스마트 보정 적용) ───────────
-void turnAngle(int degrees, bool isRight) {
-  stopAll(); 
-  safeDelay(40);
-  
-  float absDeg = fabs((float)degrees);
-  
-  // ★ 각도 보정: 항상 1도 빼줌 (관성 오버슈트 보정)
-  float slipCompensation = 1.0f;
-  float compDeg = absDeg - slipCompensation;
-  
-  long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg);
+void rotateByDegrees(int degrees, bool clockwise) {
+  stopMotors();
+  delayWithTicks(40);
+  float compDeg = fabs((float)degrees) - 1.0f;
+  long targetCounts = (long)((SPIN_90_COUNTS / 90.0f) * compDeg);
   if (targetCounts <= 0) return;
 
   long startL = prizm.readEncoderCount(1);
   long startR = prizm.readEncoderCount(2);
-
-  // 칼각 회전: 일정 속도(SPIN_SPEED)로 돌다 목표 도달 즉시 제동
   while (true) {
-    long dL = labs(prizm.readEncoderCount(1) - startL);
-    long dR = labs(prizm.readEncoderCount(2) - startR);
-    long pos = (dL + dR) / 2;
+    long pos = (labs(prizm.readEncoderCount(1) - startL) + labs(prizm.readEncoderCount(2) - startR)) / 2;
     if (targetCounts - pos <= 0) break;
-
-    if (isRight) drive(SPIN_SPEED, -SPIN_SPEED);
-    else drive(-SPIN_SPEED, SPIN_SPEED);
-
+    if (clockwise) setWheelSpeeds(SPIN_SPEED, -SPIN_SPEED);
+    else           setWheelSpeeds(-SPIN_SPEED, SPIN_SPEED);
     liftUpTick(); liftDownTick();
   }
-
-  stopAll();
+  stopMotors();
 }
 
-// ── [3] 센서 읽기 ───────────
-void readSensors(int& L, int& C, int& R) {
-  L = digitalRead(SENSOR_LEFT); C = digitalRead(SENSOR_CENTER); R = digitalRead(SENSOR_RIGHT);
-  if (INVERT_SENSORS) { L = !L; C = !C; R = !R; }
+void readFrontLineSensors(int& left, int& center, int& right) {
+  left   = digitalRead(PIN_LINE_FRONT_LEFT);
+  center = digitalRead(PIN_LINE_FRONT_CENTER);
+  right  = digitalRead(PIN_LINE_FRONT_RIGHT);
+  if (INVERT_LINE_SENSORS) { left = !left; center = !center; right = !right; }
 }
 
-void readRearSensors(int& RL, int& RC, int& RR) {
-  RL = (analogRead(SENSOR_REAR_LEFT) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
-  RC = (analogRead(SENSOR_REAR_CENTER) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
-  RR = (analogRead(SENSOR_REAR_RIGHT) >= REAR_SENSOR_THRESHOLD) ? 1 : 0;
+void readRearLineSensors(int& left, int& center, int& right) {
+  left   = (analogRead(PIN_LINE_REAR_LEFT)   >= REAR_LINE_THRESHOLD) ? 1 : 0;
+  center = (analogRead(PIN_LINE_REAR_CENTER) >= REAR_LINE_THRESHOLD) ? 1 : 0;
+  right  = (analogRead(PIN_LINE_REAR_RIGHT)  >= REAR_LINE_THRESHOLD) ? 1 : 0;
 }
 
-bool anyLine(int L, int C, int R) { return (L == 1 || C == 1 || R == 1); }
-bool anyRearLine(int RL, int RC, int RR) { return RL || RC || RR; }
+bool frontOnLine(int left, int center, int right) { return left || center || right; }
+bool rearOnLine(int left, int center, int right) { return left || center || right; }
 
-// ── [4] 전진 라인 트레이싱 ───────────
-void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR, int baseSpeed) {
-  static float integral = 0;
-  static float lastPosF = 0;
+namespace {
+float lineFwdIntegral = 0;
+float lineFwdLastError = 0;
+float lineRevIntegral = 0;
+float lineRevLastError = 0;
+} // namespace
 
-  int lsp = baseSpeed;
-  int rsp = baseSpeed;
+void resetLineTracePid() {
+  lineFwdIntegral = 0;
+  lineFwdLastError = 0;
+  lineRevIntegral = 0;
+  lineRevLastError = 0;
+}
 
-  int posF = 0, posR = 0;
-  if (FL && !FC && !FR) { posF = -2; lastSensorState = 1; }
-  else if (FL && FC && !FR) { posF = -1; lastSensorState = 1; }
-  else if (!FL && FC && !FR) { posF = 0; lastSensorState = 0; }
-  else if (!FL && FC && FR) { posF = 1; lastSensorState = 2; }
-  else if (!FL && !FC && FR) { posF = 2; lastSensorState = 2; }
-  else if (FL && FC && FR) { posF = 0; lastSensorState = 0; } 
-  else { posF = (lastSensorState == 1) ? -3 : ((lastSensorState == 2) ? 3 : 0); } 
+void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int baseSpeed) {
+  int leftSpeed  = baseSpeed;
+  int rightSpeed = baseSpeed;
+  int posFront = 0, posRear = 0;
 
-  if (RL && !RC && !RR) posR = -2;
-  else if (RL && RC && !RR) posR = -1;
-  else if (!RL && RC && !RR) posR = 0;
-  else if (!RL && RC && RR) posR = 1;
-  else if (!RL && !RC && RR) posR = 2;
-  else posR = 0; 
+  if      (fl && !fc && !fr) { posFront = -2; lineTraceLastEdge = 1; }
+  else if (fl && fc && !fr)  { posFront = -1; lineTraceLastEdge = 1; }
+  else if (!fl && fc && !fr) { posFront =  0; lineTraceLastEdge = 0; }
+  else if (!fl && fc && fr)  { posFront =  1; lineTraceLastEdge = 2; }
+  else if (!fl && !fc && fr) { posFront =  2; lineTraceLastEdge = 2; }
+  else if (fl && fc && fr)   { posFront =  0; lineTraceLastEdge = 0; }
+  else { posFront = (lineTraceLastEdge == 1) ? -3 : ((lineTraceLastEdge == 2) ? 3 : 0); }
 
-  float error = posF;
-  integral += error;
-  float derivative = error - lastPosF;
+  if      (rl && !rc && !rr) posRear = -2;
+  else if (rl && rc && !rr)  posRear = -1;
+  else if (!rl && rc && !rr) posRear =  0;
+  else if (!rl && rc && rr)  posRear =  1;
+  else if (!rl && !rc && rr) posRear =  2;
+  else posRear = 0;
 
-  bool isHard = (abs(error) >= 2);
-  float current_KP = isHard ? LINE_KP_FWD_HARD : LINE_KP_FWD_SOFT;
+  float error = (float)posFront;
+  lineFwdIntegral += error;
+  float derivative = error - lineFwdLastError;
+  float kp = (abs((int)error) >= 2) ? LINE_KP_FWD_HARD : LINE_KP_FWD_SOFT;
+  float steer = error * kp + lineFwdIntegral * LINE_KI + derivative * LINE_KD;
 
-  float steer = (error * current_KP) + (integral * LINE_KI) + (derivative * LINE_KD);
+  leftSpeed  += (int)round(steer);
+  rightSpeed -= (int)round(steer);
 
-  lsp += (int)round(steer);
-  rsp -= (int)round(steer);
-
-  float alignVal = 0;
-  if ((FL || FC || FR) && (RL || RC || RR)) {
-    if (!(FL && FC && FR) && !(RL && RC && RR)) { 
-      float alignError = posF - posR; 
-      alignVal = alignError * LINE_ALIGN_GAIN;
-      lsp += (int)round(alignVal); 
-      rsp -= (int)round(alignVal);
-    }
+  if ((fl || fc || fr) && (rl || rc || rr) && !(fl && fc && fr) && !(rl && rc && rr)) {
+    float align = (posFront - posRear) * LINE_ALIGN_GAIN;
+    leftSpeed  += (int)round(align);
+    rightSpeed -= (int)round(align);
   }
 
-  if (FL == 1 && FC == 0 && FR == 0 && RL == 1 && RC == 0 && RR == 0) {
-    lsp -= EDGE_SYNC_GAIN; rsp += EDGE_SYNC_GAIN;
-  }
-  else if (FL == 0 && FC == 0 && FR == 1 && RL == 0 && RC == 0 && RR == 1) {
-    lsp += EDGE_SYNC_GAIN; rsp -= EDGE_SYNC_GAIN;
+  if (fl == 1 && fc == 0 && fr == 0 && rl == 1 && rc == 0 && rr == 0) {
+    leftSpeed -= EDGE_SYNC_GAIN; rightSpeed += EDGE_SYNC_GAIN;
+  } else if (fl == 0 && fc == 0 && fr == 1 && rl == 0 && rc == 0 && rr == 1) {
+    leftSpeed += EDGE_SYNC_GAIN; rightSpeed -= EDGE_SYNC_GAIN;
   }
 
-  lastPosF = error;
-  drive(lsp, rsp);
+  lineFwdLastError = error;
+  setWheelSpeeds(leftSpeed, rightSpeed);
 }
 
-void lineFollowStepFull(int FL, int FC, int FR, int RL, int RC, int RR) {
-  lineFollowStepFull(FL, FC, FR, RL, RC, RR, SPEED);
+void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr) {
+  traceLineForward(fl, fc, fr, rl, rc, rr, SPEED_LINE_FOLLOW_FWD);
 }
 
-// ── [5] 후진 라인 트레이싱 ───────────
-void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR, int baseSpeed) {
-  static float integralRev = 0;
-  static float lastPosR = 0;
+void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr, int baseSpeed) {
+  int leftSpeed  = -baseSpeed;
+  int rightSpeed = -baseSpeed;
+  int posRear = 0, posFront = 0;
 
-  int lsp = -baseSpeed;
-  int rsp = -baseSpeed;
+  if      (rl && !rc && !rr) { posRear = -2; lineTraceLastEdge = 1; }
+  else if (rl && rc && !rr)  { posRear = -1; lineTraceLastEdge = 1; }
+  else if (!rl && rc && !rr) { posRear =  0; lineTraceLastEdge = 0; }
+  else if (!rl && rc && rr)  { posRear =  1; lineTraceLastEdge = 2; }
+  else if (!rl && !rc && rr) { posRear =  2; lineTraceLastEdge = 2; }
+  else if (rl && rc && rr)   { posRear =  0; lineTraceLastEdge = 0; }
+  else { posRear = (lineTraceLastEdge == 1) ? -3 : ((lineTraceLastEdge == 2) ? 3 : 0); }
 
-  int posR = 0, posF = 0;
-  if (RL && !RC && !RR) { posR = -2; lastSensorState = 1; }
-  else if (RL && RC && !RR) { posR = -1; lastSensorState = 1; }
-  else if (!RL && RC && !RR) { posR = 0; lastSensorState = 0; }
-  else if (!RL && RC && RR) { posR = 1; lastSensorState = 2; }
-  else if (!RL && !RC && RR) { posR = 2; lastSensorState = 2; }
-  else if (RL && RC && RR) { posR = 0; lastSensorState = 0; }
-  else { posR = (lastSensorState == 1) ? -3 : ((lastSensorState == 2) ? 3 : 0); } 
+  if      (fl && !fc && !fr) posFront = -2;
+  else if (fl && fc && !fr)  posFront = -1;
+  else if (!fl && fc && !fr) posFront =  0;
+  else if (!fl && fc && fr)  posFront =  1;
+  else if (!fl && !fc && fr) posFront =  2;
+  else posFront = 0;
 
-  if (FL && !FC && !FR) posF = -2;
-  else if (FL && FC && !FR) posF = -1;
-  else if (!FL && FC && !FR) posF = 0;
-  else if (!FL && FC && FR) posF = 1;
-  else if (!FL && !FC && FR) posF = 2;
-  else posF = 0; 
+  float error = (float)posRear;
+  lineRevIntegral += error;
+  float derivative = error - lineRevLastError;
+  float kp = (abs((int)error) >= 2) ? LINE_KP_REV_HARD : LINE_KP_REV_SOFT;
+  float steer = error * kp + lineRevIntegral * LINE_KI + derivative * LINE_KD;
 
-  float error = posR;
-  integralRev += error;
-  float derivative = error - lastPosR;
+  leftSpeed  -= (int)round(steer);
+  rightSpeed += (int)round(steer);
 
-  bool isHard = (abs(error) >= 2);
-  float current_KP = isHard ? LINE_KP_REV_HARD : LINE_KP_REV_SOFT;
-
-  float steer = (error * current_KP) + (integralRev * LINE_KI) + (derivative * LINE_KD);
-
-  lsp -= (int)round(steer);
-  rsp += (int)round(steer);
-
-  float alignVal = 0;
-  if ((RL || RC || RR) && (FL || FC || FR)) {
-    if (!(RL && RC && RR) && !(FL && FC && FR)) {
-      float alignError = posR - posF;
-      alignVal = alignError * LINE_ALIGN_GAIN;
-      lsp -= (int)round(alignVal); 
-      rsp += (int)round(alignVal);
-    }
+  if ((rl || rc || rr) && (fl || fc || fr) && !(rl && rc && rr) && !(fl && fc && fr)) {
+    float align = (posRear - posFront) * LINE_ALIGN_GAIN;
+    leftSpeed  -= (int)round(align);
+    rightSpeed += (int)round(align);
   }
 
-  if (RL == 1 && RC == 0 && RR == 0 && FL == 1 && FC == 0 && FR == 0) {
-    lsp += EDGE_SYNC_GAIN; rsp -= EDGE_SYNC_GAIN;
-  }
-  else if (RL == 0 && RC == 0 && RR == 1 && FL == 0 && FC == 0 && FR == 1) {
-    lsp -= EDGE_SYNC_GAIN; rsp += EDGE_SYNC_GAIN;
+  if (rl == 1 && rc == 0 && rr == 0 && fl == 1 && fc == 0 && fr == 0) {
+    leftSpeed += EDGE_SYNC_GAIN; rightSpeed -= EDGE_SYNC_GAIN;
+  } else if (rl == 0 && rc == 0 && rr == 1 && fl == 0 && fc == 0 && fr == 1) {
+    leftSpeed -= EDGE_SYNC_GAIN; rightSpeed += EDGE_SYNC_GAIN;
   }
 
-  lastPosR = error;
-  drive(lsp, rsp);
+  lineRevLastError = error;
+  setWheelSpeeds(leftSpeed, rightSpeed);
 }
 
-void reverseLineFollowStep(int RL, int RC, int RR, int FL, int FC, int FR) {
-  reverseLineFollowStep(RL, RC, RR, FL, FC, FR, BACK_SPEED);
+void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr) {
+  traceLineReverse(rl, rc, rr, fl, fc, fr, SPEED_LINE_FOLLOW_REV);
 }
 
-// ── [6] ★ 고정 거리 이동 (칼각: 일정 속도 → 즉시 정지) ───────────
-// 가감속(S-커브) 없이 목표 엔코더까지 일정 속도(speed, 음수면 후진)로 이동하고
-// 도달 즉시 125 제동. 주행 중 '이동 예정' 거리와 '남은 거리'를 cm로 출력한다.
-void driveDistance(float cm, int speed) {
-  long startEnc = labs(prizm.readEncoderCount(1));
-  long targetCounts = CM(cm);
-  if (targetCounts <= 0) { stopAll(); return; }
+void driveDistanceCm(float cm, int speed, bool stopAtEnd) {
+  float absCm = fabs(cm);
+  if (absCm <= 0.0f) { if (stopAtEnd) stopMotors(); return; }
 
-  int  maxSpd = abs(speed);
-  int  dir    = (speed >= 0) ? 1 : -1;
-  // 짧은 거리에서는 가속/감속 구간을 절반씩으로 자동 축소
-  long accel  = min((long)CM(RAMP_ACCEL_CM), targetCounts / 2);
-  long decel  = min((long)CM(RAMP_DECEL_CM), targetCounts / 2);
+  int maxSpeed = abs(speed);
+  int direction = (speed >= 0) ? 1 : -1;
+  if (cm < 0) direction = -direction;
 
-  DPRINTF("\n>> 이동 예정 "); DPRINT(cm); DPRINTLNF(" cm");
+  DriveEncMark startEnc = captureDriveEnc();
+  long targetCounts = toEncoderCounts(absCm);
+  long accelSpan  = min((long)toEncoderCounts(RAMP_ACCEL_CM), targetCounts / 2);
+  long decelSpan  = stopAtEnd ? min((long)toEncoderCounts(RAMP_DECEL_CM), targetCounts / 2) : 0;
 
-  unsigned long lastPrint = 0;
   while (true) {
-    long pos   = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-    long error = targetCounts - pos;
-    if (error <= 0) break;
+    long traveled = encoderTraveledSince(startEnc);
+    long remaining = targetCounts - traveled;
+    if (remaining <= 0) break;
 
-    // 사다리꼴 속도 프로파일: 가속 → 정속 → 감속
-    int curSpd;
-    if (pos < accel) {
-      curSpd = RAMP_MIN_SPEED + (int)((long)(maxSpd - RAMP_MIN_SPEED) * pos / accel);
-    } else if (error < decel) {
-      curSpd = RAMP_MIN_SPEED + (int)((long)(maxSpd - RAMP_MIN_SPEED) * error / decel);
+    int curSpeed;
+    if (traveled < accelSpan) {
+      curSpeed = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
+    } else if (stopAtEnd && remaining < decelSpan) {
+      curSpeed = calcRampDownSpeed(remaining, decelSpan, maxSpeed);
     } else {
-      curSpd = maxSpd;
+      curSpeed = maxSpeed;
     }
 
-    unsigned long now = millis();
-    if (now - lastPrint >= 200) {
-      DPRINTF("   남은 거리 "); DPRINT((float)error / COUNTS_PER_CM); DPRINTLNF(" cm");
-      lastPrint = now;
-    }
-
-    drive(dir * curSpd, dir * curSpd);
-    liftUpTick(); liftDownTick(); scanTick();
+    setWheelSpeeds(direction * curSpeed, direction * curSpeed);
+    liftUpTick(); liftDownTick(); pollZoneScan();
   }
-  stopAll(); // 감속 후 125 급제동으로 확실히 정지
+  if (stopAtEnd) stopMotors();
 }
 
-// 기존 호출부 호환용 래퍼 (이제 모두 칼각 일정 속도 이동)
-void driveStraightSmooth(float cm, int maxSpd) { driveDistance(cm, maxSpd); }
-void driveExtraDecel(float cm, int startSpd)   { driveDistance(cm, startSpd); }
+void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAtEnd) {
+  long startEnc = labs(prizm.readEncoderCount(1));
+  long nextIgnoreEnc = startEnc + toEncoderCounts(DIST_IGNORE_NODE_CM);
+  int linesPassed = 0;
+  int phase = 0; // 0=무시구간 1=라인탐색 2=정렬
+
+  int maxSpeed = abs(speed);
+  long accelSpan = toEncoderCounts(RAMP_ACCEL_CM);
+  long alignSpan = toEncoderCounts(alignCm);
+  long alignTargetEnc = 0;
+  int speedAtLastLine = maxSpeed;
+
+  while (true) {
+    long currentEnc = labs(prizm.readEncoderCount(1));
+    long traveled = currentEnc - startEnc;
+    int curSpeed;
+
+    if (phase == 0) {
+      if (currentEnc >= nextIgnoreEnc) phase = 1;
+      curSpeed = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
+      setWheelSpeeds(curSpeed, curSpeed);
+    }
+    else if (phase == 1) {
+      int fl, fc, fr;
+      readFrontLineSensors(fl, fc, fr);
+      if (frontOnLine(fl, fc, fr)) {
+        linesPassed++;
+        if (linesPassed >= lineCount) {
+          phase = 2;
+          alignTargetEnc = currentEnc + alignSpan;
+          speedAtLastLine = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
+          if (alignSpan <= 0 && !stopAtEnd) break;
+        } else {
+          phase = 0;
+          nextIgnoreEnc = currentEnc + toEncoderCounts(DIST_IGNORE_NODE_CM);
+        }
+      }
+      curSpeed = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
+      setWheelSpeeds(curSpeed, curSpeed);
+    }
+    else {
+      long remaining = alignTargetEnc - currentEnc;
+      if (remaining <= 0) break;
+      curSpeed = stopAtEnd
+          ? calcRampDownSpeed(remaining, alignSpan, speedAtLastLine)
+          : speedAtLastLine;
+      setWheelSpeeds(curSpeed, curSpeed);
+    }
+    liftUpTick(); liftDownTick(); pollZoneScan();
+  }
+  if (stopAtEnd) stopMotors();
+}

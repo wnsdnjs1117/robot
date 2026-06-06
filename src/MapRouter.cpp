@@ -1,5 +1,5 @@
 /* ============================================================
- * MapRouter.cpp - 방위각 기반 최단 경로 및 복귀 스마트 탈출 (멈칫거림 완벽 제거)
+ * MapRouter.cpp - 교차로 노드 간 경로 및 구역 탈출
  * ============================================================ */
 #include "MapRouter.h"
 #include "Config.h"
@@ -8,11 +8,11 @@
 #include "Lift.h"
 #include "BoxMap.h"
 
-int robotHeading = 0;  
-int currentNode = 11;
-bool lastEntryWasForward = true;
+int  headingDeg = 0;
+int  intersectionNode = 11;
+bool enteredZoneForward = true;
 
-static int zoneToNode(int zone) {
+static int zoneToIntersection(int zone) {
   if (zone == 1 || zone == 3) return 7;
   if (zone == 2 || zone == 4) return 8;
   if (zone == 5) return 10;
@@ -20,320 +20,250 @@ static int zoneToNode(int zone) {
   return 8;
 }
 
-void turnToHeading(int targetAngle) {
-  targetAngle = (targetAngle % 360 + 360) % 360;
-  int diff = targetAngle - robotHeading;
+void rotateToHeading(int targetDeg) {
+  targetDeg = (targetDeg % 360 + 360) % 360;
+  int diff = targetDeg - headingDeg;
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
   if (diff == 0) return;
-  if (diff > 0) turnAngle(diff, true);
-  else turnAngle(-diff, false);
-  robotHeading = targetAngle;
+  if (diff > 0) rotateByDegrees(diff, true);
+  else          rotateByDegrees(-diff, false);
+  headingDeg = targetDeg;
 }
 
-static void ignoreNodeBlind() {
-  long startEnc = abs(prizm.readEncoderCount(1));
-  while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_IGNORE_NODE_CM)) {
-    drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick();
+static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd) {
+  rotateToHeading(targetHeading);
+  driveOverLinesAndAlign(1, DIST_CROSS_ALIGN_CM, SPEED_OPEN_DRIVE_FWD, stopAtEnd);
+  if (alignHeading != -1 && !stopAtEnd) rotateToHeading(alignHeading);
+}
+
+static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
+  if (fromNode == 8 && toNode == 9) {
+    rotateToHeading(90);
+    while (true) {
+      int fl, fc, fr, rl, rc, rr;
+      readFrontLineSensors(fl, fc, fr);
+      readRearLineSensors(rl, rc, rr);
+      if (!frontOnLine(fl, fc, fr)) {
+        if (stopAtEnd) stopMotors();
+        break;
+      }
+      traceLineForward(fl, fc, fr, rl, rc, rr, SPEED_LINE_FOLLOW_FWD);
+      liftUpTick(); liftDownTick();
+    }
+  }
+  else if (fromNode == 9 && toNode == 8) {
+    rotateToHeading(270);
+    driveOverLinesAndAlign(1, 0, SPEED_OPEN_DRIVE_FWD, false);
+    traceUntilIntersection(stopAtEnd);
+  }
+  else if (fromNode == 9 && toNode == 10) {
+    blindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd);
+  }
+  else if (fromNode == 9 && toNode == 11) {
+    rotateToHeading(HEADING_9_TO_11);
+    driveOverLinesAndAlign(2, DIST_CROSS_ALIGN_CM, SPEED_OPEN_DRIVE_FWD, stopAtEnd);
+  }
+  else if (fromNode == 10 && toNode == 11) {
+    blindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd);
+  }
+  else if (fromNode == 11 && toNode == 10) {
+    blindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd);
+  }
+  else if (fromNode == 10 && toNode == 9) {
+    rotateToHeading(HEADING_10_TO_12);
+    driveDistanceCm(DIST_10_TO_12_CM, SPEED_OPEN_DRIVE_FWD, true);
+    rotateToHeading(HEADING_12_TO_9_2);
+    driveOverLinesAndAlign(1, DIST_CROSS_ALIGN_CM, SPEED_OPEN_DRIVE_FWD, stopAtEnd);
+    if (!stopAtEnd) rotateToHeading(270);
+  }
+  else if (fromNode == 11 && toNode == 9) {
+    rotateToHeading(HEADING_11_TO_12);
+    driveDistanceCm(DIST_11_TO_12_CM, SPEED_OPEN_DRIVE_FWD, true);
+    rotateToHeading(HEADING_12_TO_9_2);
+    driveOverLinesAndAlign(1, DIST_CROSS_ALIGN_CM, SPEED_OPEN_DRIVE_FWD, stopAtEnd);
+    if (!stopAtEnd) rotateToHeading(270);
+  }
+  else {
+    int dir = (toNode > fromNode) ? 90 : 270;
+    rotateToHeading(dir);
+    traceUntilIntersection(stopAtEnd);
+  }
+  intersectionNode = toNode;
+}
+
+void driveToIntersectionNode(int targetNode) {
+  if (intersectionNode == targetNode) return;
+  while (intersectionNode != targetNode) {
+    int nextNode = targetNode;
+    if (intersectionNode < 9 && targetNode >= 9) nextNode = intersectionNode + 1;
+    else if (intersectionNode > 9 && targetNode <= 9) nextNode = 9;
+    else if (intersectionNode == 9 && targetNode == 11) nextNode = 11;
+    else if (intersectionNode == 9 && targetNode == 10) nextNode = 10;
+    else if (intersectionNode == 10 && targetNode == 11) nextNode = 11;
+    else if (intersectionNode == 11 && targetNode == 10) nextNode = 10;
+    else if (intersectionNode == 9 && targetNode == 8) nextNode = 8;
+    else if (intersectionNode == 8 && targetNode == 7) nextNode = 7;
+    else nextNode = (intersectionNode < targetNode) ? intersectionNode + 1 : intersectionNode - 1;
+    stepBetweenNodes(intersectionNode, nextNode, nextNode == targetNode);
   }
 }
 
-static void ignoreNodeTrace() {
-  long startEnc = abs(prizm.readEncoderCount(1));
-  while (abs(abs(prizm.readEncoderCount(1)) - startEnc) < CM(DIST_IGNORE_NODE_CM)) {
-    int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
+static bool exitLineDetected(int zone, bool reverse,
+    int fl, int fc, int fr, int rl, int rc, int rr, int& confirmCount) {
+  if (zone == 2 || zone == 4) {
+    return reverse ? (rl == 1 && rc == 1 && rr == 1)
+                   : (fl == 1 && fc == 1 && fr == 1);
   }
-}
-
-static void blindDriveUntilLine() {
-  lastSensorState = 0; 
-  while (true) {
-    int L, C, R; readSensors(L, C, R);
-    if (anyLine(L, C, R)) break;
-    drive(BLIND_SPEED, BLIND_SPEED); liftUpTick(); liftDownTick();
-  }
-}
-
-static void executeBlindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd) {
-  turnToHeading(targetHeading);
-  ignoreNodeBlind(); blindDriveUntilLine(); 
-  if (stopAtEnd) {
-    driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
+  if (reverse) {
+    if (rearOnLine(rl, rc, rr)) {
+      if (++confirmCount >= EXIT_LINE_CONFIRM) return true;
+    } else {
+      confirmCount = 0;
+    }
   } else {
-    long alignEnc = abs(prizm.readEncoderCount(1));
-    while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) {
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick();
+    if (frontOnLine(fl, fc, fr)) {
+      if (++confirmCount >= EXIT_LINE_CONFIRM) return true;
+    } else {
+      confirmCount = 0;
     }
   }
-  if (alignHeading != -1 && !stopAtEnd) turnToHeading(alignHeading);
+  return false;
 }
 
-static void stepNode(int from, int to, bool stopAtEnd) {
-  if (from == 8 && to == 9) {
-    turnToHeading(90); ignoreNodeTrace(); 
-    while (true) {
-      int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-      if (!anyLine(L, C, R)) { if (stopAtEnd) stopAll(); break; }
-      lineFollowStepFull(L, C, R, RL, RC, RR); liftUpTick(); liftDownTick();
-    }
-  } 
-  else if (from == 9 && to == 8) {
-    turnToHeading(270); ignoreNodeBlind(); lastSensorState = 0;
-    while (true) {
-      int L, C, R; readSensors(L, C, R);
-      if (anyLine(L, C, R)) break;
-      drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick();
-    }
-    followToCrossing(stopAtEnd);
-  } 
-  else if (from == 9 && to == 10) { executeBlindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd); } 
-  else if (from == 9 && to == 11) { 
-    turnToHeading(HEADING_9_TO_11); ignoreNodeBlind(); blindDriveUntilLine(); ignoreNodeBlind(); blindDriveUntilLine(); 
-    if (stopAtEnd) driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
-    else {
-      long alignEnc = abs(prizm.readEncoderCount(1));
-      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) { drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick(); }
-    }
-  } 
-  else if (from == 10 && to == 11) { executeBlindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd); } 
-  else if (from == 11 && to == 10) { executeBlindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd); } 
-  else if (from == 10 && to == 9) { 
-    turnToHeading(HEADING_10_TO_12); driveDistance(DIST_10_TO_12_CM, STRAIGHT_SPEED);
-    turnToHeading(HEADING_12_TO_9_2); blindDriveUntilLine(); 
-    if (stopAtEnd) driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
-    else {
-      long alignEnc = abs(prizm.readEncoderCount(1));
-      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) { drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick(); }
-      turnToHeading(270); 
-    }
-  } 
-  else if (from == 11 && to == 9) { 
-    turnToHeading(HEADING_11_TO_12); driveDistance(DIST_11_TO_12_CM, STRAIGHT_SPEED);
-    turnToHeading(HEADING_12_TO_9_2); blindDriveUntilLine(); 
-    if (stopAtEnd) driveExtraDecel(DIST_CROSS_ALIGN_CM, STRAIGHT_SPEED);
-    else {
-      long alignEnc = abs(prizm.readEncoderCount(1));
-      while (abs(abs(prizm.readEncoderCount(1)) - alignEnc) < CM(DIST_CROSS_ALIGN_CM)) { drive(STRAIGHT_SPEED, STRAIGHT_SPEED); liftUpTick(); liftDownTick(); }
-      turnToHeading(270); 
-    }
-  } 
-  else { int dir = (to > from) ? 90 : 270; turnToHeading(dir); followToCrossing(stopAtEnd); }
-  currentNode = to;
-}
+void leaveZone(int zone) {
+  int targetNode = zoneToIntersection(zone);
+  ZoneMotionProfile profile = getZoneProfile(zone);
+  if (targetNode == 7) enableTeeZoneSteering = true;
 
-void moveToNode(int toNode) {
-  if (currentNode == toNode) return;
-  while (currentNode != toNode) {
-    int nextNode = toNode; 
-    if (currentNode < 9 && toNode >= 9) nextNode = currentNode + 1; 
-    else if (currentNode > 9 && toNode <= 9) nextNode = 9; 
-    else if (currentNode == 9 && toNode == 11) nextNode = 11; 
-    else if (currentNode == 9 && toNode == 10) nextNode = 10;
-    else if (currentNode == 10 && toNode == 11) nextNode = 11;
-    else if (currentNode == 11 && toNode == 10) nextNode = 10;
-    else if (currentNode == 9 && toNode == 8) nextNode = 8;
-    else if (currentNode == 8 && toNode == 7) nextNode = 7;
-    else nextNode = (currentNode < toNode) ? currentNode + 1 : currentNode - 1; 
-    stepNode(currentNode, nextNode, (nextNode == toNode));
-  }
-}
-
-void exitZone(int zone) {
-  int targetNode = zoneToNode(zone);
-  ZoneCfg c = zoneCfg(zone);
-  if (targetNode == 7) enableEdgeSteering = true;
-
-
-  lastSensorState = 0;
-  long startEnc = labs(prizm.readEncoderCount(1));
+  lineTraceLastEdge = 0;
+  resetLineTracePid();
+  DriveEncMark motionStart = captureDriveEnc();
 
   DPRINTF("\n-Exit Z:"); DPRINT(zone);
 
-  if (lastEntryWasForward) {
+  if (enteredZoneForward) {
     DPRINTF(" Rev");
-    bool lineHit = false;
-    int conf = 0;  // ★ 라인 감지 확정 카운터(노이즈로 인한 조기 회전 방지)
+    long extraSpan = (zone == 5 || zone == 6 || zone == 1 || zone == 3)
+        ? toEncoderCounts(profile.exitReverseExtra)
+        : toEncoderCounts(DIST_AXIS_TO_REAR_SENSOR_CM);
+    int openSpeed = SPEED_OPEN_DRIVE_REV;
 
-    // 1. 목표 라인을 밟을 때까지 후진 (최소/최대 거리 제한 없음)
+    bool lineDetected = false;
+    DriveEncMark lineMark = {0, 0};
+    int confirmCount = 0;
+
     while (true) {
-       int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+      int fl, fc, fr, rl, rc, rr;
+      readFrontLineSensors(fl, fc, fr);
+      readRearLineSensors(rl, rc, rr);
 
-       if (zone == 1 || zone == 3) {
-           // 1, 3번 존: 1.1.1 감지 안 함, EXIT_LINE_CONFIRM 연속으로 확정
-           if (anyRearLine(RL, RC, RR)) {
-               if (++conf >= EXIT_LINE_CONFIRM) {
-                   lineHit = true;
-                   DPRINTF(" L_ON (Gap Crossed)");
-                   break;
-               }
-           } else conf = 0;
-       } else if (zone == 2 || zone == 4) {
-           // 2, 4번 존: 십자(┼) 교차로
-           if (RL == 1 && RC == 1 && RR == 1) {
-               lineHit = true;
-               DPRINTF(" 1.1.1_CROSS_ON");
-               break;
-           }
-       } else {
-           // 5, 6번 존: 메인 라인 감지, EXIT_LINE_CONFIRM 연속 확정
-           if (anyRearLine(RL, RC, RR)) {
-               if (++conf >= EXIT_LINE_CONFIRM) {
-                   lineHit = true;
-                   DPRINTF(" L_ON");
-                   break;
-               }
-           } else conf = 0;
-       }
-
-       reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
-       liftUpTick(); liftDownTick(); scanTick();
+      if (!lineDetected) {
+        if (exitLineDetected(zone, true, fl, fc, fr, rl, rc, rr, confirmCount)) {
+          lineDetected = true;
+          lineMark = captureDriveEnc();
+          DPRINTF(" L_ON");
+          if (extraSpan <= 0) break;
+        } else {
+          int speed = blindRampSpeed(motionStart, openSpeed);
+          setWheelSpeeds(-speed, -speed);
+        }
+      } else {
+        long traveled = encoderTraveledSince(lineMark);
+        if (traveled >= extraSpan) break;
+        int speed = blindDecelSpeed(lineMark, extraSpan, openSpeed);
+        if (speed <= 0) break;
+        if (zone == 2 || zone == 4 || zone == 5 || zone == 6) {
+          setWheelSpeeds(-speed, -speed);
+        } else {
+          traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
+        }
+      }
+      liftUpTick(); liftDownTick(); pollZoneScan();
     }
-
-    // 2. 라인을 만난 이후의 마무리 축 정렬 동작
-    if (zone == 5 || zone == 6) {
-       // 5, 6번 존: 후방 센서가 메인 라인을 감지한 뒤 c.exitRevExtra(28cm) 라인 추종 후 정지
-       long remain = CM(c.exitRevExtra);
-       if (lineHit && remain > 0) {
-          long curEnc = labs(prizm.readEncoderCount(1));
-          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-             reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
-             liftUpTick(); liftDownTick(); scanTick();
-          }
-       }
-    } else if (zone == 1 || zone == 3) {
-       // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
-       long remain = CM(c.exitRevExtra);
-       if (remain > 0) {
-          long curEnc = labs(prizm.readEncoderCount(1));
-          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-             reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
-             liftUpTick(); liftDownTick(); scanTick();
-          }
-       }
-    } else { 
-       // 2, 4번 존: 1.1.1 감지 후 바퀴축<->후방센서 물리적 거리만큼 정확히 추가 후진하여 축 정렬
-       long remain = CM(DIST_AXIS_TO_REAR_SENSOR_CM);
-       if (remain > 0) {
-          long curEnc = labs(prizm.readEncoderCount(1));
-          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-             reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
-             liftUpTick(); liftDownTick(); scanTick();
-          }
-       }
-    }
-
   } else {
     DPRINTF(" Fwd");
-    bool lineHit = false;
-    int conf = 0;  // ★ 라인 감지 확정 카운터(노이즈로 인한 조기 회전 방지)
+    long extraSpan = (zone == 5 || zone == 6 || zone == 1 || zone == 3)
+        ? toEncoderCounts(profile.exitForwardExtra)
+        : toEncoderCounts(DIST_AXIS_TO_FRONT_SENSOR_CM);
+    int openSpeed = SPEED_OPEN_DRIVE_FWD;
 
-    // 1. 목표 라인을 밟을 때까지 전진 (최소/최대 거리 제한 없음)
+    bool lineDetected = false;
+    DriveEncMark lineMark = {0, 0};
+    int confirmCount = 0;
+
     while (true) {
-       int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+      int fl, fc, fr, rl, rc, rr;
+      readFrontLineSensors(fl, fc, fr);
+      readRearLineSensors(rl, rc, rr);
 
-       if (zone == 1 || zone == 3) {
-           // 1, 3번 존: 1.1.1 감지 안 함, EXIT_LINE_CONFIRM 연속으로 확정
-           if (anyLine(L, C, R)) {
-               if (++conf >= EXIT_LINE_CONFIRM) {
-                   lineHit = true;
-                   DPRINTF(" L_ON (Gap Crossed)");
-                   break;
-               }
-           } else conf = 0;
-       } else if (zone == 2 || zone == 4) {
-           // 2, 4번 존: 십자(┼) 교차로
-           if (L == 1 && C == 1 && R == 1) {
-               lineHit = true;
-               DPRINTF(" 1.1.1_CROSS_ON");
-               break;
-           }
-       } else {
-           // 5, 6번 존: 메인 라인 감지, EXIT_LINE_CONFIRM 연속 확정
-           if (anyLine(L, C, R)) {
-               if (++conf >= EXIT_LINE_CONFIRM) {
-                   lineHit = true;
-                   DPRINTF(" L_ON");
-                   break;
-               }
-           } else conf = 0;
-       }
-
-       lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
-       liftUpTick(); liftDownTick(); scanTick();
-    }
-
-    // 2. 라인을 만난 이후의 마무리 축 정렬 동작
-    if (zone == 5 || zone == 6) {
-       // 5, 6번 존: 전방 센서가 메인 라인을 감지한 뒤 c.exitFwdExtra(28cm) 라인 추종 후 정지
-       long remain = CM(c.exitFwdExtra);
-       if (lineHit && remain > 0) {
-          long curEnc = labs(prizm.readEncoderCount(1));
-          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-             lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
-             liftUpTick(); liftDownTick(); scanTick();
-          }
-       }
-    } else if (zone == 1 || zone == 3) {
-       // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
-       long remain = CM(c.exitFwdExtra);
-       if (remain > 0) {
-          long curEnc = labs(prizm.readEncoderCount(1));
-          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-             lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
-             liftUpTick(); liftDownTick(); scanTick();
-          }
-       }
-    } else { 
-       // 2, 4번 존: 1.1.1 감지 후 바퀴축<->전방센서 물리적 거리만큼 정확히 추가 전진하여 축 정렬
-       long remain = CM(DIST_AXIS_TO_FRONT_SENSOR_CM);
-       if (remain > 0) {
-          long curEnc = labs(prizm.readEncoderCount(1));
-          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-             lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
-             liftUpTick(); liftDownTick(); scanTick();
-          }
-       }
+      if (!lineDetected) {
+        if (exitLineDetected(zone, false, fl, fc, fr, rl, rc, rr, confirmCount)) {
+          lineDetected = true;
+          lineMark = captureDriveEnc();
+          DPRINTF(" L_ON");
+          if (extraSpan <= 0) break;
+        } else {
+          int speed = blindRampSpeed(motionStart, openSpeed);
+          setWheelSpeeds(speed, speed);
+        }
+      } else {
+        long traveled = encoderTraveledSince(lineMark);
+        if (traveled >= extraSpan) break;
+        int speed = blindDecelSpeed(lineMark, extraSpan, openSpeed);
+        if (speed <= 0) break;
+        if (zone == 2 || zone == 4 || zone == 5 || zone == 6) {
+          setWheelSpeeds(speed, speed);
+        } else {
+          traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+        }
+      }
+      liftUpTick(); liftDownTick(); pollZoneScan();
     }
   }
-  
-  // 모든 탈출 로직 및 바퀴축 정렬이 종료되면 모터 강제 정지
-  stopAll();
-  scanDisarm(); // ★ 탈출 완료 후 스캔 종료: 이후 노드 이동 중 엉뚱한 QR 오기록 방지
 
-  float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - startEnc)) / COUNTS_PER_CM;
-  DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
+  stopMotors();
+  endZoneScan();
+  DPRINTF(" Done (실제 이동: ");
+  DPRINT((float)encoderTraveledSince(motionStart) / COUNTS_PER_CM);
+  DPRINTLNF(" cm)");
 
-  if (targetNode == 7) enableEdgeSteering = false;
-  currentNode = targetNode;
+  if (targetNode == 7) enableTeeZoneSteering = false;
+  intersectionNode = targetNode;
 }
 
-void goToZoneDirect(int zone) {
-  int targetNode = zoneToNode(zone);
+bool zonesAreVerticalOpposites(int zoneA, int zoneB) {
+  return (zoneA == 1 && zoneB == 3) || (zoneA == 3 && zoneB == 1)
+      || (zoneA == 2 && zoneB == 4) || (zoneA == 4 && zoneB == 2);
+}
 
-  // ★ 노드 이동 중 스캔 차단: 이동 경로에서 보이는 QR이 목적지 존에 오기록되는 것 방지
-  int savedScanZone = g_scanTargetZone;
-  scanDisarm();
-  moveToNode(targetNode);
+void moveBetweenOppositeZones(int fromZone, int toZone) {
+  bool teeSteer = (fromZone == 1 || fromZone == 3 || toZone == 1 || toZone == 3);
+  if (teeSteer) enableTeeZoneSteering = true;
+  crossToOppositeZone(toZone, fromZone, false);
+  if (teeSteer) enableTeeZoneSteering = false;
+  enteredZoneForward = false;
+  intersectionNode = zoneToIntersection(toZone);
+}
 
-  // 탈출 직후 방향(robotHeading)과 타겟 방향(zoneSide)을 비교하여 즉시 회전 수행
-  int zoneSide = (zone == 3 || zone == 4) ? 180 : 0;
-  if (robotHeading != 0 && robotHeading != 180) turnToHeading(zoneSide);
+void navigateToZone(int zone) {
+  int targetNode = zoneToIntersection(zone);
+  int savedScanZone = activeScanZone;
+  endZoneScan();
+  driveToIntersectionNode(targetNode);
 
-  if (targetNode == 7) enableEdgeSteering = true;
+  int zoneHeading = (zone == 3 || zone == 4) ? 180 : 0;
+  if (headingDeg != 0 && headingDeg != 180) rotateToHeading(zoneHeading);
 
-  // 진입 직전 스캔 복원 (들어가는 동안 + 머무르는 동안 인식 가능)
-  if (savedScanZone) scanArm(savedScanZone);
+  if (targetNode == 7) enableTeeZoneSteering = true;
+  if (savedScanZone) beginZoneScan(savedScanZone);
 
-  bool enterForward = (robotHeading == zoneSide);
-  if (enterForward) { enterZone(zone); lastEntryWasForward = true; }
-  else { reverseEnterZone(zone); lastEntryWasForward = false; }
-  
-  if (targetNode == 7) enableEdgeSteering = false;
+  if (headingDeg == zoneHeading) {
+    enterZoneForward(zone);
+    enteredZoneForward = true;
+  } else {
+    enterZoneReverse(zone);
+    enteredZoneForward = false;
+  }
+  if (targetNode == 7) enableTeeZoneSteering = false;
 }

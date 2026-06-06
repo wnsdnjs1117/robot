@@ -30,13 +30,13 @@ static bool loopSensorTest() {
 
   unsigned long now = millis();
   if (now - _stLastPrint >= 200) {
-    int frontL = digitalRead(SENSOR_LEFT);
-    int frontC = digitalRead(SENSOR_CENTER);
-    int frontR = digitalRead(SENSOR_RIGHT);
+    int frontL = digitalRead(PIN_LINE_FRONT_LEFT);
+    int frontC = digitalRead(PIN_LINE_FRONT_CENTER);
+    int frontR = digitalRead(PIN_LINE_FRONT_RIGHT);
 
-    int rearL = analogRead(SENSOR_REAR_LEFT);
-    int rearC = analogRead(SENSOR_REAR_CENTER);
-    int rearR = analogRead(SENSOR_REAR_RIGHT);
+    int rearL = analogRead(PIN_LINE_REAR_LEFT);
+    int rearC = analogRead(PIN_LINE_REAR_CENTER);
+    int rearR = analogRead(PIN_LINE_REAR_RIGHT);
 
     Serial.print(F("Front(D): "));
     Serial.print(frontL); Serial.print(F(" "));
@@ -146,7 +146,7 @@ static void _mtMove(float cm, int speed) {
   int dir = (cm >= 0) ? 1 : -1;
   float absCm = fabs(cm);
   float compCm = (absCm >= 2.0) ? (absCm - 1.0) : absCm;
-  long targetCounts = CM(compCm);
+  long targetCounts = toEncoderCounts(compCm);
   if (targetCounts <= 0) return;
 
   prizm.resetEncoders(); _mtWait(40);
@@ -155,7 +155,7 @@ static void _mtMove(float cm, int speed) {
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
     if (targetCounts - pos <= 0) break;
-    drive(spd * dir, spd * dir);
+    setWheelSpeeds(spd * dir, spd * dir);
   }
   _mtBrake();
 }
@@ -177,8 +177,8 @@ static void _mtTurn(float deg, int speed) {
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
     if (targetCounts - pos <= 0) break;
-    if (right) drive(spd, -spd);
-    else       drive(-spd, spd);
+    if (right) setWheelSpeeds(spd, -spd);
+    else       setWheelSpeeds(-spd, spd);
   }
   _mtBrake();
 }
@@ -255,7 +255,7 @@ static bool loopQrTest() {
     int id = HuskyQR::readBoxId();
     if (id >= 1 && id <= 6) {
       Serial.print(F("인식 ID(목적지): ")); Serial.println(id);
-      beep(120);
+      playBeep(120);
     } else {
       Serial.println(F("...(인식 없음)"));
     }
@@ -266,7 +266,7 @@ static bool loopQrTest() {
 
 // ── [5] 통합 테스트 메뉴 ───────────────────────────────────────────
 void runTestMenu() {
-  stopAll(); 
+  stopMotors();
   
   Serial.println(F("\n=================================="));
   Serial.println(F("      로봇 통합 테스트 모드"));
