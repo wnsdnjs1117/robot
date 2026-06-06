@@ -142,12 +142,10 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
 
     int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
     speed = smoothRampSpeed(speed);
-    if (stopAtEnd && finishAlignSpan(lineMark, alignSpan)) break;
+    if (stopAtEnd && finishAlignSpan(lineMark, alignSpan, speed)) break;
     if (!stopAtEnd && encoderTraveledSince(lineMark) >= alignSpan) break;
-    if (frontOnLine(fl, fc, fr))
-      traceLineForward(fl, fc, fr, 0, 0, 0, speed);
-    else
-      setWheelSpeeds(speed, speed);
+    // 바퀴축을 라인까지 정렬하는 구간 — 라인트레이싱 끄고 직진만 (조향 보정 없음)
+    setWheelSpeeds(speed, speed);
     driveLoopTick();
   }
 
@@ -217,7 +215,7 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
 
     int speed = crossAlignSpeed(crossMark, alignSpan, lastCurSpeed);
     speed = smoothRampSpeed(speed);
-    if (finishAlignSpan(crossMark, alignSpan)) break;
+    if (finishAlignSpan(crossMark, alignSpan, speed)) break;
     traceLineForward(fl, fc, fr, rl, rc, rr, speed,
         LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
     driveLoopTick();
@@ -473,7 +471,6 @@ void leaveZone(int zone) {
     DriveEncMark approachMark = {0, 0};
     bool approachDecel = false;
     int confirmCount = 0;
-    int lastCurSpeed = RAMP_MIN_SPEED;
 
     while (true) {
       int fl, fc, fr, rl, rc, rr;
@@ -495,7 +492,6 @@ void leaveZone(int zone) {
               : rampMarkSpeed(motionStart, openSpeed);
           
           speed = smoothRampSpeed(speed);
-          lastCurSpeed = speed; // 실제 속도 기록
 
           if (crossZone && frontOnLine(fl, fc, fr) && !frontCrossFull(fl, fc, fr)) {
             traceLineForward(fl, fc, fr, rl, rc, rr, speed,
@@ -505,7 +501,11 @@ void leaveZone(int zone) {
           }
         }
       } else {
-        int speed = decelMarkSpeed(lineMark, extraSpan, lastCurSpeed); // 실제 최고속도 기반 감속
+        // 가속(탈출 시작 기준)과 감속(잔여거리 기준)의 최소값 — 라인을 즉시 감지해도
+        // 최저속에 고착되지 않고 정상 가감속(사다리꼴) 프로파일로 extraSpan 통과
+        int up = rampMarkSpeed(motionStart, openSpeed);
+        int down = decelMarkSpeed(lineMark, extraSpan, openSpeed);
+        int speed = (up < down) ? up : down;
         speed = smoothRampSpeed(speed);
         if (finishEncoderSpan(lineMark, extraSpan, speed)) break;
         if (zone == 2 || zone == 4 || zone == 5 || zone == 6) {

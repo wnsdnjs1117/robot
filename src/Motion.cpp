@@ -19,6 +19,9 @@
 // 루프당 1회 엔코더 캐시 — 거리추적·속도PID가 공유해 I2C 중복읽기 제거(루프 가속)
 static long g_encL = 0, g_encR = 0;
 
+// 속도 PID가 측정한 실제 바퀴 속도 (명령속도 0~100 환산, 10ms 정규화) — 급제동 거리 산정용
+static int g_measuredSpeed = 0;
+
 void refreshDriveEncoders() {
   g_encL = prizm.readEncoderCount(1);
   g_encR = prizm.readEncoderCount(2);
@@ -59,34 +62,46 @@ long encoderTraveledSince(DriveEncMark mark) {
    return calcRampDownSpeed(encoderRemaining(mark, alignSpan), decelSpan, cruiseSpeed);
  }
  
- static void stopForTarget(int /*curSpeed*/) {
-   stopMotors();
- }
- 
- bool finishEncoderRemaining(long remainingCounts, int curSpeed) {
-   if (remainingCounts <= 0) {
-     stopForTarget(curSpeed);
-     return true;
-   }
-   if (remainingCounts <= (long)toEncoderCounts(DIST_BRAKE_CATCH_CM)) {
-     stopForTarget(curSpeed);
-     return true;
-   }
-   return false;
- }
- 
- bool finishEncoderSpan(DriveEncMark mark, long targetSpan, int curSpeed) {
-   return finishEncoderRemaining(encoderRemaining(mark, targetSpan), curSpeed);
- }
- 
- bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts) {
-   if (alignSpanCounts <= 0) return false;
-   if (encoderTraveledSince(alignStart) >= alignSpanCounts) {
-     stopMotors();
-     return true;
-   }
-   return finishEncoderRemaining(encoderRemaining(alignStart, alignSpanCounts), RAMP_MIN_SPEED);
- }
+static void stopForTarget(int /*curSpeed*/) {
+  stopMotors();
+}
+
+// 급제동 시작 거리 — 현재속도에 비례해 DIST_BRAKE_CATCH_CM(최저속)→DIST_BRAKE_CATCH_MAX_CM(속도100) 선형 증가.
+// 명령속도와 '실측 바퀴속도(관성 반영)' 중 큰 값 기준 — 감속램프로 명령속도가 낮아져도
+// 실제로 빠르게 굴러가면 더 일찍 급제동을 건다.
+static long brakeCatchCounts(int curSpeed) {
+  int v = (g_measuredSpeed > curSpeed) ? g_measuredSpeed : curSpeed;
+  float t = (float)v / 100.0f;
+  if (t < 0.0f) t = 0.0f;
+  if (t > 1.0f) t = 1.0f;
+  float cm = DIST_BRAKE_CATCH_CM + (DIST_BRAKE_CATCH_MAX_CM - DIST_BRAKE_CATCH_CM) * t;
+  return (long)toEncoderCounts(cm);
+}
+
+bool finishEncoderRemaining(long remainingCounts, int curSpeed) {
+  if (remainingCounts <= 0) {
+    stopForTarget(curSpeed);
+    return true;
+  }
+  if (remainingCounts <= brakeCatchCounts(curSpeed)) {
+    stopForTarget(curSpeed);
+    return true;
+  }
+  return false;
+}
+
+bool finishEncoderSpan(DriveEncMark mark, long targetSpan, int curSpeed) {
+  return finishEncoderRemaining(encoderRemaining(mark, targetSpan), curSpeed);
+}
+
+bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed) {
+  if (alignSpanCounts <= 0) return false;
+  if (encoderTraveledSince(alignStart) >= alignSpanCounts) {
+    stopMotors();
+    return true;
+  }
+  return finishEncoderRemaining(encoderRemaining(alignStart, alignSpanCounts), curSpeed);
+}
  
  int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed) {
    if (accelCounts <= 0 || traveledCounts >= accelCounts) return maxSpeed;
@@ -155,6 +170,11 @@ long encoderTraveledSince(DriveEncMark mark) {
     long encR = g_encR;
     long curVelL = labs(encL - lastEncL);
      long curVelR = labs(encR - lastEncR);
+     // 실측 속도를 10ms로 정규화해 명령속도(0~100) 스케일로 환산 — 급제동 거리 산정용
+     if (dt > 0 && VELOCITY_TARGET_FACTOR > 0.0f) {
+       float per10 = ((curVelL + curVelR) * 0.5f) * (float)MOTOR_VELOCITY_PID_MS / (float)dt;
+       g_measuredSpeed = (int)(per10 / VELOCITY_TARGET_FACTOR);
+     }
      float targetL = abs(left) * VELOCITY_TARGET_FACTOR;
      float targetR = abs(right) * VELOCITY_TARGET_FACTOR;
      int outLmag = abs(left) + (int)((targetL - curVelL) * VELOCITY_KP);
@@ -191,16 +211,34 @@ long encoderTraveledSince(DriveEncMark mark) {
    return (long)((SPIN_90_COUNTS / 90.0f) * deg + 0.5f);
  }
  
- static void spinMotorSpeeds(bool clockwise, int speed) {
-   checkDebugKey();
-   if (speed <= 0) {
-     prizm.setMotorSpeeds(0, 0);
-     return;
-   }
-   speed = constrain(speed, RAMP_MIN_SPEED, 100);
-   if (clockwise) prizm.setMotorSpeeds(-speed * 7, -speed * 7);
-   else           prizm.setMotorSpeeds(speed * 7, speed * 7);
- }
+static void spinMotorSpeeds(bool clockwise, int speed) {
+  checkDebugKey();
+  if (speed <= 0) {
+    prizm.setMotorSpeeds(0, 0);
+    return;
+  }
+  speed = constrain(speed, RAMP_MIN_SPEED, 100);
+  if (clockwise) prizm.setMotorSpeeds(-speed * 7, -speed * 7);
+  else           prizm.setMotorSpeeds(speed * 7, speed * 7);
+}
+
+// 라인 로직 없이 지정 카운트만큼 최저속으로 제자리 회전 (오버슈트 복구용)
+static void spinPlainCounts(bool clockwise, long counts) {
+  if (counts <= 0) return;
+  resetRampSpeedLimiter(RAMP_MIN_SPEED);
+  long startL = prizm.readEncoderCount(1);
+  long startR = prizm.readEncoderCount(2);
+  while (true) {
+    long pos = (labs(prizm.readEncoderCount(1) - startL)
+              + labs(prizm.readEncoderCount(2) - startR)) / 2;
+    if (pos >= counts) break;
+    spinMotorSpeeds(clockwise, RAMP_MIN_SPEED);
+    liftUpTick(); liftDownTick();
+  }
+  spinMotorSpeeds(clockwise, 0);
+  delayWithTicks(40);
+  setWheelSpeeds(0, 0);
+}
  
  void rotateByDegrees(int degrees, bool clockwise) {
    setWheelSpeeds(0, 0);
@@ -242,26 +280,22 @@ long encoderTraveledSince(DriveEncMark mark) {
    int lastCurSpeed = RAMP_MIN_SPEED;
  
    while (true) {
-     long pos = (labs(prizm.readEncoderCount(1) - startL) + labs(prizm.readEncoderCount(2) - startR)) / 2;
-     long remaining = targetCounts - pos;
- 
-     if (remaining <= 0) {
-       spinMotorSpeeds(clockwise, 0);
-       delayWithTicks(40);
-       setWheelSpeeds(0, 0);
-       return;
-     }
- 
-     if (!skipLineTrim && !lineTrimmed && pos >= (long)(targetCounts * SPIN_LINE_TRIM_MIN_FRAC)) {
-       int fl, fc, fr;
-       readFrontLineSensors(fl, fc, fr);
-       (void)fc;
-       bool oppositeOn = clockwise ? (fl != 0) : (fr != 0);
-       if (oppositeOn && !oppositeWasOn) {
-         long newRemaining = (long)(remaining * (1.0f - SPIN_OVERSHOOT_COMP_FRAC));
-         targetCounts = pos + newRemaining;
-         remaining = newRemaining;
-         lineTrimmed = true;
+    long pos = (labs(prizm.readEncoderCount(1) - startL) + labs(prizm.readEncoderCount(2) - startR)) / 2;
+    long remaining = targetCounts - pos;
+
+    if (remaining <= 0) break;
+
+    if (!skipLineTrim && !lineTrimmed && pos >= (long)(targetCounts * SPIN_LINE_TRIM_MIN_FRAC)) {
+      int fl, fc, fr;
+      readFrontLineSensors(fl, fc, fr);
+      (void)fc;
+      bool oppositeOn = clockwise ? (fl != 0) : (fr != 0);
+      if (oppositeOn && !oppositeWasOn) {
+        // 70% 이후 반대쪽 센서에 라인 — 남은 각의 절반만 마저 회전
+        long newRemaining = (long)(remaining * SPIN_LINE_TRIM_REMAIN_FRAC);
+        targetCounts = pos + newRemaining;
+        remaining = newRemaining;
+        lineTrimmed = true;
          
          decelSpan = remaining;
          if (decelSpan <= 0) decelSpan = 1;
@@ -282,13 +316,26 @@ long encoderTraveledSince(DriveEncMark mark) {
          curSpeed = min(curSpeed, calcRampDownSpeed(remaining, endDecelSpan, peakSpeed));
      }
      
-     curSpeed = smoothRampSpeed(curSpeed);
-     lastCurSpeed = curSpeed; 
- 
-     spinMotorSpeeds(clockwise, curSpeed);
-     liftUpTick(); liftDownTick();
-   }
- }
+    curSpeed = smoothRampSpeed(curSpeed);
+    lastCurSpeed = curSpeed; 
+
+    spinMotorSpeeds(clockwise, curSpeed);
+    liftUpTick(); liftDownTick();
+  }
+
+  spinMotorSpeeds(clockwise, 0);
+  delayWithTicks(40);
+  setWheelSpeeds(0, 0);
+
+  // 절반만 마저 돌았는데 반대쪽 센서에서 라인이 사라졌으면(오버슈트) 역방향 10° 복구
+  if (lineTrimmed) {
+    int fl, fc, fr;
+    readFrontLineSensors(fl, fc, fr);
+    bool oppositeStillOn = clockwise ? (fl != 0) : (fr != 0);
+    if (!oppositeStillOn)
+      spinPlainCounts(!clockwise, spinDegToCounts(SPIN_LINE_RECOVER_DEG));
+  }
+}
  
  void readFrontLineSensors(int& left, int& center, int& right) {
    left   = digitalRead(PIN_LINE_FRONT_LEFT);
@@ -309,9 +356,10 @@ long encoderTraveledSince(DriveEncMark mark) {
  }
  
 void driveLoopTick() {
+  // 주행 중에는 리프트만 틱. QR(HuskyLens) I2C는 정지 스캔 드웰(waitForZoneScan)에서만
+  // 수행한다 — request()가 최대 30ms 블로킹이라 주행 루프 속도를 떨어뜨려 위치 오차를 유발.
   liftUpTick();
   liftDownTick();
-  if (activeScanZone) pollZoneScan();
 }
  
  bool frontOnLine(int left, int center, int right) { return left || center || right; }
@@ -599,19 +647,19 @@ int lineTraceCruiseSpeed(int baseSpeed, int absError) {
        }
      }
  
-     if (phase == 2) {
-       if (stopAtEnd && finishAlignSpan(alignMark, alignSpan)) break;
-       if (!stopAtEnd && encoderTraveledSince(alignMark) >= alignSpan) break;
- 
-       long remaining = encoderRemaining(alignMark, alignSpan);
-       long decelSpan = rampDecelSpanCounts(speedAtLine);
-       if (decelSpan > alignSpan) decelSpan = alignSpan;
-       
-       int curSpeed = calcRampDownSpeed(remaining, decelSpan, speedAtLine);
-       curSpeed = smoothRampSpeed(curSpeed); // 스무딩 적용
-       if (!stopAtEnd && remaining <= 0) break;
-       setWheelSpeeds(curSpeed, curSpeed);
-     }
+    if (phase == 2) {
+      long remaining = encoderRemaining(alignMark, alignSpan);
+      long decelSpan = rampDecelSpanCounts(speedAtLine);
+      if (decelSpan > alignSpan) decelSpan = alignSpan;
+
+      int curSpeed = calcRampDownSpeed(remaining, decelSpan, speedAtLine);
+      curSpeed = smoothRampSpeed(curSpeed); // 스무딩 적용
+
+      if (stopAtEnd && finishAlignSpan(alignMark, alignSpan, curSpeed)) break;
+      if (!stopAtEnd && encoderTraveledSince(alignMark) >= alignSpan) break;
+      if (!stopAtEnd && remaining <= 0) break;
+      setWheelSpeeds(curSpeed, curSpeed);
+    }
  
      driveLoopTick();
    }

@@ -81,23 +81,39 @@
    resetLineTracePid();
    resetRampSpeedLimiter(RAMP_MIN_SPEED);
    const int cruiseSpeed = SPEED_OPEN_TRACK_REV;
-   DriveEncMark motionStart = captureDriveEnc();
-   long accelSpan = rampAccelSpanCounts(cruiseSpeed);
-   long pastSpan = toEncoderCounts(DIST_FINISH_LINE_PAST_CM);
-   DriveEncMark lineMark = {0, 0};
+  DriveEncMark motionStart = captureDriveEnc();
+  long accelSpan = rampAccelSpanCounts(cruiseSpeed);
+  long blindSpan = toEncoderCounts(DIST_FINISH_BLIND_CONFIRM_CM);
+  long pastSpan = toEncoderCounts(DIST_FINISH_LINE_PAST_CM);
+  DriveEncMark lineMark = {0, 0};
 
-   while (true) {
-     int rl, rc, rr;
-     readRearLineSensors(rl, rc, rr);
-     if (rearOnLine(rl, rc, rr)) {
-       lineMark = captureDriveEnc();
-       break;
-     }
-     long traveled = encoderTraveledSince(motionStart);
-     int speed = smoothRampSpeed(calcRampUpSpeed(traveled, accelSpan, cruiseSpeed));
-     setWheelSpeeds(-speed, -speed);
-     driveLoopTick();
-   }
+  // 11번 선 → 끊김(블라인드) → 다시 라인 = 스타트박스.
+  bool seenBlind = false;
+  bool blindArmed = false;
+  DriveEncMark blindMark = {0, 0};
+
+  while (true) {
+    int rl, rc, rr;
+    readRearLineSensors(rl, rc, rr);
+    bool onLine = rearOnLine(rl, rc, rr);
+    long traveled = encoderTraveledSince(motionStart);
+
+    if (!seenBlind) {
+      if (!onLine) {  // 11번 선을 벗어나 블라인드 진입 — 연속 거리로 확정
+        if (!blindArmed) { blindArmed = true; blindMark = captureDriveEnc(); }
+        else if (encoderTraveledSince(blindMark) >= blindSpan) seenBlind = true;
+      } else {
+        blindArmed = false;  // 아직 11번 선 위 — 리셋
+      }
+    } else if (onLine) {  // 블라인드를 밟은 뒤 다시 만난 라인 = 스타트박스
+      lineMark = captureDriveEnc();
+      break;
+    }
+
+    int speed = smoothRampSpeed(calcRampUpSpeed(traveled, accelSpan, cruiseSpeed));
+    setWheelSpeeds(-speed, -speed);
+    driveLoopTick();
+  }
 
    while (true) {
      int speed = decelMarkSpeed(lineMark, pastSpan, cruiseSpeed);
@@ -138,21 +154,42 @@
 
    resetLineTracePid();
    resetRampSpeedLimiter(RAMP_MIN_SPEED);
-   rotateToHeading(HEADING_11_TO_FINISH);
-   DriveEncMark motionStart = captureDriveEnc();
-   long accelSpan = rampAccelSpanCounts(SPEED_FINISH_Z6_FWD);
+  rotateToHeading(HEADING_11_TO_FINISH);
+  DriveEncMark motionStart = captureDriveEnc();
+  long accelSpan = rampAccelSpanCounts(SPEED_FINISH_Z6_FWD);
+  long blindSpan = toEncoderCounts(DIST_FINISH_BLIND_CONFIRM_CM);
 
-   while (true) {
-     int fl, fc, fr;
-     readFrontLineSensors(fl, fc, fr);
-     if (frontOnLine(fl, fc, fr))
-       break;
-     long traveled = encoderTraveledSince(motionStart);
-     int speed = smoothRampSpeed(
-         calcRampUpSpeed(traveled, accelSpan, SPEED_FINISH_Z6_FWD));
-     setWheelSpeeds(speed, speed);
-     driveLoopTick();
-   }
+  // 11번 선 → 끊김(블라인드) → 다시 라인 = 스타트박스.
+  bool seenBlind = false;
+  bool blindArmed = false;
+  DriveEncMark blindMark = {0, 0};
+
+  while (true) {
+    int fl, fc, fr;
+    readFrontLineSensors(fl, fc, fr);
+    bool onLine = frontOnLine(fl, fc, fr);
+    long traveled = encoderTraveledSince(motionStart);
+
+    if (!seenBlind) {
+      if (!onLine) {  // 11번 선을 벗어나 블라인드 진입 — 연속 거리로 확정
+        if (!blindArmed) { blindArmed = true; blindMark = captureDriveEnc(); }
+        else if (encoderTraveledSince(blindMark) >= blindSpan) seenBlind = true;
+      } else {
+        blindArmed = false;  // 아직 11번 선 위 — 리셋
+      }
+    } else if (onLine) {  // 블라인드를 밟은 뒤 다시 만난 라인 = 스타트박스
+      break;
+    }
+
+    int speed = smoothRampSpeed(
+        calcRampUpSpeed(traveled, accelSpan, SPEED_FINISH_Z6_FWD));
+    setWheelSpeeds(speed, speed);
+    driveLoopTick();
+  }
+   stopMotors();
+
+   // 스타트박스 선에 닿은 뒤 박스 안으로 마저 후진 (전진 오버슈트로 빠져나가지 않도록)
+   driveDistanceCm(DIST_FINISH_LINE_PAST_CM, -SPEED_FINISH_Z6_REV, true);
    stopMotors();
 
    rotateToHeading(HEADING_FINISH_PARK);
@@ -193,7 +230,7 @@
      // 라인에 닿은 후 부드럽게 감속
      int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
      speed = smoothRampSpeed(speed);
-     if (finishAlignSpan(lineMark, alignSpan)) break;
+     if (finishAlignSpan(lineMark, alignSpan, speed)) break;
      traceLineForward(fl, fc, fr, rl, rc, rr, speed);
      driveLoopTick();
    }
@@ -249,7 +286,7 @@
      // 글로벌 최고속도가 아닌 방금 기록된 실제 속도를 기반으로 정렬 감속
      int speed = crossAlignSpeed(crossMark, alignSpan, lastCurSpeed);
      speed = smoothRampSpeed(speed);
-     if (finishAlignSpan(crossMark, alignSpan)) break;
+     if (finishAlignSpan(crossMark, alignSpan, speed)) break;
      traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
      driveLoopTick();
    }
@@ -283,10 +320,10 @@
      int speed = rampMarkSpeed(motionStart, SPEED_OPEN_ZONE_REV);
      speed = smoothRampSpeed(speed);
      setWheelSpeeds(-speed, -speed);
-     liftUpTick(); liftDownTick(); pollZoneScan();
-   }
- 
-   if (enableScan) beginZoneScan(targetZone);
+    liftUpTick(); liftDownTick();
+  }
+
+  if (enableScan) beginZoneScan(targetZone);
  
    DriveEncMark lineStartMark = captureDriveEnc();
  
@@ -306,17 +343,17 @@
        while (true) {
          int speed = decelMarkSpeed(pastLineMark, extraSpan, SPEED_OPEN_ZONE_REV);
          speed = smoothRampSpeed(speed);
-         if (finishEncoderSpan(pastLineMark, extraSpan, speed)) break;
-         setWheelSpeeds(-speed, -speed);
-         liftUpTick(); liftDownTick(); pollZoneScan();
-       }
-       break;
-     }
-     liftUpTick(); liftDownTick(); pollZoneScan();
-   }
- 
-   stopMotors();
-   DPRINTLNF(" Cross Done");
+        if (finishEncoderSpan(pastLineMark, extraSpan, speed)) break;
+        setWheelSpeeds(-speed, -speed);
+        liftUpTick(); liftDownTick();
+      }
+      break;
+    }
+    liftUpTick(); liftDownTick();
+  }
+
+  stopMotors();
+  DPRINTLNF(" Cross Done");
  }
  
  void driveOntoMainTrack() {

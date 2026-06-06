@@ -21,7 +21,7 @@ inline bool frontCrossFull(int left, int center, int right) {
   return left == 1 && center == 1 && right == 1;
 }
 
-void driveLoopTick(); // lift tick + (QR 스캔 중일 때만) pollZoneScan
+void driveLoopTick(); // 주행 틱: 리프트만 (QR I2C는 정지 스캔 드웰에서만)
 
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr);
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int speed);
@@ -53,7 +53,7 @@ long encoderTraveledSince(DriveEncMark mark);
 bool finishEncoderRemaining(long remainingCounts, int curSpeed);
 bool finishEncoderSpan(DriveEncMark mark, long targetSpan, int curSpeed);
 // 바퀴축 정렬 — 목표 거리 초과 시 즉시 stopMotors(125)
-bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts);
+bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed);
 int rampMarkSpeed(DriveEncMark start, int maxSpeed);
 int decelMarkSpeed(DriveEncMark mark, long totalSpan, int cruiseSpeed);
 int crossAlignSpeed(DriveEncMark mark, long alignSpan, int cruiseSpeed);
