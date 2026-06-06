@@ -109,7 +109,7 @@ constexpr float DIST_AXIS_TO_REAR_SENSOR_CM = 4.0f;
 constexpr float DIST_AXIS_TO_LIFT_CM = 10.5f;
 // 바퀴축 → 리프트 중심 (참고 치수)
 
-constexpr float LINE_THICKNESS_CM = 1.0f;
+constexpr float LINE_THICKNESS_CM = 2.0f;
 // 선 두께 보정 (실측 2cm − 제동 여유 1cm)
 
 constexpr float COUNTS_PER_CM = 3570.0f / 80.0f;
@@ -359,7 +359,7 @@ constexpr int HEADING_10_TO_12 = 240;
 constexpr float DIST_10_TO_12_CM = 50.0f;
 
 constexpr int HEADING_11_TO_12 = 250;
-constexpr float DIST_11_TO_12_CM = 110.0f;
+constexpr float DIST_11_TO_12_CM = 115.0f;
 
 constexpr int HEADING_12_TO_9_2 = 310;
 // 12번 근처 → 9번 교차로 접근 방향 (°)
@@ -380,7 +380,7 @@ constexpr float DIST_TRACK_12_TO_9_CM = 45.0f;
 // [13] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
 // ============================================================
 
-constexpr int HEADING_11_TO_FINISH = 350;
+constexpr int HEADING_11_TO_FINISH = 345;
 // 11번 → 스타트 피니시 진입 시 바라볼 방향 (북에서 약간 서쪽, °)
 
 constexpr int HEADING_FINISH_PARK = 0;
@@ -390,7 +390,7 @@ constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
 // 11번 선이 끊긴 '블라인드(라인 없음)' 구간을 이 거리만큼 연속 통과해야 블라인드로 확정
 // (센서 깜빡임 디바운스). 이후 다시 만나는 라인 = 스타트박스
 
-constexpr float DIST_FINISH_PARK_REV_CM = 15.0f;
+constexpr float DIST_FINISH_PARK_REV_CM = 17.0f;
 // 북(0°) 정렬 후 최종 후진 (cm)
 
 // ============================================================
@@ -455,10 +455,10 @@ constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;
 constexpr float LIFT_CARRY_HIGH_CM = LIFT_MAX_HEIGHT_CM;
 // 박스 운반 상승 높이(높음) — 장애물이 있는 9번 노드를 박스를 들고 통과할 때만 사용 (cm)
 
-constexpr float LIFT_CARRY_LOW_CM = 12.0f;
+constexpr float LIFT_CARRY_LOW_CM = 15.0f;
 // 박스 운반 상승 높이(기본) — 9번 노드를 통과하지 않는 일반 배송 (cm)
 
-constexpr float LIFT_PRELOWER_AFTER_NODE9_CM = 20.0f;
+constexpr float LIFT_PRELOWER_AFTER_NODE9_CM = 15.0f;
 // 24cm로 든 채 9번을 지난 뒤(9→10·9→11) 이 거리 이상 진행하면 이동 중 12cm로 미리 하강 (cm)
 
 constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;
@@ -486,8 +486,8 @@ constexpr int LIFT_UP_SLOW_POWER_R = 40;
 constexpr float LIFT_DOWN_SLOW_ZONE_CM = 10.0f;
 // 하강 막바지 감속 구간 (cm)
 
-constexpr int LIFT_DOWN_SLOW_POWER_L = 20;
-constexpr int LIFT_DOWN_SLOW_POWER_R = 20;
+constexpr int LIFT_DOWN_SLOW_POWER_L = 15;
+constexpr int LIFT_DOWN_SLOW_POWER_R = 15;
 // 하강 막바지 좌·우 출력
 
 constexpr float LIFT_SYNC_GAIN = 5.0f;
@@ -496,7 +496,7 @@ constexpr float LIFT_SYNC_GAIN = 5.0f;
 constexpr unsigned long LIFT_TICK_INTERVAL_MS = 15;
 // liftUpTick / liftDownTick 주기 (ms)
 
-constexpr unsigned long LIFT_FLOOR_TIME_MS = 2000;
+constexpr unsigned long LIFT_FLOOR_TIME_MS = 1500;
 // 바닥 근접 후 완전 하강 대기 (ms)
 
 // ============================================================
