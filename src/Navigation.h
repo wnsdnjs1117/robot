@@ -16,7 +16,7 @@ void alignOnTrackHeading(int openSpeed, float alignCm);
 void driveOntoMainTrack();
 void driveToFinishArea();
 int  searchQrInZones1to4();
-void rescanMissingQrZones1to4();
+int  rescanMissingQrZones1to4();  // 마지막으로 박스를 인식한 1~4존(머무는 중)을 반환, 없으면 0
 int  countScannedBoxesInZones1to4();
 
 #endif

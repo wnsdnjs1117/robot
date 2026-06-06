@@ -11,11 +11,23 @@
 
 namespace {
 
+// 배송 경로가 장애물이 있는 9번 노드를 지나는지: 1~4존(노드 7·8)과 5·6존(노드 10·11)
+// 사이를 오갈 때만 9번을 통과한다.
+bool deliveryCrossesNode9(int fromZone, int toZone) {
+  bool fromTop = (fromZone >= 1 && fromZone <= 4);
+  bool toTop   = (toZone   >= 1 && toZone   <= 4);
+  return fromTop != toTop;
+}
+
 void deliverBoxBetweenZones(int fromZone, int toZone, bool alreadyInFromZone = false) {
   if (!alreadyInFromZone) navigateToZone(fromZone);
-  liftUpStart();
+  bool cross9 = deliveryCrossesNode9(fromZone, toZone);
+  // 박스를 들고 장애물이 있는 9번을 지날 때만 24cm, 그 외에는 12cm까지만 든다.
+  liftUpStart(cross9 ? LIFT_CARRY_HIGH_CM : LIFT_CARRY_LOW_CM);
+  prelowerAfterNode9 = cross9;  // 9번 통과 후 이동 중 12cm로 미리 내리기 무장
   liftUpWaitClear();
   moveBetweenZones(fromZone, toZone, zoneMoveOpts(false, true));
+  prelowerAfterNode9 = false;
   liftDownUntilClear();
   leaveZone(toZone);
   liftDownWait();
@@ -81,10 +93,11 @@ void runSearchPhase() {
     // 2개 모두 인식 완료 → currentZone 박스는 나가기 전에 그 자리에서 바로 배송(왕복 제거)
     deliverReadyBoxesWithinZones1to4(currentZone);
   } else {
-    // 아직 2개를 못 찾음 → 먼저 재탐색(이때 currentZone을 떠남) 후 배송
+    // 아직 2개를 못 찾음 → 먼저 재탐색(이때 currentZone을 떠남) 후 배송.
+    // 재탐색이 마지막 박스를 인식한 존에 그대로 머무르면 그 존을 받아 바로 배송한다.
     leaveZone(currentZone);
-    rescanMissingQrZones1to4();
-    deliverReadyBoxesWithinZones1to4(0);
+    int rescanZone = rescanMissingQrZones1to4();
+    deliverReadyBoxesWithinZones1to4(rescanZone);
   }
 
   beginZoneScan(5);

@@ -446,6 +446,15 @@ constexpr float LIFT_COUNTS_PER_CM = 200.0f;
 constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;
 // 상승 한계 높이 (cm)
 
+constexpr float LIFT_CARRY_HIGH_CM = LIFT_MAX_HEIGHT_CM;
+// 박스 운반 상승 높이(높음) — 장애물이 있는 9번 노드를 박스를 들고 통과할 때만 사용 (cm)
+
+constexpr float LIFT_CARRY_LOW_CM = 12.0f;
+// 박스 운반 상승 높이(기본) — 9번 노드를 통과하지 않는 일반 배송 (cm)
+
+constexpr float LIFT_PRELOWER_AFTER_NODE9_CM = 20.0f;
+// 24cm로 든 채 9번을 지난 뒤(9→10·9→11) 이 거리 이상 진행하면 이동 중 12cm로 미리 하강 (cm)
+
 constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;
 // 바닥 근접 판정 높이 (cm)
 

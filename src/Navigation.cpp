@@ -349,7 +349,7 @@ void driveToFinishArea() {
    return 3;
  }
  
- void rescanMissingQrZones1to4() {
+ int rescanMissingQrZones1to4() {
    int tries = 0;
    while (countScannedBoxesInZones1to4() < 2 && tries < MAX_RESCAN_TRIES) {
      for (int z = 1; z <= 4 && countScannedBoxesInZones1to4() < 2; z++) {
@@ -357,9 +357,13 @@ void driveToFinishArea() {
        beginZoneScan(z);
        navigateToZone(z);
        waitForZoneScan(z);
-       leaveZone(z);
        endZoneScan();
+       // 마지막 박스를 인식해 2개를 채웠다면 이 존에서 나가지 않고 머무른 채 반환 —
+       // 호출부가 바로 그 자리에서 배송해 불필요한 탈출·재진입을 없앤다.
+       if (countScannedBoxesInZones1to4() >= 2) return z;
+       leaveZone(z);
      }
     tries++;
   }
+  return 0;
 }

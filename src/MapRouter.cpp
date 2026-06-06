@@ -3,6 +3,7 @@
  * ============================================================ */
 #include "MapRouter.h"
 #include "Config.h"
+#include "Lift.h"
 #include "Motion.h"
 #include "Navigation.h"
 #include "BoxMap.h"
@@ -11,6 +12,7 @@ int  headingDeg = 0;
 int  intersectionNode = 11;
 bool enteredZoneForward = true;
 bool finishFromZone6Exit = false;
+bool prelowerAfterNode9 = false;
 static int g_seamlessTo = 0;  // 1↔3 배송: leaveZone 직후 무정지 진입 대상 존
 
 static int zoneToIntersection(int zone) {
@@ -63,12 +65,17 @@ static bool registerNodeLineHit(int lineCount, bool anyFrontLine, int& linesPass
 }
 
 static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd,
-    float legSpanCm, int lineCount = 1, bool anyFrontLine = false) {
+    float legSpanCm, int lineCount = 1, bool anyFrontLine = false,
+    float prelowerAfterCm = -1.0f) {
   rotateToHeading(targetHeading);
   resetLineTracePid();
   resetRampSpeedLimiter(RAMP_MIN_SPEED);
   const int cruiseSpeed = SPEED_OPEN_TRACK_FWD;
   DriveEncMark motionStart = captureDriveEnc();
+
+  // 9번을 24cm로 통과한 뒤(9→10·9→11) prelowerAfterCm 진행 시 이동 중 12cm로 미리 하강
+  bool prelowerArmed = (prelowerAfterCm > 0.0f && prelowerAfterNode9);
+  long prelowerSpan = (prelowerAfterCm > 0.0f) ? toEncoderCounts(prelowerAfterCm) : 0;
   long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
   // 라인 도달 전에 최저속에 도달하도록 목표를 crawl 여유만큼 당김 (고속 스킵 방지)
   float detectTargetCm = legSpanCm - DIST_NODE_DETECT_CRAWL_CM;
@@ -91,6 +98,12 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
   while (true) {
     int fl, fc, fr;
     readFrontLineSensors(fl, fc, fr);
+
+    if (prelowerArmed && encoderTraveledSince(motionStart) >= prelowerSpan) {
+      liftDownToStart(LIFT_CARRY_LOW_CM);
+      prelowerArmed = false;
+      prelowerAfterNode9 = false;
+    }
 
     if (!lineFound) {
       if (initialIgnore) {
@@ -301,12 +314,19 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
     setWheelSpeeds(0, 0);
     delayWithTicks(40);
     traceUntilIntersection(stopAtEnd, SPEED_9_TO_8);
+    // 24cm로 9번을 통과해 8번에 도착 → 이동 중 12cm로 미리 하강
+    if (prelowerAfterNode9) {
+      liftDownToStart(LIFT_CARRY_LOW_CM);
+      prelowerAfterNode9 = false;
+    }
   }
   else if (fromNode == 9 && toNode == 10) {
-    blindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);
+    blindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true,
+        LIFT_PRELOWER_AFTER_NODE9_CM);
   }
   else if (fromNode == 9 && toNode == 11) {
-    blindDriveAndAlign(HEADING_9_TO_11, -1, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true);
+    blindDriveAndAlign(HEADING_9_TO_11, -1, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true,
+        LIFT_PRELOWER_AFTER_NODE9_CM);
   }
   else if (fromNode == 10 && toNode == 11) {
     blindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);

@@ -22,6 +22,11 @@ float heightR = 0;
 static bool liftUpRunning   = false;
 static bool liftDownRunning = false;
 
+// 상승 목표 높이(가변): 9번 통과 시 24cm, 그 외 12cm 등
+static float liftUpTargetCm   = LIFT_CARRY_LOW_CM;
+// 하강 목표 높이: 0=바닥 착지, >0=중간 높이까지만 내리고 정지(이동 중 미리 내리기)
+static float liftDownTargetCm = 0.0f;
+
 // 하강 — 좌우 독립 타이머
 static bool          nearFloorL = false, nearFloorR = false;
 static bool          stoppedL   = false, stoppedR   = false;
@@ -66,8 +71,9 @@ static unsigned long calcNearFloorDur(float h) {
 
 // ── 상승 (nonblocking: liftUpStart → liftUpWaitClear(5cm) → 주행 중 liftUpTick) ──
 
-void liftUpStart() {
+void liftUpStart(float targetCm) {
   resetState();
+  liftUpTargetCm = targetCm;
   liftUpRunning = true;
 }
 
@@ -84,15 +90,17 @@ void liftUpWaitClear() {
 
 static int liftUpBasePower(float h, bool done, int slowPwr) {
   if (done) return 0;
-  return (h >= LIFT_UP_SLOW_ZONE_CM) ? slowPwr : LIFT_UP_POWER;
+  // 막바지 감속 구간을 목표 높이 기준으로 환산(24→20cm와 동일한 4cm 여유)
+  float slowZoneStart = liftUpTargetCm - (LIFT_MAX_HEIGHT_CM - LIFT_UP_SLOW_ZONE_CM);
+  return (h >= slowZoneStart) ? slowPwr : LIFT_UP_POWER;
 }
 
 void liftUpTick() {
   if (!liftUpRunning) return;
   updateHeight();
 
-  bool doneL = (heightL >= LIFT_MAX_HEIGHT_CM);
-  bool doneR = (heightR >= LIFT_MAX_HEIGHT_CM);
+  bool doneL = (heightL >= liftUpTargetCm);
+  bool doneR = (heightR >= liftUpTargetCm);
   int basePwrL = liftUpBasePower(heightL, doneL, LIFT_UP_SLOW_POWER_L);
   int basePwrR = liftUpBasePower(heightR, doneR, LIFT_UP_SLOW_POWER_R);
 
@@ -118,8 +126,21 @@ void liftDownStart() {
   resetState();
   nearFloorL = nearFloorR = false;
   stoppedL   = stoppedR   = false;
+  liftUpRunning   = false;  // 상승 중이었더라도 중단(모터 충돌 방지)
+  liftDownTargetCm = 0.0f;  // 바닥 착지
   liftDownRunning = true;
   DPRINTLNF(">> [LIFT] 하강 시작");
+}
+
+// 바닥까지가 아닌 중간 높이(targetCm)까지만 내리고 정지 — 이동 중 미리 내리기용
+void liftDownToStart(float targetCm) {
+  resetState();
+  nearFloorL = nearFloorR = false;
+  stoppedL   = stoppedR   = false;
+  liftUpRunning   = false;
+  liftDownTargetCm = targetCm;
+  liftDownRunning = true;
+  DPRINTLNF(">> [LIFT] 중간 높이 하강 시작");
 }
 
 void liftDownTick() {
@@ -127,6 +148,34 @@ void liftDownTick() {
   updateHeight();
 
   unsigned long now = millis();
+
+  // 부분 하강: 목표 높이 도달 시 각 측 개별 정지(바닥 착지 아님 → 엔코더·높이 유지)
+  if (liftDownTargetCm > 0.0f) {
+    if (!stoppedL && heightL <= liftDownTargetCm) stoppedL = true;
+    if (!stoppedR && heightR <= liftDownTargetCm) stoppedR = true;
+
+    int basePwrL = stoppedL ? 0 : LIFT_DOWN_POWER;
+    int basePwrR = stoppedR ? 0 : LIFT_DOWN_POWER;
+
+    int syncOffset = 0;
+    if (basePwrL > 0 && basePwrR > 0) {
+      syncOffset = (int)((heightL - heightR) * LIFT_SYNC_GAIN);
+    }
+    int pwrL = basePwrL + syncOffset;
+    int pwrR = basePwrR - syncOffset;
+    if (basePwrL > 0 && pwrL < 5) pwrL = 5;
+    if (basePwrR > 0 && pwrR < 5) pwrR = 5;
+    if (basePwrL == 0) pwrL = 0;
+    if (basePwrR == 0) pwrR = 0;
+
+    exc.setMotorPowers(EXP_ID, -pwrL, pwrR);
+
+    if (stoppedL && stoppedR) {
+      liftDownRunning = false;
+      DPRINTLNF(">> [LIFT] 중간 높이 하강 완료");
+    }
+    return;
+  }
 
   if (!nearFloorL && heightL <= LIFT_NEAR_FLOOR_CM) {
     nearFloorL      = true;
