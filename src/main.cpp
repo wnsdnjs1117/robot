@@ -75,7 +75,6 @@ void setup() {
 
 void loop() {
   runSearchPhase();
-  delayWithTicks(2000);
   runDeliveryPhase();
   driveToFinishArea();
   while (true) delay(100);

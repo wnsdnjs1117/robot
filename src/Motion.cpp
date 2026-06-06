@@ -68,6 +68,15 @@ bool finishEncoderSpan(DriveEncMark mark, long targetSpan, int curSpeed) {
   return finishEncoderRemaining(encoderRemaining(mark, targetSpan), curSpeed);
 }
 
+bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts) {
+  if (alignSpanCounts <= 0) return false;
+  if (encoderTraveledSince(alignStart) >= alignSpanCounts) {
+    stopMotors();
+    return true;
+  }
+  return finishEncoderRemaining(encoderRemaining(alignStart, alignSpanCounts), RAMP_MIN_SPEED);
+}
+
 int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed) {
   if (accelCounts <= 0 || traveledCounts >= accelCounts) return maxSpeed;
   int speed = RAMP_MIN_SPEED
@@ -81,6 +90,19 @@ int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed) {
   int speed = RAMP_MIN_SPEED
       + (int)((long)(startSpeed - RAMP_MIN_SPEED) * remainingCounts / decelCounts);
   return (speed < RAMP_MIN_SPEED) ? RAMP_MIN_SPEED : speed;
+}
+
+static int rampLimiterPrev = RAMP_MIN_SPEED;
+
+void resetRampSpeedLimiter(int initialSpeed) {
+  rampLimiterPrev = initialSpeed;
+}
+
+int smoothRampSpeed(int targetSpeed) {
+  if (targetSpeed > rampLimiterPrev + RAMP_MAX_SPEED_STEP)
+    targetSpeed = rampLimiterPrev + RAMP_MAX_SPEED_STEP;
+  rampLimiterPrev = targetSpeed;
+  return targetSpeed;
 }
 
 void delayWithTicks(unsigned long ms) {
@@ -157,55 +179,49 @@ static long spinDegToCounts(float deg) {
   return (long)((SPIN_90_COUNTS / 90.0f) * deg + 0.5f);
 }
 
-static void spinSoftStop(bool clockwise, int fromSpeed) {
-  int s = fromSpeed;
-  while (s > 0) {
-    s -= 4;
-    if (s < 0) s = 0;
-    if (clockwise) setWheelSpeeds(s, -s);
-    else           setWheelSpeeds(-s, s);
-    delayWithTicks(20);
+// 회전 전용 — 속도 PID 우회, ramp 출력이 그대로 모터에 전달
+static void spinMotorSpeeds(bool clockwise, int speed) {
+  checkDebugKey();
+  if (speed <= 0) {
+    prizm.setMotorSpeeds(0, 0);
+    return;
   }
-  setWheelSpeeds(0, 0);
-  delayWithTicks(40);
-}
-
-static bool finishSpinRemaining(long remainingCounts, int curSpeed, bool clockwise) {
-  long catchCounts = spinDegToCounts(SPIN_BRAKE_CATCH_DEG);
-  if (catchCounts <= 0) catchCounts = 1;
-  if (remainingCounts <= 0) {
-    if (curSpeed > RAMP_MIN_SPEED) stopMotors();
-    else spinSoftStop(clockwise, curSpeed);
-    return true;
-  }
-  if (remainingCounts <= catchCounts) {
-    spinSoftStop(clockwise, curSpeed);
-    return true;
-  }
-  return false;
+  speed = constrain(speed, RAMP_MIN_SPEED, 100);
+  if (clockwise) prizm.setMotorSpeeds(-speed * 7, -speed * 7);
+  else           prizm.setMotorSpeeds(speed * 7, speed * 7);
 }
 
 void rotateByDegrees(int degrees, bool clockwise) {
   setWheelSpeeds(0, 0);
   delayWithTicks(40);
+  resetRampSpeedLimiter(RAMP_MIN_SPEED);
   int absDeg = degrees >= 0 ? degrees : -degrees;
-  long targetCounts = spinDegToCounts((float)absDeg);
+  float compDeg = (float)absDeg * (1.0f - SPIN_OVERSHOOT_COMP_FRAC);
+  long targetCounts = spinDegToCounts(compDeg);
   if (targetCounts <= 0) return;
 
   long startL = prizm.readEncoderCount(1);
   long startR = prizm.readEncoderCount(2);
   long accelSpan = min(spinDegToCounts(rampSpinAccelDeg(SPIN_SPEED)), targetCounts / 2);
   long decelSpan = min(spinDegToCounts(rampSpinDecelDeg(SPIN_SPEED)), targetCounts / 2);
+  long endDecelSpan = min(spinDegToCounts(SPIN_END_DECEL_DEG), targetCounts / 2);
+  if (endDecelSpan <= 0) endDecelSpan = 1;
   int fl0, fc0, fr0;
   readFrontLineSensors(fl0, fc0, fr0);
   bool skipLineTrim = (fc0 != 0);
   bool oppositeWasOn = clockwise ? (fl0 != 0) : (fr0 != 0);
   bool lineTrimmed = false;
-  int curSpeed = RAMP_MIN_SPEED;
 
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1) - startL) + labs(prizm.readEncoderCount(2) - startR)) / 2;
     long remaining = targetCounts - pos;
+
+    if (remaining <= 0) {
+      spinMotorSpeeds(clockwise, 0);
+      delayWithTicks(40);
+      setWheelSpeeds(0, 0);
+      return;
+    }
 
     if (!skipLineTrim && !lineTrimmed && pos >= (long)(targetCounts * SPIN_LINE_TRIM_MIN_FRAC)) {
       int fl, fc, fr;
@@ -213,7 +229,7 @@ void rotateByDegrees(int degrees, bool clockwise) {
       (void)fc;
       bool oppositeOn = clockwise ? (fl != 0) : (fr != 0);
       if (oppositeOn && !oppositeWasOn) {
-        targetCounts = pos + remaining / 2;
+        targetCounts = pos + (long)(remaining * (1.0f - SPIN_OVERSHOOT_COMP_FRAC));
         remaining = targetCounts - pos;
         lineTrimmed = true;
       }
@@ -221,17 +237,20 @@ void rotateByDegrees(int degrees, bool clockwise) {
 
     long spinDecelSpan = min(decelSpan, targetCounts - accelSpan);
     if (spinDecelSpan <= 0) spinDecelSpan = 1;
-    if (pos < accelSpan)
+
+    int curSpeed;
+    if (pos < accelSpan) {
       curSpeed = calcRampUpSpeed(pos, accelSpan, SPIN_SPEED);
-    else if (remaining <= spinDecelSpan)
-      curSpeed = calcRampDownSpeed(remaining, spinDecelSpan, SPIN_SPEED);
-    else
+    } else {
       curSpeed = SPIN_SPEED;
+      if (remaining <= spinDecelSpan)
+        curSpeed = min(curSpeed, calcRampDownSpeed(remaining, spinDecelSpan, SPIN_SPEED));
+      if (remaining <= endDecelSpan)
+        curSpeed = min(curSpeed, calcRampDownSpeed(remaining, endDecelSpan, SPIN_SPEED));
+    }
+    curSpeed = smoothRampSpeed(curSpeed);
 
-    if (finishSpinRemaining(remaining, curSpeed, clockwise)) return;
-
-    if (clockwise) setWheelSpeeds(curSpeed, -curSpeed);
-    else           setWheelSpeeds(-curSpeed, curSpeed);
+    spinMotorSpeeds(clockwise, curSpeed);
     liftUpTick(); liftDownTick();
   }
 }
@@ -264,6 +283,7 @@ void resetLineTracePid() {
   lineFwdLastError = 0;
   lineRevIntegral = 0;
   lineRevLastError = 0;
+  resetRampSpeedLimiter(RAMP_MIN_SPEED);
 }
 
 void clearIntersectionCross() {
@@ -286,6 +306,7 @@ void clearIntersectionCross() {
 }
 
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int baseSpeed) {
+  baseSpeed = smoothRampSpeed(baseSpeed);
   int leftSpeed  = baseSpeed;
   int rightSpeed = baseSpeed;
   int posFront = 0, posRear = 0;
@@ -386,16 +407,26 @@ void traceLineReverse(int rl, int rc, int rr, int fl, int fc, int fr) {
 void correctTrackLegOvershoot(DriveEncMark legStart, float plannedSpanCm) {
   long planned = toEncoderCounts(plannedSpanCm);
   long traveled = encoderTraveledSince(legStart);
-  if (traveled <= planned) return;
-  float excessCm = (float)(traveled - planned) / COUNTS_PER_CM;
-  if (excessCm < DIST_TRACK_OVERSHOOT_MIN_CM) return;
-  driveDistanceCm(excessCm, -SPEED_LINE_FOLLOW_REV, true);
+  float errorCm = (float)(traveled - planned) / COUNTS_PER_CM;
+
+  if (errorCm > DIST_TRACK_OVERSHOOT_MIN_CM) {
+    float corr = errorCm;
+    if (corr > DIST_TRACK_OVERSHOOT_MAX_CM) corr = DIST_TRACK_OVERSHOOT_MAX_CM;
+    driveDistanceCm(corr, -SPEED_LINE_FOLLOW_REV, true);
+    playBeep(BUZZER_OVERSHOOT_CORR_MS);
+  } else if (errorCm < -DIST_TRACK_OVERSHOOT_MIN_CM) {
+    float corr = -errorCm;
+    if (corr > DIST_TRACK_OVERSHOOT_MAX_CM) corr = DIST_TRACK_OVERSHOOT_MAX_CM;
+    driveDistanceCm(corr, SPEED_LINE_FOLLOW_FWD, true);
+    playBeep(BUZZER_OVERSHOOT_CORR_MS);
+  }
 }
 
 void driveDistanceCm(float cm, int speed, bool stopAtEnd) {
   float absCm = cm >= 0.0f ? cm : -cm;
   if (absCm <= 0.0f) { if (stopAtEnd) stopMotors(); return; }
 
+  resetRampSpeedLimiter(RAMP_MIN_SPEED);
   int maxSpeed = abs(speed);
   int direction = (speed >= 0) ? 1 : -1;
   if (cm < 0) direction = -direction;
@@ -418,6 +449,8 @@ void driveDistanceCm(float cm, int speed, bool stopAtEnd) {
       curSpeed = maxSpeed;
     }
 
+    curSpeed = smoothRampSpeed(curSpeed);
+
     if (stopAtEnd) {
       if (finishEncoderRemaining(remaining, curSpeed)) break;
     } else if (remaining <= 0) {
@@ -430,6 +463,8 @@ void driveDistanceCm(float cm, int speed, bool stopAtEnd) {
 }
 
 void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAtEnd) {
+  resetRampSpeedLimiter(RAMP_MIN_SPEED);
+  DriveEncMark motionStart = captureDriveEnc();
   long startEnc = labs(prizm.readEncoderCount(1));
   long nextIgnoreEnc = startEnc + toEncoderCounts(DIST_IGNORE_NODE_CM);
   int linesPassed = 0;
@@ -440,6 +475,7 @@ void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAt
   long alignSpan = toEncoderCounts(alignCm);
   DriveEncMark alignMark = {0, 0};
   int speedAtLine = maxSpeed;
+  float plannedLegSpanCm = 0.0f;
 
   while (true) {
     long currentEnc = labs(prizm.readEncoderCount(1));
@@ -447,7 +483,7 @@ void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAt
 
     if (phase == 0) {
       if (currentEnc >= nextIgnoreEnc) phase = 1;
-      int curSpeed = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
+      int curSpeed = smoothRampSpeed(calcRampUpSpeed(traveled, accelSpan, maxSpeed));
       setWheelSpeeds(curSpeed, curSpeed);
     }
     else if (phase == 1) {
@@ -456,37 +492,41 @@ void driveOverLinesAndAlign(int lineCount, float alignCm, int speed, bool stopAt
       if (frontOnLine(fl, fc, fr)) {
         linesPassed++;
         if (linesPassed >= lineCount) {
-          phase = 2;
-          alignMark = captureDriveEnc();
-          speedAtLine = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
+          plannedLegSpanCm = (float)encoderTraveledSince(motionStart) / COUNTS_PER_CM;
           if (alignSpan <= 0) {
             if (stopAtEnd) stopMotors();
             break;
           }
+          phase = 2;
+          alignMark = captureDriveEnc();
+          plannedLegSpanCm += alignCm;
+          speedAtLine = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
         } else {
           phase = 0;
           nextIgnoreEnc = currentEnc + toEncoderCounts(DIST_IGNORE_NODE_CM);
         }
       }
       if (phase == 1) {
-        int curSpeed = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
+        int curSpeed = smoothRampSpeed(calcRampUpSpeed(traveled, accelSpan, maxSpeed));
         setWheelSpeeds(curSpeed, curSpeed);
       }
     }
 
     if (phase == 2) {
+      if (stopAtEnd && finishAlignSpan(alignMark, alignSpan)) break;
+      if (!stopAtEnd && encoderTraveledSince(alignMark) >= alignSpan) break;
+
       long remaining = encoderRemaining(alignMark, alignSpan);
       long decelSpan = rampDecelSpanCounts(speedAtLine);
       if (decelSpan > alignSpan) decelSpan = alignSpan;
-      int curSpeed = calcRampDownSpeed(remaining, decelSpan, speedAtLine);
-      if (stopAtEnd) {
-        if (finishEncoderRemaining(remaining, curSpeed)) break;
-      } else if (remaining <= 0) {
-        break;
-      }
+      int curSpeed = smoothRampSpeed(calcRampDownSpeed(remaining, decelSpan, speedAtLine));
+      if (!stopAtEnd && remaining <= 0) break;
       setWheelSpeeds(curSpeed, curSpeed);
     }
 
     liftUpTick(); liftDownTick(); pollZoneScan();
   }
+
+  if (stopAtEnd && plannedLegSpanCm > 0.0f)
+    correctTrackLegOvershoot(motionStart, plannedLegSpanCm);
 }

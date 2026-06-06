@@ -36,14 +36,14 @@ void pollZoneScan() {
   if (frontOnLine(fl, fc, fr) || rearOnLine(rl, rc, rr)) return;
 
 #if QR_SIMULATION
-  if (boxes[zone].present) { boxes[zone].found = true; playBeep(120); }
+  if (boxes[zone].present) { boxes[zone].found = true; playBeep(BUZZER_QR_FOUND_MS); }
 #else
   int id = HuskyQR::readBoxId();
   if (id >= 1 && id <= 6) {
     boxes[zone].found = true;
     boxes[zone].present = true;
     boxes[zone].destination = id;
-    playBeep(120);
+    playBeep(BUZZER_QR_FOUND_MS);
   }
 #endif
 }

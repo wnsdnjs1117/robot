@@ -100,7 +100,7 @@ void alignOnTrackHeading(int openSpeed, float alignCm) {
     }
 
     int speed = decelMarkSpeed(motionStart, alignSpan, openSpeed);
-    if (finishEncoderSpan(motionStart, alignSpan, speed)) break;
+    if (finishAlignSpan(motionStart, alignSpan)) break;
     traceLineForward(fl, fc, fr, rl, rc, rr, speed);
     liftUpTick(); liftDownTick();
   }
@@ -150,7 +150,7 @@ void traceUntilIntersection(bool stopAtEnd, int cruiseSpeed) {
     }
 
     int speed = crossAlignSpeed(crossMark, alignSpan, cruiseSpeed);
-    if (finishEncoderSpan(crossMark, alignSpan, speed)) break;
+    if (finishAlignSpan(crossMark, alignSpan)) break;
     traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
     liftUpTick(); liftDownTick();
   }

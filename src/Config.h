@@ -33,10 +33,10 @@
 // 1 = Serial 디버그 ON  (Start 2회: PrizmBegin + 경기 시작)
 
 #if ROBOT_DEBUG
-#define DPRINT(x)       Serial.print(x)
-#define DPRINTLN(x)     Serial.println(x)
-#define DPRINTF(x)      Serial.print(F(x))   // PROGMEM 문자열
-#define DPRINTLNF(x)    Serial.println(F(x))
+#define DPRINT(x) Serial.print(x)
+#define DPRINTLN(x) Serial.println(x)
+#define DPRINTF(x) Serial.print(F(x)) // PROGMEM 문자열
+#define DPRINTLNF(x) Serial.println(F(x))
 #else
 #define DPRINT(x)
 #define DPRINTLN(x)
@@ -44,7 +44,8 @@
 #define DPRINTLNF(x)
 #endif
 
-inline void checkDebugKey() {}  // ROBOT_DEBUG=1 일 때만 Motion 루프에서 키 확인 (확장용)
+inline void checkDebugKey() {
+} // ROBOT_DEBUG=1 일 때만 Motion 루프에서 키 확인 (확장용)
 
 // ============================================================
 // [2] QR 스캔 · 재탐색
@@ -59,14 +60,17 @@ constexpr unsigned long SCAN_DWELL_MS = 3000;
 constexpr unsigned long SCAN_POLL_MS = 30;
 // pollZoneScan() HuskyLens I2C 폴링 주기 (ms)
 
+constexpr unsigned long BUZZER_QR_FOUND_MS = 1000;
+// QR 박스 인식 성공 알림 (ms)
+
 // ============================================================
 // [3] 핀 · 센서 하드웨어
 // ============================================================
 
 // 전방 라인 (디지털, PRIZM D2~D4)
-constexpr int PIN_LINE_FRONT_LEFT   = 2;
+constexpr int PIN_LINE_FRONT_LEFT = 2;
 constexpr int PIN_LINE_FRONT_CENTER = 3;
-constexpr int PIN_LINE_FRONT_RIGHT  = 4;
+constexpr int PIN_LINE_FRONT_RIGHT = 4;
 
 constexpr bool INVERT_LINE_SENSORS = false;
 // true = 센서 출력 극성 반전 (흰 바탕·검은 선 환경)
@@ -75,9 +79,9 @@ constexpr int PIN_BUZZER = 5;
 // 피니시·알림 부저
 
 // 후방 라인 (아날로그 A1~A3)
-constexpr int PIN_LINE_REAR_LEFT   = A1;
+constexpr int PIN_LINE_REAR_LEFT = A1;
 constexpr int PIN_LINE_REAR_CENTER = A2;
-constexpr int PIN_LINE_REAR_RIGHT  = A3;
+constexpr int PIN_LINE_REAR_RIGHT = A3;
 
 constexpr int REAR_LINE_THRESHOLD = 200;
 // 후방 아날로그 ON 판정 (0~1023, 값 이상이면 선 위)
@@ -116,7 +120,7 @@ constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;
 // 교차로(1·1·1) 감지 후 바퀴축을 교차 중심에 맞추는 전진 거리 (6cm)
 
 constexpr float DIST_BRAKE_CATCH_CM = 0.2f;
-// 직진 목표 직전 급제동 구간 — finishEncoderSpan 에서 stopMotors(125)
+// 목표 직전 급제동 구간 — finishAlignSpan / finishEncoderSpan
 
 constexpr float DIST_IGNORE_NODE_CM = 5.0f;
 // 교차로 통과 직후 십자(111) 오인식 무시 / 저속 크롤 구간 (cm)
@@ -132,10 +136,10 @@ constexpr int EXIT_LINE_CONFIRM = 2;
 // ============================================================
 
 struct ZoneMotionProfile {
-  float entryForwardExtra = 35.0f;  // 전진 진입: 입구 선 통과 후 추가 전진 (cm)
-  float entryReverseExtra = 12.0f;  // 후진 진입: 입구 선 통과 후 추가 후진 (cm)
-  float exitForwardExtra  = 0.0f;   // 전진 탈출: 탈출선 이후 추가 거리 (cm)
-  float exitReverseExtra  = 0.0f;   // 후진 탈출: 탈출선 이후 추가 거리 (cm)
+  float entryForwardExtra = 35.0f; // 전진 진입: 입구 선 통과 후 추가 전진 (cm)
+  float entryReverseExtra = 12.0f; // 후진 진입: 입구 선 통과 후 추가 후진 (cm)
+  float exitForwardExtra = 0.0f;   // 전진 탈출: 탈출선 이후 추가 거리 (cm)
+  float exitReverseExtra = 0.0f;   // 후진 탈출: 탈출선 이후 추가 거리 (cm)
 };
 
 inline ZoneMotionProfile getZoneProfile(int zone) {
@@ -178,18 +182,22 @@ constexpr int RAMP_MIN_SPEED = 15;
 // 램프 시작·끝 최저 모터 출력 (가속 하한 / 감속 하한)
 
 constexpr int RAMP_REF_SPEED = 40;
-// 아래 cm·deg 거리 입력의 기준 cruise 속도
+// 직진 cm·회전 ° 입력의 기준 cruise (≠40이면 구간 길이만 × speed/40)
 
-constexpr float RAMP_ACCEL_CM = 6.0f;
+constexpr float RAMP_ACCEL_CM = 10.0f;
 // 직진 가속 거리 (cm) @ cruise 40
 
 constexpr float RAMP_DECEL_CM = 12.0f;
 // 직진 감속 거리 (cm) @ cruise 40
 
+constexpr int RAMP_MAX_SPEED_STEP = 4;
+// 한 제어 주기당 최대 속도 상승 — 급가속 방지 (감속은 제한 없음)
+
 inline float rampCruiseFactor(int speed) {
   // cruise s 일 때 거리 스케일 = s / 40
   int s = speed < 0 ? -speed : speed;
-  if (s <= 0) return 0.0f;
+  if (s <= 0)
+    return 0.0f;
   return (float)s / (float)RAMP_REF_SPEED;
 }
 
@@ -205,10 +213,10 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // [8] 주행 cruise 속도 (모터 출력 0~100)
 // ============================================================
 
-constexpr int SPEED_LINE_FOLLOW_FWD = 50;
+constexpr int SPEED_LINE_FOLLOW_FWD = 40;
 // 라인 추종 전진 (트랙·교차로)
 
-constexpr int SPEED_LINE_FOLLOW_REV = 50;
+constexpr int SPEED_LINE_FOLLOW_REV = 40;
 // 라인 추종 후진
 
 constexpr int SPEED_OPEN_ZONE_FWD = 50;
@@ -223,7 +231,7 @@ constexpr int SPEED_OPEN_TRACK_FWD = 50;
 constexpr int SPEED_OPEN_TRACK_REV = 50;
 // 맹목 후진 — 메인 트랙
 
-constexpr int SPEED_9_TO_8 = 30;
+constexpr int SPEED_9_TO_8 = 20;
 // 9→8 구간 전용 (13 경유 등 9번 정확 정렬 불가 → 저속)
 
 constexpr int START_LINE_SEARCH_SPEED = 25;
@@ -239,23 +247,28 @@ constexpr int SPIN_SPEED = 40;
 constexpr int SPIN_90_COUNTS = 1170;
 // 90° 회전 평균 엔코더 카운트 (좌·우 평균, 실측)
 
-constexpr float RAMP_SPIN_ACCEL_DEG = 12.0f;
-// 회전 가속 각거리 (deg) @ SPIN_SPEED 40
+constexpr float RAMP_SPIN_ACCEL_DEG = 20.0f;
+// 가속 구간 각도 (°) — 회전 시작 후 이 각도 동안 RAMP_MIN→SPIN_SPEED (예: 60이면 60° 가속)
 
-constexpr float RAMP_SPIN_DECEL_DEG = 12.0f;
-// 회전 감속 각거리 (deg) @ SPIN_SPEED 40
+constexpr float RAMP_SPIN_DECEL_DEG = 40.0f;
+// 감속 구간 각도 (°) — 목표 직전 이 각도 동안 SPIN_SPEED→RAMP_MIN (예: 60이면 60° 감속)
 
 constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.70f;
 // 목표 각도 70% 이후 반대쪽 라인 감지 시 목표 각도 단축 (오버슈트 방지)
 
-constexpr float SPIN_BRAKE_CATCH_DEG = 0.5f;
-// 0.5° 이내 spinSoftStop / remaining≤0 이탈+고속만 125
+constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;
+// 관성 오버슈트 보정 — 목표 각의 0.5% (0.005). 회전 시작·라인 트림 공통
+
+constexpr float SPIN_END_DECEL_DEG = 5.0f;
+// 목표 직전 추가 감속 구간 각도 (°) — 마지막 이 각도에서 별도 감속 ramp
 
 inline float rampSpinAccelDeg(int spinSpeed) {
+  // 가속 구간 각도 × (spinSpeed / 40)
   return RAMP_SPIN_ACCEL_DEG * rampCruiseFactor(spinSpeed);
 }
 
 inline float rampSpinDecelDeg(int spinSpeed) {
+  // 감속 구간 각도 × (spinSpeed / 40)
   return RAMP_SPIN_DECEL_DEG * rampCruiseFactor(spinSpeed);
 }
 
@@ -269,13 +282,22 @@ constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
 constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f;
 // 7→8→9 연속 직선 (8번 통과·정지 없음)
 
-constexpr float DIST_TRACK_OVERSHOOT_MIN_CM = 1.0f;
-// 노드 간 초과 이동 보정 — 이보다 작으면 무시 (엔코더 노이즈)
+constexpr float DIST_TRACK_OVERSHOOT_MIN_CM = 0.05f;
+// 노드 간 위치 보정 — 이보다 작으면 무시 (엔코더 노이즈)
+
+constexpr float DIST_TRACK_OVERSHOOT_MAX_CM = 0.5f;
+// 노드 간 전진·후진 보정 — 초과/부족 각각 최대 이 거리까지만
+
+constexpr unsigned long BUZZER_OVERSHOOT_CORR_MS = 200;
+// 노드 간 위치 보정 실행 시 알림 (ms)
+
+constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;
+// 7→9 장구간 — 8번 교차 통과 구간 (±cm, cruise 유지)
 
 inline long trackNodeApproachStartCounts(int cruiseSpeed) {
   // (구간 길이 − RAMP_DECEL) 지점부터 decelMarkSpeed 감속
-  return toEncoderCounts(DIST_TRACK_NODE_SPAN_CM
-      - RAMP_DECEL_CM * rampCruiseFactor(cruiseSpeed));
+  return toEncoderCounts(DIST_TRACK_NODE_SPAN_CM -
+                         RAMP_DECEL_CM * rampCruiseFactor(cruiseSpeed));
 }
 
 // ============================================================
@@ -307,10 +329,10 @@ constexpr float DIST_11_TO_12_CM = 110.0f;
 constexpr int HEADING_12_TO_9_2 = 310;
 // 12번 근처 → 9번 교차로 접근 방향
 
-constexpr int HEADING_9_TO_10 = 86;
+constexpr int HEADING_9_TO_10 = 87;
 constexpr int HEADING_9_TO_11 = 88;
 constexpr int HEADING_10_TO_11 = 88;
-constexpr int HEADING_11_TO_10 = 270;
+constexpr int HEADING_11_TO_10 = 272;
 
 // ============================================================
 // [13] 맵 경로 — 13번 · 10번 · 피니시
@@ -421,21 +443,21 @@ constexpr unsigned long LIFT_FLOOR_TIME_MS = 2000;
 // ============================================================
 
 extern PRIZM prizm;
-extern int  lineTraceLastEdge;      // 마지막 라인 엣지 (0=없음, 1=좌, 2=우)
-extern bool intersectionArmed;    // 교차로 재무장 가능
-extern int  intersectionHitCount;   // 111 연속 카운트
+extern int lineTraceLastEdge;    // 마지막 라인 엣지 (0=없음, 1=좌, 2=우)
+extern bool intersectionArmed;   // 교차로 재무장 가능
+extern int intersectionHitCount; // 111 연속 카운트
 
 // ============================================================
 // [17] 레거시 별칭 (예전 이름·스크립트 호환, 변경 불필요)
 // ============================================================
 
-constexpr int SENSOR_LEFT         = PIN_LINE_FRONT_LEFT;
-constexpr int SENSOR_CENTER       = PIN_LINE_FRONT_CENTER;
-constexpr int SENSOR_RIGHT        = PIN_LINE_FRONT_RIGHT;
-constexpr int BUZZER_PIN          = PIN_BUZZER;
-constexpr int SENSOR_REAR_LEFT    = PIN_LINE_REAR_LEFT;
-constexpr int SENSOR_REAR_CENTER  = PIN_LINE_REAR_CENTER;
-constexpr int SENSOR_REAR_RIGHT   = PIN_LINE_REAR_RIGHT;
+constexpr int SENSOR_LEFT = PIN_LINE_FRONT_LEFT;
+constexpr int SENSOR_CENTER = PIN_LINE_FRONT_CENTER;
+constexpr int SENSOR_RIGHT = PIN_LINE_FRONT_RIGHT;
+constexpr int BUZZER_PIN = PIN_BUZZER;
+constexpr int SENSOR_REAR_LEFT = PIN_LINE_REAR_LEFT;
+constexpr int SENSOR_REAR_CENTER = PIN_LINE_REAR_CENTER;
+constexpr int SENSOR_REAR_RIGHT = PIN_LINE_REAR_RIGHT;
 constexpr int REAR_SENSOR_THRESHOLD = REAR_LINE_THRESHOLD;
 
 inline int CM(float cm) { return toEncoderCounts(cm); }

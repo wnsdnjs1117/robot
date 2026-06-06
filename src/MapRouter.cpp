@@ -103,7 +103,7 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
         ? decelMarkSpeed(approachMark, approachDecelSpan, SPEED_LINE_FOLLOW_FWD)
         : SPEED_LINE_FOLLOW_FWD;
     int speed = crossAlignSpeed(crossMark, alignSpan, alignStart);
-    if (finishEncoderSpan(crossMark, alignSpan, speed)) break;
+    if (finishAlignSpan(crossMark, alignSpan)) break;
     traceLineForward(fl, fc, fr, rl, rc, rr, speed);
     liftUpTick(); liftDownTick();
   }
@@ -115,11 +115,21 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
 static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   rotateToHeading(90);
   resetLineTracePid();
-  clearIntersectionCross();
+  bool longLeg = (legSpanCm >= DIST_TRACK_7_TO_9_CM - 0.01f);
+  if (stopAtEnd && !longLeg)
+    clearIntersectionCross();
+  else if (longLeg && stopAtEnd) {
+    int fl0, fc0, fr0;
+    readFrontLineSensors(fl0, fc0, fr0);
+    if (fl0 == 1 && fc0 == 1 && fr0 == 1)
+      clearIntersectionCross();
+  }
   DriveEncMark motionStart = captureDriveEnc();
   long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
   long approachStart = toEncoderCounts(legSpanCm
       - RAMP_DECEL_CM * rampCruiseFactor(SPEED_LINE_FOLLOW_FWD));
+  long node8Center = toEncoderCounts(DIST_TRACK_NODE_SPAN_CM);
+  long node8PassHalf = toEncoderCounts(DIST_TRACK_NODE8_PASS_HALF_CM);
   bool approachDecel = false;
   bool lineSeen = false;
   DriveEncMark approachMark = {0, 0};
@@ -134,11 +144,22 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
     int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
         approachMark, SPEED_LINE_FOLLOW_FWD);
 
+    if (longLeg && traveled >= node8Center - node8PassHalf
+        && traveled <= node8Center + node8PassHalf
+        && fl == 1 && fc == 1 && fr == 1) {
+      resetRampSpeedLimiter(speed);
+      setWheelSpeeds(speed, speed);
+      liftUpTick(); liftDownTick();
+      continue;
+    }
+
     if (!frontOnLine(fl, fc, fr)) {
       if (lineSeen && traveled >= approachStart) {
         if (stopAtEnd) stopMotors();
         break;
       }
+      resetRampSpeedLimiter(speed);
+      speed = smoothRampSpeed(speed);
       setWheelSpeeds(speed, speed);
     } else {
       traceLineForward(fl, fc, fr, rl, rc, rr, speed);
@@ -206,10 +227,10 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
 
 void driveToIntersectionNode(int targetNode) {
   if (intersectionNode == targetNode) return;
-  if (intersectionNode == 7 && targetNode == 9) {
-    stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, true);
+  if (intersectionNode == 7 && targetNode >= 9) {
+    stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, targetNode == 9);
     intersectionNode = 9;
-    return;
+    if (targetNode == 9) return;
   }
   while (intersectionNode != targetNode) {
     int nextNode = targetNode;
@@ -354,6 +375,7 @@ void leaveZone(int zone) {
           if (crossZone && frontOnLine(fl, fc, fr) && !(fl && fc && fr)) {
             traceLineForward(fl, fc, fr, rl, rc, rr, speed);
           } else {
+            speed = smoothRampSpeed(speed);
             setWheelSpeeds(speed, speed);
           }
         }
@@ -361,6 +383,7 @@ void leaveZone(int zone) {
         int speed = decelMarkSpeed(lineMark, extraSpan, openSpeed);
         if (finishEncoderSpan(lineMark, extraSpan, speed)) break;
         if (zone == 2 || zone == 4 || zone == 5 || zone == 6) {
+          speed = smoothRampSpeed(speed);
           setWheelSpeeds(speed, speed);
         } else {
           traceLineForward(fl, fc, fr, rl, rc, rr, speed);
