@@ -78,10 +78,8 @@
   DriveEncMark motionStart = captureDriveEnc();
   long accelSpan = rampAccelSpanCounts(cruiseSpeed);
   long blindSpan = toEncoderCounts(DIST_FINISH_BLIND_CONFIRM_CM);
-  long pastSpan = toEncoderCounts(DIST_FINISH_LINE_PAST_CM);
-  DriveEncMark lineMark = {0, 0};
 
-  // 11번 선 → 끊김(블라인드) → 다시 라인 = 스타트박스.
+  // 11번 선 → 끊김(블라인드) → 다시 라인 = 스타트박스(후방 센서 접촉).
   bool seenBlind = false;
   bool blindArmed = false;
   DriveEncMark blindMark = {0, 0};
@@ -100,7 +98,6 @@
         blindArmed = false;  // 아직 11번 선 위 — 리셋
       }
     } else if (onLine) {  // 블라인드를 밟은 뒤 다시 만난 라인 = 스타트박스
-      lineMark = captureDriveEnc();
       break;
     }
 
@@ -108,14 +105,6 @@
     setWheelSpeeds(-speed, -speed);
     driveLoopTick();
   }
-
-   while (true) {
-     int speed = decelMarkSpeed(lineMark, pastSpan, cruiseSpeed);
-     speed = smoothRampSpeed(speed);
-     if (finishEncoderSpan(lineMark, pastSpan, speed)) break;
-     setWheelSpeeds(-speed, -speed);
-     driveLoopTick();
-   }
 
    stopMotors();
    rotateToHeading(HEADING_FINISH_PARK);

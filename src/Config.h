@@ -159,7 +159,7 @@ inline ZoneMotionProfile getZoneProfile(int zone) {
     p.exitReverseExtra = 35.0f;
   } else if (zone == 5 || zone == 6) {
     // 5·6번: 전진 진입 → 후진 탈출만
-    p.exitReverseExtra = 28.0f;
+    p.exitReverseExtra = 27.5f;
   }
   // 2·4번: 십자(┼) 센서로 탈출 위치 결정 (추가 거리 없음, 축 정렬 4cm만)
   return p;
@@ -374,21 +374,18 @@ constexpr float DIST_TRACK_12_TO_9_CM = 45.0f;
 // [13] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
 // ============================================================
 
-constexpr int HEADING_11_TO_FINISH = 0;
-// 11번 → 스타트 피니시 진입 시 바라볼 방향 (북)
+constexpr int HEADING_11_TO_FINISH = 350;
+// 11번 → 스타트 피니시 진입 시 바라볼 방향 (북에서 약간 서쪽, °)
 
-constexpr int HEADING_FINISH_PARK = 277;
-// 피니시(스타트) 최종 주차 방향 — 서쪽
-
-constexpr float DIST_FINISH_LINE_PAST_CM = 15.0f;
-// 피니시 라인 감지 후 추가 후진 (cm)
+constexpr int HEADING_FINISH_PARK = 0;
+// 스타트박스 접촉 후 최종 주차 방향 (북)
 
 constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
 // 11번 선이 끊긴 '블라인드(라인 없음)' 구간을 이 거리만큼 연속 통과해야 블라인드로 확정
 // (센서 깜빡임 디바운스). 이후 다시 만나는 라인 = 스타트박스
 
-constexpr float DIST_FINISH_PARK_REV_CM = 0.0f;
-// 서쪽(270°) 정렬 후 최종 후진 (cm)
+constexpr float DIST_FINISH_PARK_REV_CM = 15.0f;
+// 북(0°) 정렬 후 최종 후진 (cm)
 
 // ============================================================
 // [14] PID 라인 추종 · 직진 보정
