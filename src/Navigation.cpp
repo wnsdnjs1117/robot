@@ -10,7 +10,6 @@
  
  namespace {
  
- // 전진/후진 구역 진입: 맹목 가속 → 라인 추종(cruise) → 입구선 이후 맹목 감속
  void runZoneEntry(bool reverse, int zone, int openSpeed) {
    ZoneMotionProfile profile = getZoneProfile(zone);
    float extraDistance = reverse ? profile.entryReverseExtra : profile.entryForwardExtra;
@@ -38,10 +37,10 @@
          if (!sawLine) {
            DPRINTF(" L1");
            sawLine = true;
-           lineStartMark = captureDriveEnc(); // 위치 기록용으로 유지
+           lineStartMark = captureDriveEnc();
          }
-         // [버그 수정] lineStartMark 대신 motionStart를 사용하여 속도가 RAMP_MIN_SPEED로 리셋되는 현상 방지
          int speed = rampMarkSpeed(motionStart, openSpeed);
+         speed = smoothRampSpeed(speed);
          if (reverse) traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
          else         traceLineForward(fl, fc, fr, rl, rc, rr, speed);
        } else if (sawLine) {
@@ -51,11 +50,13 @@
          if (extraSpan <= 0) break;
        } else {
          int speed = rampMarkSpeed(motionStart, openSpeed);
+         speed = smoothRampSpeed(speed);
          int dir = reverse ? -1 : 1;
          setWheelSpeeds(dir * speed, dir * speed);
        }
      } else {
        int speed = decelMarkSpeed(pastLineMark, extraSpan, openSpeed);
+       speed = smoothRampSpeed(speed);
        if (finishEncoderSpan(pastLineMark, extraSpan, speed)) break;
        int dir = reverse ? -1 : 1;
        setWheelSpeeds(dir * speed, dir * speed);
@@ -75,7 +76,6 @@
    return count;
  }
 
- // 11번 → 피니시: 북(0°) 후진 → 라인 → 30cm → 서(270°) 후진 10cm
  void runFinishApproachFrom11() {
    rotateToHeading(HEADING_11_TO_FINISH);
    resetLineTracePid();
@@ -87,8 +87,8 @@
    DriveEncMark lineMark = {0, 0};
 
    while (true) {
-     int fl, fc, fr, rl, rc, rr;
-     readLineSensors(fl, fc, fr, rl, rc, rr);
+     int rl, rc, rr;
+     readRearLineSensors(rl, rc, rr);
      if (rearOnLine(rl, rc, rr)) {
        lineMark = captureDriveEnc();
        break;
@@ -101,12 +101,60 @@
 
    while (true) {
      int speed = decelMarkSpeed(lineMark, pastSpan, cruiseSpeed);
+     speed = smoothRampSpeed(speed);
      if (finishEncoderSpan(lineMark, pastSpan, speed)) break;
      setWheelSpeeds(-speed, -speed);
      driveLoopTick();
    }
 
    stopMotors();
+   rotateToHeading(HEADING_FINISH_PARK);
+   driveDistanceCm(DIST_FINISH_PARK_REV_CM, -SPEED_OPEN_TRACK_REV, true);
+   stopMotors();
+ }
+
+ // 6번 탈출 후: 남은 라인 후진 추종 → 라인 끝 → 스타트 라인까지 직진
+ void runFinishApproachFromZone6() {
+   resetLineTracePid();
+   resetRampSpeedLimiter(RAMP_MIN_SPEED);
+   const int revSpeed = SPEED_FINISH_Z6_REV;
+   bool lineSeen = false;
+
+   while (true) {
+     int fl, fc, fr, rl, rc, rr;
+     readLineSensors(fl, fc, fr, rl, rc, rr);
+     if (rearOnLine(rl, rc, rr)) {
+       lineSeen = true;
+       int speed = smoothRampSpeed(revSpeed);
+       traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
+     } else if (lineSeen) {
+       break;
+     } else {
+       setWheelSpeeds(-RAMP_MIN_SPEED, -RAMP_MIN_SPEED);
+     }
+     driveLoopTick();
+   }
+   stopMotors();
+
+   resetLineTracePid();
+   resetRampSpeedLimiter(RAMP_MIN_SPEED);
+   rotateToHeading(HEADING_11_TO_FINISH);
+   DriveEncMark motionStart = captureDriveEnc();
+   long accelSpan = rampAccelSpanCounts(SPEED_FINISH_Z6_FWD);
+
+   while (true) {
+     int fl, fc, fr;
+     readFrontLineSensors(fl, fc, fr);
+     if (frontOnLine(fl, fc, fr))
+       break;
+     long traveled = encoderTraveledSince(motionStart);
+     int speed = smoothRampSpeed(
+         calcRampUpSpeed(traveled, accelSpan, SPEED_FINISH_Z6_FWD));
+     setWheelSpeeds(speed, speed);
+     driveLoopTick();
+   }
+   stopMotors();
+
    rotateToHeading(HEADING_FINISH_PARK);
    driveDistanceCm(DIST_FINISH_PARK_REV_CM, -SPEED_OPEN_TRACK_REV, true);
    stopMotors();
@@ -120,23 +168,32 @@
    DriveEncMark motionStart = captureDriveEnc();
    long alignSpan = toEncoderCounts(alignCm);
    bool onLine = false;
+   DriveEncMark lineMark = {0, 0};
+   int lastCurSpeed = RAMP_MIN_SPEED;
  
    while (true) {
      int fl, fc, fr, rl, rc, rr;
      readLineSensors(fl, fc, fr, rl, rc, rr);
  
      if (!onLine) {
-       if (frontOnLine(fl, fc, fr)) onLine = true;
-       else {
+       if (frontOnLine(fl, fc, fr)) {
+         onLine = true;
+         lineMark = captureDriveEnc(); // 출발점이 아니라 라인에 닿은 시점을 정렬 시작점으로 수정!
+         if (alignSpan <= 0) break;
+       } else {
          int speed = rampMarkSpeed(motionStart, openSpeed);
+         speed = smoothRampSpeed(speed);
+         lastCurSpeed = speed; // 실제 속도 기록
          setWheelSpeeds(speed, speed);
          liftUpTick(); liftDownTick();
          continue;
        }
      }
  
-     int speed = decelMarkSpeed(motionStart, alignSpan, openSpeed);
-     if (finishAlignSpan(motionStart, alignSpan)) break;
+     // 라인에 닿은 후 부드럽게 감속
+     int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
+     speed = smoothRampSpeed(speed);
+     if (finishAlignSpan(lineMark, alignSpan)) break;
      traceLineForward(fl, fc, fr, rl, rc, rr, speed);
      driveLoopTick();
    }
@@ -158,31 +215,40 @@
    intersectionHitCount = 0;
    bool crossFound = false;
    DriveEncMark crossMark = {0, 0};
+   int lastCurSpeed = RAMP_MIN_SPEED;
  
    while (true) {
      long currentEnc = labs(prizm.readEncoderCount(1));
      long traveled = currentEnc - startEnc;
      
-     // (수정) 교차로 탐색 시 느린 아날로그 후방 핀을 읽지 않고 전방 핀만 읽어 루프 속도 극대화
      int fl2, fc2, fr2;
      readFrontLineSensors(fl2, fc2, fr2);
      int rl = 0, rc = 0, rr = 0;
  
-     if (!crossFound) {
-       if (frontCrossFull(fl2, fc2, fr2)) {
-         if (!stopAtEnd) break;
-         crossFound = true;
-         crossMark = captureDriveEnc();
-         if (alignSpan <= 0) break;
-       } else {
-         int speed = calcRampUpSpeed(traveled, accelSpan, cruiseSpeed);
-         traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
-         driveLoopTick();
-         continue;
-       }
-     }
+    if (!crossFound) {
+      bool isCross = frontCrossFull(fl2, fc2, fr2);
+      if (isCross) intersectionHitCount++;
+      else intersectionHitCount = 0;
+      if (!isCross) intersectionArmed = true;
+
+      if (intersectionArmed && intersectionHitCount >= CROSS_CONFIRM) {
+        if (!stopAtEnd) break;
+        crossFound = true;
+        crossMark = captureDriveEnc();
+        if (alignSpan <= 0) break;
+      } else {
+        int speed = calcRampUpSpeed(traveled, accelSpan, cruiseSpeed);
+        speed = smoothRampSpeed(speed);
+        lastCurSpeed = speed;
+        traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
+        driveLoopTick();
+        continue;
+      }
+    }
  
-     int speed = crossAlignSpeed(crossMark, alignSpan, cruiseSpeed);
+     // 글로벌 최고속도가 아닌 방금 기록된 실제 속도를 기반으로 정렬 감속
+     int speed = crossAlignSpeed(crossMark, alignSpan, lastCurSpeed);
+     speed = smoothRampSpeed(speed);
      if (finishAlignSpan(crossMark, alignSpan)) break;
      traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
      driveLoopTick();
@@ -210,19 +276,18 @@
    DriveEncMark motionStart = captureDriveEnc();
    long extraSpan = toEncoderCounts(targetProfile.entryReverseExtra);
  
-   // 1) 탈출선까지 맹목 후진 (가속 유지)
    while (true) {
      int fl, fc, fr, rl, rc, rr;
      readLineSensors(fl, fc, fr, rl, rc, rr);
      if (rearOnLine(rl, rc, rr)) { DPRINTF(" FindLine"); break; }
      int speed = rampMarkSpeed(motionStart, SPEED_OPEN_ZONE_REV);
+     speed = smoothRampSpeed(speed);
      setWheelSpeeds(-speed, -speed);
      liftUpTick(); liftDownTick(); pollZoneScan();
    }
  
    if (enableScan) beginZoneScan(targetZone);
  
-   // 2) 탈출선 따라 후진 — 라인 cruise → 입구선 이후 맹목 감속
    DriveEncMark lineStartMark = captureDriveEnc();
  
    while (true) {
@@ -231,8 +296,8 @@
      bool onLine = rearOnLine(rl, rc, rr);
  
      if (onLine) {
-       // [버그 수정] lineStartMark 대신 motionStart를 사용하여 속도가 RAMP_MIN_SPEED로 리셋되는 현상 방지
        int speed = rampMarkSpeed(motionStart, SPEED_OPEN_ZONE_REV);
+       speed = smoothRampSpeed(speed);
        traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
      } else {
        DPRINTF(" L0");
@@ -240,6 +305,7 @@
        if (extraSpan <= 0) break;
        while (true) {
          int speed = decelMarkSpeed(pastLineMark, extraSpan, SPEED_OPEN_ZONE_REV);
+         speed = smoothRampSpeed(speed);
          if (finishEncoderSpan(pastLineMark, extraSpan, speed)) break;
          setWheelSpeeds(-speed, -speed);
          liftUpTick(); liftDownTick(); pollZoneScan();
@@ -264,23 +330,29 @@
      readFrontLineSensors(fl, fc, fr);
      if (frontOnLine(fl, fc, fr)) break;
      int speed = calcRampUpSpeed(traveled, accelSpan, START_LINE_SEARCH_SPEED);
+     speed = smoothRampSpeed(speed);
      setWheelSpeeds(speed, speed);
      liftUpTick(); liftDownTick();
    }
  
    driveDistanceCm(DIST_START_TO_13_CM, SPEED_OPEN_TRACK_FWD, true);
-   driveTrackLegBlind(HEADING_13_TO_9, -1, true, DIST_TRACK_13_TO_9_CM);
+   driveTrackLegBlind(HEADING_13_TO_9, -1, true, DIST_TRACK_13_TO_9_CM, 1, true);
    rotateToHeading(270);
    traceUntilIntersection(true);
    intersectionNode = 8;
  }
  
 void driveToFinishArea() {
-  if (intersectionNode != 11) {
-    driveToIntersectionNode(11);
+  if (finishFromZone6Exit && intersectionNode == 11) {
+    runFinishApproachFromZone6();
+  } else {
+    if (intersectionNode != 11) {
+      driveToIntersectionNode(11);
+    }
+    runFinishApproachFrom11();
   }
 
-  runFinishApproachFrom11();
+  finishFromZone6Exit = false;
 
   pinMode(PIN_BUZZER, OUTPUT);
    unsigned long beepEnd = millis() + 1500;

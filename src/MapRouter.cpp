@@ -11,6 +11,7 @@
 int  headingDeg = 0;
 int  intersectionNode = 11;
 bool enteredZoneForward = true;
+bool finishFromZone6Exit = false;
 
 static int zoneToIntersection(int zone) {
   if (zone == 1 || zone == 3) return 7;
@@ -35,7 +36,7 @@ static int trackLegSpeed(DriveEncMark motionStart, long ignoreSpan, long approac
     bool& approachDecel, DriveEncMark& approachMark, int cruiseSpeed) {
   long traveled = encoderTraveledSince(motionStart);
   if (traveled < ignoreSpan)
-    return RAMP_MIN_SPEED; // 무시 구간 동안은 저속 유지
+    return RAMP_MIN_SPEED; 
   if (traveled < approachStart)
     return rampMarkSpeed(motionStart, cruiseSpeed);
   if (!approachDecel) {
@@ -45,31 +46,52 @@ static int trackLegSpeed(DriveEncMark motionStart, long ignoreSpan, long approac
   return decelMarkSpeed(approachMark, rampDecelSpanCounts(cruiseSpeed), cruiseSpeed);
 }
 
-// 9->10 등 맹목 주행 이동 함수
+// 노드 라인 1회 감지 처리 — 목표 라인 수 도달 시 true(lineMark 기록)
+static bool registerNodeLineHit(int lineCount, bool anyFrontLine, int& linesPassed,
+    int& lineConfirmCount, bool& ignoreAfterLine, DriveEncMark& ignoreMark,
+    DriveEncMark& lineMark) {
+  if (!(anyFrontLine || (++lineConfirmCount >= EXIT_LINE_CONFIRM))) return false;
+  linesPassed++;
+  lineConfirmCount = 0;
+  if (linesPassed >= lineCount) {
+    lineMark = captureDriveEnc();
+    return true;
+  }
+  ignoreAfterLine = true;
+  ignoreMark = captureDriveEnc();
+  return false;
+}
+
 static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd,
-    float legSpanCm, int lineCount = 1) {
+    float legSpanCm, int lineCount = 1, bool anyFrontLine = false) {
   rotateToHeading(targetHeading);
   resetLineTracePid();
   resetRampSpeedLimiter(RAMP_MIN_SPEED);
   const int cruiseSpeed = SPEED_OPEN_TRACK_FWD;
   DriveEncMark motionStart = captureDriveEnc();
   long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
-  long approachStart = trackLegApproachStartCounts(legSpanCm, cruiseSpeed);
-  long approachDecelSpan = rampDecelSpanCounts(cruiseSpeed);
+  // 라인 도달 전에 최저속에 도달하도록 목표를 crawl 여유만큼 당김 (고속 스킵 방지)
+  float detectTargetCm = legSpanCm - DIST_NODE_DETECT_CRAWL_CM;
+  if (detectTargetCm < DIST_IGNORE_NODE_CM) detectTargetCm = legSpanCm;
+  long approachStart = trackLegApproachStartCounts(detectTargetCm, cruiseSpeed);
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
-  
+
   bool approachDecel = false;
   DriveEncMark approachMark = {0, 0};
   int linesPassed = 0;
   bool lineFound = false;
-  
-  // (수정) 출발 직후 내 발밑에 있는 9번 등 현재 위치의 선을 10번으로 오인식하지 않도록 하는 필수 필터
-  bool initialIgnore = true; 
+
+  bool initialIgnore = true;
   bool ignoreAfterLine = false;
   DriveEncMark ignoreMark = {0, 0};
   DriveEncMark lineMark = {0, 0};
+  int lastCurSpeed = RAMP_MIN_SPEED;
+  int lineConfirmCount = 0;
 
   while (true) {
+    int fl, fc, fr;
+    readFrontLineSensors(fl, fc, fr);
+
     if (!lineFound) {
       if (initialIgnore) {
         if (encoderTraveledSince(motionStart) >= ignoreSpan)
@@ -77,41 +99,55 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
       } else if (ignoreAfterLine) {
         if (encoderTraveledSince(ignoreMark) >= ignoreSpan)
           ignoreAfterLine = false;
+      } else if (frontOnLine(fl, fc, fr)) {
+        if (registerNodeLineHit(lineCount, anyFrontLine, linesPassed, lineConfirmCount,
+                ignoreAfterLine, ignoreMark, lineMark)) {
+          lineFound = true;
+          if (alignSpan <= 0) {
+            if (stopAtEnd) stopMotors();
+            break;
+          }
+        }
       } else {
-        int fl, fc, fr;
-        readFrontLineSensors(fl, fc, fr);
-        if (frontOnLine(fl, fc, fr)) {
-          linesPassed++;
-          if (linesPassed >= lineCount) {
+        lineConfirmCount = 0;
+      }
+
+      if (!lineFound) {
+        int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
+            approachMark, cruiseSpeed);
+        speed = smoothRampSpeed(speed);
+        lastCurSpeed = speed;
+        if (!initialIgnore && !ignoreAfterLine && frontOnLine(fl, fc, fr))
+          traceLineForward(fl, fc, fr, 0, 0, 0, speed);
+        else
+          setWheelSpeeds(speed, speed);
+        driveLoopTick();
+
+        // 모터·리프트 I2C 동안 얇은 라인을 지나쳤을 수 있으니 한 번 더 샘플
+        if (!initialIgnore && !ignoreAfterLine) {
+          readFrontLineSensors(fl, fc, fr);
+          if (frontOnLine(fl, fc, fr)
+              && registerNodeLineHit(lineCount, anyFrontLine, linesPassed,
+                     lineConfirmCount, ignoreAfterLine, ignoreMark, lineMark)) {
             lineFound = true;
-            lineMark = captureDriveEnc();
             if (alignSpan <= 0) {
               if (stopAtEnd) stopMotors();
               break;
             }
-          } else {
-            ignoreAfterLine = true;
-            ignoreMark = captureDriveEnc();
           }
         }
-      }
-      
-      if (!lineFound) {
-        int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
-            approachMark, cruiseSpeed);
-        setWheelSpeeds(speed, speed);
-        driveLoopTick();
-        continue;
+        if (!lineFound) continue;
       }
     }
 
-    int alignStart = approachDecel
-        ? decelMarkSpeed(approachMark, approachDecelSpan, cruiseSpeed)
-        : cruiseSpeed;
-    int speed = crossAlignSpeed(lineMark, alignSpan, alignStart);
+    int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
+    speed = smoothRampSpeed(speed);
     if (stopAtEnd && finishAlignSpan(lineMark, alignSpan)) break;
     if (!stopAtEnd && encoderTraveledSince(lineMark) >= alignSpan) break;
-    setWheelSpeeds(speed, speed);
+    if (frontOnLine(fl, fc, fr))
+      traceLineForward(fl, fc, fr, 0, 0, 0, speed);
+    else
+      setWheelSpeeds(speed, speed);
     driveLoopTick();
   }
 
@@ -119,15 +155,15 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
 }
 
 void driveTrackLegBlind(int targetHeading, int alignHeading, bool stopAtEnd,
-    float legSpanCm, int lineCount) {
-  blindDriveAndAlign(targetHeading, alignHeading, stopAtEnd, legSpanCm, lineCount);
+    float legSpanCm, int lineCount, bool anyFrontLine) {
+  blindDriveAndAlign(targetHeading, alignHeading, stopAtEnd, legSpanCm, lineCount,
+      anyFrontLine);
 }
 
-// 7↔8 구간 (8->7 갈 때 탐지를 놓쳤던 함수)
 static void stepTrackLeg78(int heading, bool stopAtEnd) {
   rotateToHeading(heading);
   resetLineTracePid();
-  clearIntersectionCross(); // 이미 물리적으로 교차로를 탈출함
+  clearIntersectionCross(); 
   DriveEncMark motionStart = captureDriveEnc();
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
   long approachStart = trackNodeApproachStartCounts(SPEED_TRACK_7_9_LINE);
@@ -138,34 +174,49 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
   DriveEncMark crossMark = {0, 0};
   DriveEncMark approachMark = {0, 0};
   
-  long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM); 
+  long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
+  int lastCurSpeed = RAMP_MIN_SPEED;
+
+  intersectionArmed = true;
+  intersectionHitCount = 0;
 
   while (true) {
     int fl, fc, fr, rl, rc, rr;
-    readLineSensors(fl, fc, fr, rl, rc, rr);
+    readFrontLineSensors(fl, fc, fr);
+    readRearLineSensors(rl, rc, rr);
 
     if (!crossFound) {
-      // (수정) 요청하신 대로 무시구간 필터와 연속 감지 필터를 모두 삭제했습니다. 
-      // 전방 센서가 1.1.1이 되면 조건 따지지 않고 즉시 멈춥니다!
-      if (frontCrossFull(fl, fc, fr)) {
-        if (!stopAtEnd) break;
-        crossFound = true;
-        crossMark = captureDriveEnc();
-        if (alignSpan <= 0) break;
-      } else {
-        int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
-            approachMark, SPEED_TRACK_7_9_LINE);
-        traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+      if (encoderTraveledSince(motionStart) < ignoreSpan) {
+        traceLineForward(fl, fc, fr, rl, rc, rr, RAMP_MIN_SPEED,
             LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
+      } else {
+        bool isCross = frontCrossFull(fl, fc, fr);
+        if (isCross) intersectionHitCount++;
+        else { intersectionHitCount = 0; intersectionArmed = true; }
+        if (intersectionArmed && intersectionHitCount >= CROSS_CONFIRM) {
+          if (!stopAtEnd) break;
+          crossFound = true;
+          crossMark = captureDriveEnc();
+          if (alignSpan <= 0) break;
+        } else {
+          int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
+              approachMark, SPEED_TRACK_7_9_LINE);
+          speed = smoothRampSpeed(speed);
+          lastCurSpeed = speed;
+          traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+              LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
+          driveLoopTick();
+          continue;
+        }
+      }
+      if (!crossFound) {
         driveLoopTick();
         continue;
       }
     }
 
-    int alignStart = approachDecel
-        ? decelMarkSpeed(approachMark, approachDecelSpan, SPEED_TRACK_7_9_LINE)
-        : SPEED_TRACK_7_9_LINE;
-    int speed = crossAlignSpeed(crossMark, alignSpan, alignStart);
+    int speed = crossAlignSpeed(crossMark, alignSpan, lastCurSpeed);
+    speed = smoothRampSpeed(speed);
     if (finishAlignSpan(crossMark, alignSpan)) break;
     traceLineForward(fl, fc, fr, rl, rc, rr, speed,
         LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
@@ -175,7 +226,6 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
     correctTrackLegOvershoot(motionStart, DIST_TRACK_NODE_SPAN_CM);
 }
 
-// 8→9 / 7→9 — 라인 끝에서 정지
 static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   rotateToHeading(90);
   resetLineTracePid();
@@ -197,10 +247,12 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   bool approachDecel = false;
   bool lineSeen = false;
   DriveEncMark approachMark = {0, 0};
+  int lastCurSpeed = RAMP_MIN_SPEED;
 
   while (true) {
     int fl, fc, fr, rl, rc, rr;
-    readLineSensors(fl, fc, fr, rl, rc, rr);
+    readFrontLineSensors(fl, fc, fr);
+    readRearLineSensors(rl, rc, rr);
     if (frontOnLine(fl, fc, fr)) lineSeen = true;
 
     long traveled = encoderTraveledSince(motionStart);
@@ -211,8 +263,11 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
         && traveled <= node8Center + node8PassHalf
         && frontCrossFull(fl, fc, fr)) {
       resetRampSpeedLimiter(speed);
-      setWheelSpeeds(speed, speed);
-      liftUpTick(); liftDownTick();
+      speed = smoothRampSpeed(speed);
+      lastCurSpeed = speed;
+      traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+          LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
+      driveLoopTick();
       continue;
     }
 
@@ -221,13 +276,12 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
         if (stopAtEnd) stopMotors();
         break;
       }
-      resetRampSpeedLimiter(speed);
-      speed = smoothRampSpeed(speed);
-      setWheelSpeeds(speed, speed);
-    } else {
-      traceLineForward(fl, fc, fr, rl, rc, rr, speed,
-          LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
     }
+    resetRampSpeedLimiter(speed);
+    speed = smoothRampSpeed(speed);
+    lastCurSpeed = speed;
+    traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+        LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
     driveLoopTick();
   }
   if (stopAtEnd)
@@ -255,27 +309,27 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
     traceUntilIntersection(stopAtEnd, SPEED_9_TO_8);
   }
   else if (fromNode == 9 && toNode == 10) {
-    blindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd, DIST_TRACK_9_TO_10_CM);
+    blindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);
   }
   else if (fromNode == 9 && toNode == 11) {
-    blindDriveAndAlign(HEADING_9_TO_11, -1, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2);
+    blindDriveAndAlign(HEADING_9_TO_11, -1, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true);
   }
   else if (fromNode == 10 && toNode == 11) {
-    blindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd, DIST_TRACK_10_TO_11_CM);
+    blindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);
   }
   else if (fromNode == 11 && toNode == 10) {
-    blindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd, DIST_TRACK_10_TO_11_CM);
+    blindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);
   }
   else if (fromNode == 10 && toNode == 9) {
     rotateToHeading(HEADING_10_TO_12);
     driveDistanceCm(DIST_10_TO_12_CM, SPEED_OPEN_TRACK_FWD, true);
-    blindDriveAndAlign(HEADING_12_TO_9_2, -1, stopAtEnd, DIST_TRACK_12_TO_9_CM);
+    blindDriveAndAlign(HEADING_12_TO_9_2, -1, stopAtEnd, DIST_TRACK_12_TO_9_CM, 1, true);
     if (!stopAtEnd) rotateToHeading(270);
   }
   else if (fromNode == 11 && toNode == 9) {
     rotateToHeading(HEADING_11_TO_12);
     driveDistanceCm(DIST_11_TO_12_CM, SPEED_OPEN_TRACK_FWD, true);
-    blindDriveAndAlign(HEADING_12_TO_9_2, -1, stopAtEnd, DIST_TRACK_12_TO_9_CM);
+    blindDriveAndAlign(HEADING_12_TO_9_2, -1, stopAtEnd, DIST_TRACK_12_TO_9_CM, 1, true);
     if (!stopAtEnd) rotateToHeading(270);
   }
   else {
@@ -288,6 +342,7 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
 
 void driveToIntersectionNode(int targetNode) {
   if (intersectionNode == targetNode) return;
+  finishFromZone6Exit = false;
   if (intersectionNode == 7 && targetNode >= 9) {
     stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, targetNode == 9);
     intersectionNode = 9;
@@ -356,6 +411,7 @@ void leaveZone(int zone) {
     DriveEncMark approachMark = {0, 0};
     bool approachDecel = false;
     int confirmCount = 0;
+    int lastCurSpeed = RAMP_MIN_SPEED;
 
     while (true) {
       int fl, fc, fr, rl, rc, rr;
@@ -375,6 +431,10 @@ void leaveZone(int zone) {
           int speed = (crossZone && approachDecel)
               ? decelMarkSpeed(approachMark, approachDecelSpan, openSpeed)
               : rampMarkSpeed(motionStart, openSpeed);
+          
+          speed = smoothRampSpeed(speed);
+          lastCurSpeed = speed; // 실제 속도 기록
+
           bool traceRev = false;
           if (rearOnLine(rl, rc, rr)) {
             if (zone == 5 || zone == 6) traceRev = true;
@@ -387,7 +447,8 @@ void leaveZone(int zone) {
           }
         }
       } else {
-        int speed = decelMarkSpeed(lineMark, extraSpan, openSpeed);
+        int speed = decelMarkSpeed(lineMark, extraSpan, lastCurSpeed); // 실제 최고속도 기반 감속
+        speed = smoothRampSpeed(speed);
         if (finishEncoderSpan(lineMark, extraSpan, speed)) break;
         if (zone == 2 || zone == 4) {
           setWheelSpeeds(-speed, -speed);
@@ -412,6 +473,7 @@ void leaveZone(int zone) {
     DriveEncMark approachMark = {0, 0};
     bool approachDecel = false;
     int confirmCount = 0;
+    int lastCurSpeed = RAMP_MIN_SPEED;
 
     while (true) {
       int fl, fc, fr, rl, rc, rr;
@@ -431,19 +493,22 @@ void leaveZone(int zone) {
           int speed = (crossZone && approachDecel)
               ? decelMarkSpeed(approachMark, approachDecelSpan, openSpeed)
               : rampMarkSpeed(motionStart, openSpeed);
+          
+          speed = smoothRampSpeed(speed);
+          lastCurSpeed = speed; // 실제 속도 기록
+
           if (crossZone && frontOnLine(fl, fc, fr) && !frontCrossFull(fl, fc, fr)) {
             traceLineForward(fl, fc, fr, rl, rc, rr, speed,
               LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
           } else {
-            speed = smoothRampSpeed(speed);
             setWheelSpeeds(speed, speed);
           }
         }
       } else {
-        int speed = decelMarkSpeed(lineMark, extraSpan, openSpeed);
+        int speed = decelMarkSpeed(lineMark, extraSpan, lastCurSpeed); // 실제 최고속도 기반 감속
+        speed = smoothRampSpeed(speed);
         if (finishEncoderSpan(lineMark, extraSpan, speed)) break;
         if (zone == 2 || zone == 4 || zone == 5 || zone == 6) {
-          speed = smoothRampSpeed(speed);
           setWheelSpeeds(speed, speed);
         } else {
           traceLineForward(fl, fc, fr, rl, rc, rr, speed,
@@ -463,6 +528,7 @@ void leaveZone(int zone) {
 
   if (targetNode == 7) enableTeeZoneSteering = false;
   intersectionNode = targetNode;
+  finishFromZone6Exit = (zone == 6);
 }
 
 bool zonesAreVerticalOpposites(int zoneA, int zoneB) {
@@ -475,6 +541,7 @@ void moveBetweenOppositeZones(int fromZone, int toZone) {
 }
 
 void enterZoneAt(int zone) {
+  finishFromZone6Exit = false;
   int targetNode = zoneToIntersection(zone);
   int zoneHeading = (zone == 3 || zone == 4) ? 180 : 0;
   if (headingDeg != 0 && headingDeg != 180) rotateToHeading(zoneHeading);

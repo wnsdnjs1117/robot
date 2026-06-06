@@ -54,7 +54,7 @@
  constexpr int MAX_RESCAN_TRIES = 5;
  // 1~4구역 QR 미발견 시 leave→재진입 최대 반복 (무한루프 방지)
  
- constexpr unsigned long SCAN_DWELL_MS = 3000;
+ constexpr unsigned long SCAN_DWELL_MS = 1000;
  // 존 진입 후 QR 읽기 대기 시간 (ms)
  
  constexpr unsigned long SCAN_POLL_MS = 30;
@@ -119,12 +119,12 @@
  constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;
  // 교차로(1·1·1) 감지 후 바퀴축을 교차 중심에 맞추는 전진 거리 (6cm)
  
- constexpr float DIST_BRAKE_CATCH_CM = 0.2f;
+ constexpr float DIST_BRAKE_CATCH_CM = 0.5f;
  // 목표 직전 급제동 구간 — finishAlignSpan / finishEncoderSpan
  
  constexpr float DIST_IGNORE_NODE_CM = 5.0f;
  // 교차로 통과 직후 십자(111) 오인식 무시 / 저속 크롤 구간 (cm)
- 
+
  constexpr int CROSS_CONFIRM = 1;
  // 전방 1·1·1 교차 패턴 연속 확인 횟수 (1=즉시)
  
@@ -136,7 +136,7 @@
  // ============================================================
  
  struct ZoneMotionProfile {
-   float entryForwardExtra = 35.0f; // 전진 진입: 입구 선 통과 후 추가 전진 (cm)
+   float entryForwardExtra = 34.0f; // 전진 진입: 입구 선 통과 후 추가 전진 (cm)
    float entryReverseExtra = 12.0f; // 후진 진입: 입구 선 통과 후 추가 후진 (cm)
    float exitForwardExtra = 0.0f;   // 전진 탈출: 탈출선 이후 추가 거리 (cm)
    float exitReverseExtra = 0.0f;   // 후진 탈출: 탈출선 이후 추가 거리 (cm)
@@ -153,7 +153,7 @@
      p.exitReverseExtra = 34.0f;
    } else if (zone == 5 || zone == 6) {
      // 전진 진입 → 후진 탈출만
-     p.exitReverseExtra = 26.0f;
+     p.exitReverseExtra = 28.0f;
    }
    // zone 2·4: 십자(┼) 센서로 탈출 위치 결정 (exit extra = 축 정렬 4cm만)
    return p;
@@ -178,7 +178,7 @@
  // [7] 가·감속 램프 (직진 · 회전 공통 스케일)
  // ============================================================
  
- constexpr int RAMP_MIN_SPEED = 15;
+ constexpr int RAMP_MIN_SPEED = 20;
  // 램프 시작·끝 최저 모터 출력 (가속 하한 / 감속 하한)
  
  constexpr int RAMP_REF_SPEED = 40;
@@ -190,7 +190,7 @@
  constexpr float RAMP_DECEL_CM = 12.0f;
  // 직진 감속 거리 (cm) @ cruise 40
  
- constexpr int RAMP_MAX_SPEED_STEP = 4;
+ constexpr int RAMP_MAX_SPEED_STEP = 6;
  // 한 제어 주기당 최대 속도 상승 — 급가속 방지 (감속은 제한 없음)
  
  inline float rampCruiseFactor(int speed) {
@@ -300,6 +300,9 @@
  
  constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;
  // 7→9 장구간 — 8번 교차 통과 구간 (±cm, cruise 유지)
+
+ constexpr float DIST_NODE_DETECT_CRAWL_CM = 5.0f;
+ // 노드 라인 도달 이 거리 전에 최저속 도달 → 라인 구간을 천천히 통과(고속 스킵 방지)
  
 inline long trackLegApproachStartCounts(float legSpanCm, int cruiseSpeed) {
   return toEncoderCounts(legSpanCm - RAMP_DECEL_CM * rampCruiseFactor(cruiseSpeed));
@@ -337,6 +340,8 @@ constexpr int HEADING_9_TO_11 = 88;
 constexpr int HEADING_10_TO_11 = 88;
 constexpr int HEADING_11_TO_10 = 272;
 
+ // 9↔10·9→11·10↔11·12→9·13→9 — 전방 L/C/R 중 하나만 ON이어도 라인 감지
+
 constexpr float DIST_TRACK_9_TO_10_CM = 60.0f;
 // 9↔10 노드 간 직선 (cm) — 접근 감속 계산용, 정지는 라인 센서
 
@@ -363,10 +368,16 @@ constexpr int HEADING_FINISH_PARK = 270;
 // 피니시(스타트) 주차 방향 — 서쪽 (0=북 90=동 180=남 270=서)
 
 constexpr float DIST_FINISH_LINE_PAST_CM = 50.0f;
-// 피니시 라인 감지 후 추가 후진 (cm)
+// 피니시 라인 감지 후 추가 후진 (cm) — 후방 L/C/R 중 하나 ON이면 감지 (후진 진입)
 
 constexpr float DIST_FINISH_PARK_REV_CM = 0.0f;
 // 서쪽(270°) 정렬 후 최종 후진 (cm)
+
+constexpr int SPEED_FINISH_Z6_REV = SPEED_OPEN_ZONE_REV;
+// 6번 탈출 후 피니시 — 남은 라인 후진 추종 속도
+
+constexpr int SPEED_FINISH_Z6_FWD = SPEED_OPEN_TRACK_FWD;
+// 6번 탈출 후 피니시 — 스타트 라인까지 직진 속도
 
 // ============================================================
  // [14] PID 라인 추종 · 직진 보정
@@ -383,6 +394,9 @@ constexpr float DIST_FINISH_PARK_REV_CM = 0.0f;
  
  constexpr float LINE_KP_REV_HARD = 2.2f;
  // 후진 P 게인 — 오차 ±2 이상
+
+ constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.5f;
+ // hard 조향(오차 ±2↑) 시 cruise × 이 비율 (살짝 감속)
  
  constexpr float LINE_KI = 0.0f;
  // 적분 게인 (미사용)
