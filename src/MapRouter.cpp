@@ -151,64 +151,163 @@ void exitZone(int zone) {
 
   if (lastEntryWasForward) {   
     DPRINTF(" Rev");
+    bool lineHit = false;
+    
+    // 1. 공백 구간(Gap)을 먼저 통과하여 목표 라인을 밟을 때까지 후진
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
        long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-       if (dist > CM(c.exitRevMax)) { DPRINTF(" !MAX"); break; }
-       if (dist > CM(10.0f) && anyRearLine(RL, RC, RR)) { DPRINTF(" L_ON"); break; }
+       
+       if (dist > CM(10.0f)) { 
+           if (zone == 1 || zone == 3) {
+               // ★ 1, 3번 존: 사거리(1.1.1) 감지 절대 안 함! 오직 공백이 끝나고 선이 시작되는 지점만 찾음
+               if (anyRearLine(RL, RC, RR)) {
+                   lineHit = true;
+                   DPRINTF(" L_ON (Gap Crossed)"); 
+                   break; 
+               }
+           } else if (zone == 2 || zone == 4) {
+               // 2, 4번 존: 십자(┼) 교차로이므로 1.1.1 감지 사용
+               if (RL == 1 && RC == 1 && RR == 1) {
+                   lineHit = true;
+                   DPRINTF(" 1.1.1_CROSS_ON"); 
+                   break; 
+               }
+           } else {
+               // 5, 6번 존: 메인 라인 진입 감지
+               if (anyRearLine(RL, RC, RR)) {
+                   lineHit = true;
+                   DPRINTF(" L_ON"); 
+                   break;
+               }
+           }
+       }
 
        reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
        liftUpTick(); liftDownTick(); scanTick();
     }
-
-    long distSoFar = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-    long targetDist = distSoFar + CM(c.exitRevExtra);
     
-    if (targetDist < CM(c.exitRevMin)) { targetDist = CM(c.exitRevMin); DPRINTF(" <MIN"); }
-    else if (targetDist > CM(c.exitRevMax)) { targetDist = CM(c.exitRevMax); DPRINTF(" >MAX"); }
-    else { DPRINTF(" OK"); }
-
-    long remain = targetDist - distSoFar;
-    if (remain > 0) {
-       long curEnc = labs(prizm.readEncoderCount(1));
-       while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-          int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
-          liftUpTick(); liftDownTick(); scanTick();
+    // 2. 라인을 만난 이후의 마무리 축 정렬 동작
+    if (zone == 5 || zone == 6) {
+       // 5, 6번 존: 선에서 완전히 벗어날 때까지 추가 후진 후 칼정지
+       if (lineHit) {
+           while (true) {
+              int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+              if (!anyRearLine(RL, RC, RR)) {
+                 DPRINTF(" L_OFF");
+                 break;
+              }
+              reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
+              liftUpTick(); liftDownTick(); scanTick();
+           }
+       }
+    } else if (zone == 1 || zone == 3) { 
+       // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
+       long remain = CM(c.exitRevExtra);
+       if (remain > 0) {
+          long curEnc = labs(prizm.readEncoderCount(1));
+          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
+             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+             reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
+             liftUpTick(); liftDownTick(); scanTick();
+          }
+       }
+    } else { 
+       // 2, 4번 존: 1.1.1 감지 후 바퀴축<->후방센서 물리적 거리만큼 정확히 추가 후진하여 축 정렬
+       long remain = CM(DIST_AXIS_TO_REAR_SENSOR_CM);
+       if (remain > 0) {
+          long curEnc = labs(prizm.readEncoderCount(1));
+          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
+             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+             reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
+             liftUpTick(); liftDownTick(); scanTick();
+          }
        }
     }
 
   } else {  
     DPRINTF(" Fwd");
+    bool lineHit = false;
+    
+    // 1. 공백 구간(Gap)을 먼저 통과하여 목표 라인을 밟을 때까지 전진
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
        long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-       if (dist > CM(c.exitFwdMax)) { DPRINTF(" !MAX"); break; }
-       if (dist > CM(10.0f) && anyLine(L, C, R)) { DPRINTF(" L_ON"); break; }
+       
+       if (dist > CM(10.0f)) { 
+           if (zone == 1 || zone == 3) {
+               // ★ 1, 3번 존: 사거리(1.1.1) 감지 절대 안 함! 오직 공백이 끝나고 선이 시작되는 지점만 찾음
+               if (anyLine(L, C, R)) {
+                   lineHit = true;
+                   DPRINTF(" L_ON (Gap Crossed)"); 
+                   break; 
+               }
+           } else if (zone == 2 || zone == 4) {
+               // 2, 4번 존: 십자(┼) 교차로이므로 1.1.1 감지 사용
+               if (L == 1 && C == 1 && R == 1) {
+                   lineHit = true;
+                   DPRINTF(" 1.1.1_CROSS_ON"); 
+                   break; 
+               }
+           } else {
+               // 5, 6번 존: 메인 라인 진입 감지
+               if (anyLine(L, C, R)) {
+                   lineHit = true;
+                   DPRINTF(" L_ON"); 
+                   break;
+               }
+           }
+       }
 
        lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
        liftUpTick(); liftDownTick(); scanTick();
     }
 
-    long distSoFar = labs(labs(prizm.readEncoderCount(1)) - startEnc);
-    long targetDist = distSoFar + CM(c.exitFwdExtra);
-    
-    if (targetDist < CM(c.exitFwdMin)) { targetDist = CM(c.exitFwdMin); DPRINTF(" <MIN"); }
-    else if (targetDist > CM(c.exitFwdMax)) { targetDist = CM(c.exitFwdMax); DPRINTF(" >MAX"); }
-    else { DPRINTF(" OK"); }
-
-    long remain = targetDist - distSoFar;
-    if (remain > 0) {
-       long curEnc = labs(prizm.readEncoderCount(1));
-       while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
-          int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-          lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
-          liftUpTick(); liftDownTick(); scanTick();
+    // 2. 라인을 만난 이후의 마무리 축 정렬 동작
+    if (zone == 5 || zone == 6) {
+       // 5, 6번 존: 선이 완전히 끝날 때까지 추가 전진 후 칼정지
+       if (lineHit) {
+           while (true) {
+              int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+              if (!anyLine(L, C, R)) {
+                 DPRINTF(" L_OFF");
+                 break;
+              }
+              lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
+              liftUpTick(); liftDownTick(); scanTick();
+           }
+       }
+    } else if (zone == 1 || zone == 3) { 
+       // ★ 1, 3번 존: 7번 노드는 교차로 감지가 불가능하므로, 선을 밟은 시점부터 상수(Extra)만큼만 이동 후 칼정지!
+       long remain = CM(c.exitFwdExtra);
+       if (remain > 0) {
+          long curEnc = labs(prizm.readEncoderCount(1));
+          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
+             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+             lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
+             liftUpTick(); liftDownTick(); scanTick();
+          }
+       }
+    } else { 
+       // 2, 4번 존: 1.1.1 감지 후 바퀴축<->전방센서 물리적 거리만큼 정확히 추가 전진하여 축 정렬
+       long remain = CM(DIST_AXIS_TO_FRONT_SENSOR_CM);
+       if (remain > 0) {
+          long curEnc = labs(prizm.readEncoderCount(1));
+          while (labs(labs(prizm.readEncoderCount(1)) - curEnc) < remain) {
+             int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
+             lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
+             liftUpTick(); liftDownTick(); scanTick();
+          }
        }
     }
   }
   
-  stopAll(); DPRINTLNF(" Done");
+  // 모든 탈출 로직 및 바퀴축 정렬이 종료되면 모터 강제 정지
+  stopAll(); 
+  
+  float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - startEnc)) / COUNTS_PER_CM;
+  DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
+  
   if (targetNode == 7) enableEdgeSteering = false;
   currentNode = targetNode;
 }
@@ -216,8 +315,11 @@ void exitZone(int zone) {
 void goToZoneDirect(int zone) {
   int targetNode = zoneToNode(zone);
   moveToNode(targetNode);
+  
+  // 탈출 직후 방향(robotHeading)과 타겟 방향(zoneSide)을 비교하여 즉시 회전 수행
   int zoneSide = (zone == 3 || zone == 4) ? 180 : 0;
   if (robotHeading != 0 && robotHeading != 180) turnToHeading(zoneSide);
+  
   if (targetNode == 7) enableEdgeSteering = true;
 
   bool enterForward = (robotHeading == zoneSide);

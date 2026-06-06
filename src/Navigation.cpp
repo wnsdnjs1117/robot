@@ -65,12 +65,11 @@ void enterZone(int zone) {
 
   DPRINTF("\n+Fwd Z:"); DPRINT(zone);
 
+  // 1. Min/Max 삭제, 선 만날 때까지만 이동
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
-
-    if (currentDist > CM(c.entryFwdMax)) { DPRINTF(" !MAX"); break; }
 
     if (currentDist > CM(8.0f)) { 
         if (anyLine(L, C, R)) { 
@@ -84,14 +83,8 @@ void enterZone(int zone) {
     liftUpTick(); liftDownTick(); scanTick();
   }
 
-  long distSoFar = labs(labs(prizm.readEncoderCount(1)) - s);
-  long targetTotalDist = distSoFar + CM(c.entryFwdExtra);
-
-  if (targetTotalDist < CM(c.entryFwdMin)) { targetTotalDist = CM(c.entryFwdMin); DPRINTF(" <MIN"); }
-  else if (targetTotalDist > CM(c.entryFwdMax)) { targetTotalDist = CM(c.entryFwdMax); DPRINTF(" >MAX"); }
-  else { DPRINTF(" OK"); }
-
-  long remainCounts = targetTotalDist - distSoFar;
+  // 2. Extra 거리만큼만 추가 이동
+  long remainCounts = CM(c.entryFwdExtra);
   if (remainCounts > 0) {
     long currentEnc = labs(prizm.readEncoderCount(1));
     while (labs(labs(prizm.readEncoderCount(1)) - currentEnc) < remainCounts) {
@@ -99,7 +92,10 @@ void enterZone(int zone) {
         liftUpTick(); liftDownTick(); scanTick();
     }
   }
-  stopAll(); DPRINTLNF(" Done");
+  
+  stopAll(); 
+  float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - s)) / COUNTS_PER_CM;
+  DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
 }
 
 void reverseEnterZone(int zone) {
@@ -110,12 +106,11 @@ void reverseEnterZone(int zone) {
 
   DPRINTF("\n+Rev Z:"); DPRINT(zone);
 
+  // 1. Min/Max 삭제, 선 만날 때까지만 이동
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
     long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
-
-    if (currentDist > CM(c.entryRevMax)) { DPRINTF(" !MAX"); break; }
 
     if (currentDist > CM(8.0f)) { 
         if (anyRearLine(RL, RC, RR)) { 
@@ -129,14 +124,8 @@ void reverseEnterZone(int zone) {
     liftUpTick(); liftDownTick(); scanTick();
   }
 
-  long distSoFar = labs(labs(prizm.readEncoderCount(1)) - s);
-  long targetTotalDist = distSoFar + CM(c.entryRevExtra);
-
-  if (targetTotalDist < CM(c.entryRevMin)) { targetTotalDist = CM(c.entryRevMin); DPRINTF(" <MIN"); }
-  else if (targetTotalDist > CM(c.entryRevMax)) { targetTotalDist = CM(c.entryRevMax); DPRINTF(" >MAX"); }
-  else { DPRINTF(" OK"); }
-
-  long remainCounts = targetTotalDist - distSoFar;
+  // 2. Extra 거리만큼만 추가 이동
+  long remainCounts = CM(c.entryRevExtra);
   if (remainCounts > 0) {
     long currentEnc = labs(prizm.readEncoderCount(1));
     while (labs(labs(prizm.readEncoderCount(1)) - currentEnc) < remainCounts) {
@@ -144,7 +133,61 @@ void reverseEnterZone(int zone) {
         liftUpTick(); liftDownTick(); scanTick();
     }
   }
-  stopAll(); DPRINTLNF(" Done");
+  
+  stopAll(); 
+  float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - s)) / COUNTS_PER_CM;
+  DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
+}
+
+void reverseAcrossToOppositeZone(int zone) {
+  ZoneCfg c = zoneCfg(zone);
+  lastSensorState = 0;
+
+  DPRINTF("\n+Cross Z:"); DPRINT(zone);
+
+  // 첫번째 선 넘기
+  while (true) {
+    int L, C, R, RL, RC, RR;
+    readSensors(L, C, R); readRearSensors(RL, RC, RR);
+    if (anyRearLine(RL, RC, RR)) { DPRINTF(" FindLine"); break; }
+    drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
+    liftUpTick(); liftDownTick(); scanTick();
+  }
+
+  long s = labs(prizm.readEncoderCount(1));
+  bool armed = false;
+  
+  // 두번째 선 찾기 (Min/Max 삭제)
+  while (true) {
+    int L, C, R, RL, RC, RR;
+    readSensors(L, C, R); readRearSensors(RL, RC, RR);
+    long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
+
+    if (currentDist > CM(8.0f)) { 
+        if (anyRearLine(RL, RC, RR)) {
+            if(!armed) DPRINTF(" L1");
+            armed = true;
+        }
+    }
+    if (armed && !anyRearLine(RL, RC, RR)) { DPRINTF(" L0"); break; }
+
+    reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
+    liftUpTick(); liftDownTick(); scanTick();
+  }
+
+  // Extra 거리만큼 추가 이동
+  long remainCounts = CM(c.entryRevExtra);
+  if (remainCounts > 0) {
+    long currentEnc = labs(prizm.readEncoderCount(1));
+    while (labs(labs(prizm.readEncoderCount(1)) - currentEnc) < remainCounts) {
+        drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
+        liftUpTick(); liftDownTick(); scanTick();
+    }
+  }
+  
+  stopAll(); 
+  float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - s)) / COUNTS_PER_CM;
+  DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
 }
 
 void goToMainLine() {
@@ -222,45 +265,24 @@ static int countFound1to4() {
 }
 
 int qrSearchStage() {
-  // --- 2번 구역 ---
   scanArm(2); turnToHeading(0); enterZone(2); lastEntryWasForward = true;
   scanZone(2);
   if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 2; }
   scanDisarm();
 
-  // ★ 2번 구역을 완전히 빠져나온 후 -> 4번 구역으로 후진 진입
-  exitZone(2);
-  
-  scanArm(4); 
-  reverseEnterZone(4); 
-  lastEntryWasForward = false;
+  scanArm(4); reverseAcrossToOppositeZone(4); lastEntryWasForward = false;
   scanZone(4);
   if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 4; }
   scanDisarm();
 
-  // ★ 4번 구역을 완전히 빠져나온 후 -> 1번 구역 앞(7번 노드)으로 이동
-  exitZone(4);
-  turnToHeading(270); 
-  followToCrossing(true); // 8번 노드에서 7번 노드로 이동
-  turnToHeading(0);
-
-  // --- 1번 구역 ---
+  followToCrossing(); turnAngle(90, false); followToCrossing(); turnAngle(90, true);
   scanArm(1); enterZone(1); lastEntryWasForward = true;
   scanZone(1);
   if (countFound1to4() >= 2) { scanDisarm(); stopAll(); printSearchResult(); return 1; }
   scanDisarm();
 
-  // ★ 1번 구역을 완전히 빠져나온 후 -> 3번 구역으로 후진 진입
-  exitZone(1);
-  
-  scanArm(3); 
-  enableEdgeSteering = true; 
-  reverseEnterZone(3); 
-  enableEdgeSteering = false;
-  lastEntryWasForward = false; 
-  scanZone(3); 
-  scanDisarm();
-  
+  scanArm(3); enableEdgeSteering = true; reverseAcrossToOppositeZone(3); enableEdgeSteering = false;
+  lastEntryWasForward = false; scanZone(3); scanDisarm();
   stopAll(); printSearchResult();
   return 3;
 }

@@ -15,8 +15,17 @@ BoxInfo boxes[7];
 
 // ── QR 연속 스캔 상태 ──
 volatile int g_scanTargetZone = 0;
-void scanArm(int zone) { g_scanTargetZone = zone; }
-void scanDisarm()      { g_scanTargetZone = 0; }
+
+void scanArm(int zone) { 
+#if !QR_SIMULATION
+  HuskyQR::flush(); // 새 구역 스캔 전 이전 구역의 버퍼된 데이터 비우기
+#endif
+  g_scanTargetZone = zone; 
+}
+
+void scanDisarm() { 
+  g_scanTargetZone = 0; 
+}
 
 void scanTick() {
   int z = g_scanTargetZone;

@@ -1,7 +1,7 @@
 /* ============================================================
  * HuskyQR.cpp - HuskyLens 공식 라이브러리(HUSKYLENS) 래퍼
- *   request()로 결과를 받아 첫 블록의 학습 ID(1~6)를 목적지로 반환한다.
- *   통신 타임아웃을 짧게 잡아 카메라 무응답이 주행 루프를 막지 않게 한다.
+ * request()로 결과를 받아 첫 블록의 학습 ID(1~6)를 목적지로 반환한다.
+ * 통신 타임아웃을 짧게 잡아 카메라 무응답이 주행 루프를 막지 않게 한다.
  * ============================================================ */
 #include "HuskyQR.h"
 
@@ -31,6 +31,15 @@ int readBoxId() {
     }
   }
   return 0;
+}
+
+void flush() {
+  // 이전 구역 스캔 시 버퍼에 남아있던 데이터를 모두 읽어 폐기
+  if (huskylens.request()) {
+    while (huskylens.available()) {
+      huskylens.read();
+    }
+  }
 }
 
 } // namespace HuskyQR
