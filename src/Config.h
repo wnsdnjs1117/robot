@@ -124,6 +124,10 @@ inline ZoneCfg zoneCfg(int z) {
 // ============================================================
 // [8] 속도 설정
 // ============================================================
+// ── driveDistance 전용 가속/감속 프로파일 (라인 트레이싱과 무관) ──
+constexpr int   RAMP_MIN_SPEED = 20;    // 가속 시작·감속 끝 최저 속도 (이하면 모터 실속)
+constexpr float RAMP_ACCEL_CM  =  8.0f; // 가속 구간 거리 (cm)
+constexpr float RAMP_DECEL_CM  = 12.0f; // 감속 구간 거리 (cm) — 제동 여유를 위해 가속보다 길게
 constexpr int SPEED               = 35;  // 라인 트레이싱 전진 기본 속도
 constexpr int BACK_SPEED          = 30;  // 라인 트레이싱 후진 기본 속도
 constexpr int STRAIGHT_SPEED      = 40;  // 노드 간 맹목 직진 속도

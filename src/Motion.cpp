@@ -280,13 +280,29 @@ void driveDistance(float cm, int speed) {
   long targetCounts = CM(cm);
   if (targetCounts <= 0) { stopAll(); return; }
 
+  int  maxSpd = abs(speed);
+  int  dir    = (speed >= 0) ? 1 : -1;
+  // 짧은 거리에서는 가속/감속 구간을 절반씩으로 자동 축소
+  long accel  = min((long)CM(RAMP_ACCEL_CM), targetCounts / 2);
+  long decel  = min((long)CM(RAMP_DECEL_CM), targetCounts / 2);
+
   DPRINTF("\n>> 이동 예정 "); DPRINT(cm); DPRINTLNF(" cm");
 
   unsigned long lastPrint = 0;
   while (true) {
-    long pos = labs(labs(prizm.readEncoderCount(1)) - startEnc);
+    long pos   = labs(labs(prizm.readEncoderCount(1)) - startEnc);
     long error = targetCounts - pos;
     if (error <= 0) break;
+
+    // 사다리꼴 속도 프로파일: 가속 → 정속 → 감속
+    int curSpd;
+    if (pos < accel) {
+      curSpd = RAMP_MIN_SPEED + (int)((long)(maxSpd - RAMP_MIN_SPEED) * pos / accel);
+    } else if (error < decel) {
+      curSpd = RAMP_MIN_SPEED + (int)((long)(maxSpd - RAMP_MIN_SPEED) * error / decel);
+    } else {
+      curSpd = maxSpd;
+    }
 
     unsigned long now = millis();
     if (now - lastPrint >= 200) {
@@ -294,10 +310,10 @@ void driveDistance(float cm, int speed) {
       lastPrint = now;
     }
 
-    drive(speed, speed);
+    drive(dir * curSpd, dir * curSpd);
     liftUpTick(); liftDownTick(); scanTick();
   }
-  stopAll();
+  stopAll(); // 감속 후 125 급제동으로 확실히 정지
 }
 
 // 기존 호출부 호환용 래퍼 (이제 모두 칼각 일정 속도 이동)
