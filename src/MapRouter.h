@@ -6,15 +6,14 @@
 
 #include <Arduino.h>
 
-extern int  headingDeg;           // 현재 방위각 (0=북, 90=동, 180=남, 270=서)
-extern int  intersectionNode;     // 현재 교차로 노드 (7~11)
-extern bool enteredZoneForward; // 마지막 구역 진입이 전진이었는지
-extern bool finishFromZone6Exit; // 6번 탈출 직후 11번 — 피니시 전용 경로
-extern bool prelowerAfterNode9;  // 박스를 24cm로 들고 9번을 지난 뒤 이동 중 12cm로 미리 내릴지
+extern float headingDeg;          // 현재 방위각 (0=북, 90=동, 180=남, 270=서)
+extern int   intersectionNode;    // 현재 교차로 노드 (7~11)
+extern bool  enteredZoneForward;  // 마지막 구역 진입이 전진이었는지
+extern bool  finishFromZone6Exit; // 6번 탈출 직후 11번 — 피니시 전용 경로
 
-void rotateToHeading(int targetDeg);
-void driveTrackLegBlind(int targetHeading, int alignHeading, bool stopAtEnd,
-    float legSpanCm, int lineCount = 1, bool anyFrontLine = false);
+void rotateToHeading(float targetDeg); // 변경됨: float
+void driveTrackLegBlind(float targetHeading, float alignHeading, bool stopAtEnd,
+    float legSpanCm, int lineCount = 1, bool anyFrontLine = false); // 변경됨: float
 void driveToIntersectionNode(int targetNode);
 
 struct ZoneMoveOptions {

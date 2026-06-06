@@ -16,10 +16,7 @@
    return (int)(v >= 0.0f ? v + 0.5f : v - 0.5f);
  }
  
-// 루프당 1회 엔코더 캐시 — 거리추적·속도PID가 공유해 I2C 중복읽기 제거(루프 가속)
 static long g_encL = 0, g_encR = 0;
-
-// 속도 PID가 측정한 실제 바퀴 속도 (명령속도 0~100 환산, 10ms 정규화) — 급제동 거리 산정용
 static int g_measuredSpeed = 0;
 
 void refreshDriveEncoders() {
@@ -28,7 +25,6 @@ void refreshDriveEncoders() {
 }
 
 DriveEncMark captureDriveEnc() {
-  // 이벤트(라인 인식 등) 기준점은 항상 최신값으로 — 인식 시점 정확도 보존
   g_encL = prizm.readEncoderCount(1);
   g_encR = prizm.readEncoderCount(2);
   return { g_encL, g_encR };
@@ -66,9 +62,6 @@ static void stopForTarget(int /*curSpeed*/) {
   stopMotors();
 }
 
-// 급제동 시작 거리 — 현재속도에 비례해 DIST_BRAKE_CATCH_CM(최저속)→DIST_BRAKE_CATCH_MAX_CM(속도100) 선형 증가.
-// 명령속도와 '실측 바퀴속도(관성 반영)' 중 큰 값 기준 — 감속램프로 명령속도가 낮아져도
-// 실제로 빠르게 굴러가면 더 일찍 급제동을 건다.
 static long brakeCatchCounts(int curSpeed) {
   int v = (g_measuredSpeed > curSpeed) ? g_measuredSpeed : curSpeed;
   float t = (float)v / 100.0f;
@@ -139,14 +132,12 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
    }
  }
  
- // ── 비프(부저) ─────────────────────────────────────────────
- // PRIZM 보드 코어에는 tone()/noTone()이 없어 직접 핀 토글로 구현한다.
- static unsigned long g_beepEndMs        = 0;  // 0 = 비차단 비프 비활성
+ static unsigned long g_beepEndMs        = 0;
  static unsigned long g_beepLastToggleUs = 0;
  static bool          g_beepPinHigh      = false;
 
  void playBeep(unsigned long ms) {
-   g_beepEndMs = 0;  // 진행 중인 비차단 비프 취소 (핀 충돌 방지)
+   g_beepEndMs = 0;
    pinMode(PIN_BUZZER, OUTPUT);
    unsigned long end = millis() + ms;
    while (millis() < end) {
@@ -156,17 +147,15 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
    digitalWrite(PIN_BUZZER, LOW);
  }
 
- // 비차단 비프 — 즉시 반환하고, 이후 updateBeep()(driveLoopTick) 호출로 ms동안 배경 재생.
  void startBeep(unsigned long ms) {
    pinMode(PIN_BUZZER, OUTPUT);
    g_beepEndMs        = millis() + ms;
-   if (g_beepEndMs == 0) g_beepEndMs = 1;  // 0(=비활성)과 충돌 회피
+   if (g_beepEndMs == 0) g_beepEndMs = 1;
    g_beepLastToggleUs = micros();
    g_beepPinHigh      = false;
    digitalWrite(PIN_BUZZER, LOW);
  }
 
- // 비차단 비프 구동 — 주행 루프(driveLoopTick)에서 매 틱 호출. 반주기마다 핀 토글.
  void updateBeep() {
    if (g_beepEndMs == 0) return;
    if (millis() >= g_beepEndMs) {
@@ -199,12 +188,11 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
    lastReqL = left; lastReqR = right;
  
   if (dt >= MOTOR_VELOCITY_PID_MS) {
-    refreshDriveEncoders();  // 10ms마다 1회만 엔코더 읽고 캐시에 저장 — 거리추적이 재사용
+    refreshDriveEncoders();
     long encL = g_encL;
     long encR = g_encR;
     long curVelL = labs(encL - lastEncL);
      long curVelR = labs(encR - lastEncR);
-     // 실측 속도를 10ms로 정규화해 명령속도(0~100) 스케일로 환산 — 급제동 거리 산정용
      if (dt > 0 && VELOCITY_TARGET_FACTOR > 0.0f) {
        float per10 = ((curVelL + curVelR) * 0.5f) * (float)MOTOR_VELOCITY_PID_MS / (float)dt;
        g_measuredSpeed = (int)(per10 / VELOCITY_TARGET_FACTOR);
@@ -256,7 +244,6 @@ static void spinMotorSpeeds(bool clockwise, int speed) {
   else           prizm.setMotorSpeeds(speed * 7, speed * 7);
 }
 
-// 라인 로직 없이 지정 카운트만큼 최저속으로 제자리 회전 (오버슈트 복구용)
 static void spinPlainCounts(bool clockwise, long counts) {
   if (counts <= 0) return;
   resetRampSpeedLimiter(RAMP_MIN_SPEED);
@@ -274,12 +261,12 @@ static void spinPlainCounts(bool clockwise, long counts) {
   setWheelSpeeds(0, 0);
 }
  
- void rotateByDegrees(int degrees, bool clockwise) {
+ void rotateByDegrees(float degrees, bool clockwise) {
    setWheelSpeeds(0, 0);
    delayWithTicks(40);
    resetRampSpeedLimiter(RAMP_MIN_SPEED);
-   int absDeg = degrees >= 0 ? degrees : -degrees;
-   float compDeg = (float)absDeg * (1.0f - SPIN_OVERSHOOT_COMP_FRAC);
+   float absDeg = degrees >= 0.0f ? degrees : -degrees;
+   float compDeg = absDeg * (1.0f - SPIN_OVERSHOOT_COMP_FRAC);
    long targetCounts = spinDegToCounts(compDeg);
    if (targetCounts <= 0) return;
  
@@ -306,8 +293,6 @@ static void spinPlainCounts(bool clockwise, long counts) {
      peakSpeed = RAMP_MIN_SPEED + (int)((long)(SPIN_SPEED - RAMP_MIN_SPEED) * accelSpan / idealAccelSpan);
    }
 
-   // 라인 트림 감지: 시작 시 라인 위에 있어도 꺼지지 않도록 '무장(arming)' 방식 사용.
-   // opposite 센서가 한 번 OFF(시작 라인을 벗어남)된 뒤부터, 새로 잡는 라인 = 목적지 라인.
    bool lineTrimArmed = false;
    bool lineTrimmed = false;
    int lastCurSpeed = RAMP_MIN_SPEED;
@@ -324,9 +309,8 @@ static void spinPlainCounts(bool clockwise, long counts) {
       (void)fc;
       bool oppositeOn = clockwise ? (fl != 0) : (fr != 0);
       if (!oppositeOn) {
-        lineTrimArmed = true;            // 시작 라인을 벗어남 → 감지 무장
+        lineTrimArmed = true;
       } else if (lineTrimArmed) {
-        // 무장 뒤 반대쪽 센서가 새로 잡은 라인 = 목적지 라인 — 남은 각의 절반만 마저 회전
         long newRemaining = (long)(remaining * SPIN_LINE_TRIM_REMAIN_FRAC);
         targetCounts = pos + newRemaining;
         remaining = newRemaining;
@@ -362,7 +346,6 @@ static void spinPlainCounts(bool clockwise, long counts) {
   delayWithTicks(40);
   setWheelSpeeds(0, 0);
 
-  // 절반만 마저 돌았는데 반대쪽 센서에서 라인이 사라졌으면(오버슈트) 역방향 10° 복구
   if (lineTrimmed) {
     int fl, fc, fr;
     readFrontLineSensors(fl, fc, fr);
@@ -391,11 +374,9 @@ static void spinPlainCounts(bool clockwise, long counts) {
  }
  
 void driveLoopTick() {
-  // 주행 중에는 리프트만 틱. QR(HuskyLens) I2C는 정지 스캔 드웰(waitForZoneScan)에서만
-  // 수행한다 — request()가 최대 30ms 블로킹이라 주행 루프 속도를 떨어뜨려 위치 오차를 유발.
   liftUpTick();
   liftDownTick();
-  updateBeep();  // 비차단 비프(QR 인식 알림)를 주행 중 배경 재생
+  updateBeep();
 }
  
  bool frontOnLine(int left, int center, int right) { return left || center || right; }
@@ -410,13 +391,11 @@ void driveLoopTick() {
 int lineTraceCruiseSpeed(int baseSpeed, int absError) {
   if (absError < 2) return baseSpeed;
   float f = LINE_HARD_STEER_SPEED_FACTOR;
-  if (absError >= 3) f *= LINE_HARD_STEER_SPEED_FACTOR; // 라인 이탈 — 더 감속
+  if (absError >= 3) f *= LINE_HARD_STEER_SPEED_FACTOR;
   int speed = (int)(baseSpeed * f);
   return speed < RAMP_MIN_SPEED ? RAMP_MIN_SPEED : speed;
 }
 
-// 전진/후진 라인 추종 공용 코어. 주(primary) 센서 p*로 조향, 부(secondary) 센서 s*로
-// 전·후 정렬. dir=+1 전진 / dir=-1 후진(휠 출력 부호만 반전 — 두 방향이 수학적으로 동치).
 void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed,
     float kpSoft, float kpHard, float& integ, float& lastErr, int dir) {
   int posP = 0, posS = 0;
@@ -617,7 +596,7 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
        if (currentEnc >= nextIgnoreEnc) phase = 1;
        int curSpeed = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
        curSpeed = smoothRampSpeed(curSpeed);
-       lastCurSpeed = curSpeed; // 실제 속도 기록
+       lastCurSpeed = curSpeed;
        setWheelSpeeds(curSpeed, curSpeed);
      }
      else if (phase == 1) {
@@ -634,7 +613,7 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
            phase = 2;
            alignMark = captureDriveEnc();
            plannedLegSpanCm += alignCm;
-           speedAtLine = lastCurSpeed; // 방금 전까지의 실제 최고 속도로 세팅!
+           speedAtLine = lastCurSpeed; 
          } else {
            phase = 0;
            nextIgnoreEnc = currentEnc + toEncoderCounts(DIST_IGNORE_NODE_CM);
@@ -643,7 +622,7 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
        if (phase == 1) {
          int curSpeed = calcRampUpSpeed(traveled, accelSpan, maxSpeed);
          curSpeed = smoothRampSpeed(curSpeed);
-         lastCurSpeed = curSpeed; // 실제 속도 기록
+         lastCurSpeed = curSpeed;
          setWheelSpeeds(curSpeed, curSpeed);
        }
      }
@@ -654,7 +633,7 @@ void traceLineCore(int pl, int pc, int pr, int sl, int sc, int sr, int baseSpeed
       if (decelSpan > alignSpan) decelSpan = alignSpan;
 
       int curSpeed = calcRampDownSpeed(remaining, decelSpan, speedAtLine);
-      curSpeed = smoothRampSpeed(curSpeed); // 스무딩 적용
+      curSpeed = smoothRampSpeed(curSpeed);
 
       if (stopAtEnd && finishAlignSpan(alignMark, alignSpan, curSpeed)) break;
       if (!stopAtEnd && encoderTraveledSince(alignMark) >= alignSpan) break;

@@ -8,11 +8,10 @@
 #include "Navigation.h"
 #include "BoxMap.h"
 
-int  headingDeg = 0;
-int  intersectionNode = 11;
-bool enteredZoneForward = true;
-bool finishFromZone6Exit = false;
-bool prelowerAfterNode9 = false;
+float headingDeg = 0.0f;
+int   intersectionNode = 11;
+bool  enteredZoneForward = true;
+bool  finishFromZone6Exit = false;
 static int g_seamlessTo = 0;  // 1↔3 배송: leaveZone 직후 무정지 진입 대상 존
 
 static int zoneToIntersection(int zone) {
@@ -23,14 +22,17 @@ static int zoneToIntersection(int zone) {
   return 8;
 }
 
-void rotateToHeading(int targetDeg) {
-  targetDeg = (targetDeg % 360 + 360) % 360;
-  int diff = targetDeg - headingDeg;
-  if (diff > 180) diff -= 360;
-  if (diff < -180) diff += 360;
-  if (diff == 0) return;
-  if (diff > 0) rotateByDegrees(diff, true);
-  else          rotateByDegrees(-diff, false);
+void rotateToHeading(float targetDeg) {
+  while (targetDeg >= 360.0f) targetDeg -= 360.0f;
+  while (targetDeg < 0.0f) targetDeg += 360.0f;
+  
+  float diff = targetDeg - headingDeg;
+  while (diff > 180.0f) diff -= 360.0f;
+  while (diff < -180.0f) diff += 360.0f;
+  
+  if (diff > -0.01f && diff < 0.01f) return;
+  if (diff > 0.0f) rotateByDegrees(diff, true);
+  else             rotateByDegrees(-diff, false);
   headingDeg = targetDeg;
 }
 
@@ -48,7 +50,6 @@ static int trackLegSpeed(DriveEncMark motionStart, long ignoreSpan, long approac
   return decelMarkSpeed(approachMark, rampDecelSpanCounts(cruiseSpeed), cruiseSpeed);
 }
 
-// 노드 라인 1회 감지 처리 — 목표 라인 수 도달 시 true(lineMark 기록)
 static bool registerNodeLineHit(int lineCount, bool anyFrontLine, int& linesPassed,
     int& lineConfirmCount, bool& ignoreAfterLine, DriveEncMark& ignoreMark,
     DriveEncMark& lineMark) {
@@ -64,20 +65,15 @@ static bool registerNodeLineHit(int lineCount, bool anyFrontLine, int& linesPass
   return false;
 }
 
-static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtEnd,
-    float legSpanCm, int lineCount = 1, bool anyFrontLine = false,
-    float prelowerAfterCm = -1.0f) {
+static void blindDriveAndAlign(float targetHeading, float alignHeading, bool stopAtEnd,
+    float legSpanCm, int lineCount = 1, bool anyFrontLine = false) {
   rotateToHeading(targetHeading);
   resetLineTracePid();
   resetRampSpeedLimiter(RAMP_MIN_SPEED);
   const int cruiseSpeed = SPEED_OPEN_TRACK_FWD;
   DriveEncMark motionStart = captureDriveEnc();
 
-  // 9번을 24cm로 통과한 뒤(9→10·9→11) prelowerAfterCm 진행 시 이동 중 12cm로 미리 하강
-  bool prelowerArmed = (prelowerAfterCm > 0.0f && prelowerAfterNode9);
-  long prelowerSpan = (prelowerAfterCm > 0.0f) ? toEncoderCounts(prelowerAfterCm) : 0;
   long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
-  // 라인 도달 전에 최저속에 도달하도록 목표를 crawl 여유만큼 당김 (고속 스킵 방지)
   float detectTargetCm = legSpanCm - DIST_NODE_DETECT_CRAWL_CM;
   if (detectTargetCm < DIST_IGNORE_NODE_CM) detectTargetCm = legSpanCm;
   long approachStart = trackLegApproachStartCounts(detectTargetCm, cruiseSpeed);
@@ -98,12 +94,6 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
   while (true) {
     int fl, fc, fr;
     readFrontLineSensors(fl, fc, fr);
-
-    if (prelowerArmed && encoderTraveledSince(motionStart) >= prelowerSpan) {
-      liftDownToStart(LIFT_CARRY_LOW_CM);
-      prelowerArmed = false;
-      prelowerAfterNode9 = false;
-    }
 
     if (!lineFound) {
       if (initialIgnore) {
@@ -136,7 +126,6 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
           setWheelSpeeds(speed, speed);
         driveLoopTick();
 
-        // 모터·리프트 I2C 동안 얇은 라인을 지나쳤을 수 있으니 한 번 더 샘플
         if (!initialIgnore && !ignoreAfterLine) {
           readFrontLineSensors(fl, fc, fr);
           if (frontOnLine(fl, fc, fr)
@@ -157,21 +146,20 @@ static void blindDriveAndAlign(int targetHeading, int alignHeading, bool stopAtE
     speed = smoothRampSpeed(speed);
     if (stopAtEnd && finishAlignSpan(lineMark, alignSpan, speed)) break;
     if (!stopAtEnd && encoderTraveledSince(lineMark) >= alignSpan) break;
-    // 바퀴축을 라인까지 정렬하는 구간 — 라인트레이싱 끄고 직진만 (조향 보정 없음)
     setWheelSpeeds(speed, speed);
     driveLoopTick();
   }
 
-  if (alignHeading != -1 && !stopAtEnd) rotateToHeading(alignHeading);
+  if (alignHeading >= 0.0f && !stopAtEnd) rotateToHeading(alignHeading);
 }
 
-void driveTrackLegBlind(int targetHeading, int alignHeading, bool stopAtEnd,
+void driveTrackLegBlind(float targetHeading, float alignHeading, bool stopAtEnd,
     float legSpanCm, int lineCount, bool anyFrontLine) {
   blindDriveAndAlign(targetHeading, alignHeading, stopAtEnd, legSpanCm, lineCount,
       anyFrontLine);
 }
 
-static void stepTrackLeg78(int heading, bool stopAtEnd) {
+static void stepTrackLeg78(float heading, bool stopAtEnd) {
   rotateToHeading(heading);
   resetLineTracePid();
   clearIntersectionCross(); 
@@ -237,7 +225,7 @@ static void stepTrackLeg78(int heading, bool stopAtEnd) {
 }
 
 static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
-  rotateToHeading(90);
+  rotateToHeading(90.0f);
   resetLineTracePid();
   bool longLeg = (legSpanCm >= DIST_TRACK_7_TO_9_CM - 0.01f);
   if (stopAtEnd && !longLeg)
@@ -300,54 +288,47 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
     stepTrackLegToLineEnd(DIST_TRACK_NODE_SPAN_CM, stopAtEnd);
   }
   else if (fromNode == 7 && toNode == 8) {
-    stepTrackLeg78(90, stopAtEnd);
+    stepTrackLeg78(90.0f, stopAtEnd);
   }
   else if (fromNode == 7 && toNode == 9) {
     stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, stopAtEnd);
   }
   else if (fromNode == 8 && toNode == 7) {
-    stepTrackLeg78(270, stopAtEnd);
+    stepTrackLeg78(270.0f, stopAtEnd);
   }
   else if (fromNode == 9 && toNode == 8) {
-    rotateToHeading(270);
-    driveOverLinesAndAlign(1, 0, SPEED_9_TO_8, false);
+    rotateToHeading(270.0f);
+    driveOverLinesAndAlign(1, 0.0f, SPEED_9_TO_8, false);
     setWheelSpeeds(0, 0);
     delayWithTicks(40);
     traceUntilIntersection(stopAtEnd, SPEED_9_TO_8);
-    // 24cm로 9번을 통과해 8번에 도착 → 이동 중 12cm로 미리 하강
-    if (prelowerAfterNode9) {
-      liftDownToStart(LIFT_CARRY_LOW_CM);
-      prelowerAfterNode9 = false;
-    }
   }
   else if (fromNode == 9 && toNode == 10) {
-    blindDriveAndAlign(HEADING_9_TO_10, 90, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true,
-        LIFT_PRELOWER_AFTER_NODE9_CM);
+    blindDriveAndAlign(HEADING_9_TO_10, 90.0f, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);
   }
   else if (fromNode == 9 && toNode == 11) {
-    blindDriveAndAlign(HEADING_9_TO_11, -1, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true,
-        LIFT_PRELOWER_AFTER_NODE9_CM);
+    blindDriveAndAlign(HEADING_9_TO_11, -1.0f, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true);
   }
   else if (fromNode == 10 && toNode == 11) {
-    blindDriveAndAlign(HEADING_10_TO_11, -1, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);
+    blindDriveAndAlign(HEADING_10_TO_11, -1.0f, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);
   }
   else if (fromNode == 11 && toNode == 10) {
-    blindDriveAndAlign(HEADING_11_TO_10, -1, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);
+    blindDriveAndAlign(HEADING_11_TO_10, -1.0f, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);
   }
   else if (fromNode == 10 && toNode == 9) {
     rotateToHeading(HEADING_10_TO_12);
     driveDistanceCm(DIST_10_TO_12_CM, SPEED_OPEN_TRACK_FWD, true);
-    blindDriveAndAlign(HEADING_12_TO_9_2, -1, stopAtEnd, DIST_TRACK_12_TO_9_CM, 1, true);
-    if (!stopAtEnd) rotateToHeading(270);
+    blindDriveAndAlign(HEADING_12_TO_9_2, -1.0f, stopAtEnd, DIST_TRACK_12_TO_9_CM, 1, true);
+    if (!stopAtEnd) rotateToHeading(270.0f);
   }
   else if (fromNode == 11 && toNode == 9) {
     rotateToHeading(HEADING_11_TO_12);
     driveDistanceCm(DIST_11_TO_12_CM, SPEED_OPEN_TRACK_FWD, true);
-    blindDriveAndAlign(HEADING_12_TO_9_2, -1, stopAtEnd, DIST_TRACK_12_TO_9_CM, 1, true);
-    if (!stopAtEnd) rotateToHeading(270);
+    blindDriveAndAlign(HEADING_12_TO_9_2, -1.0f, stopAtEnd, DIST_TRACK_12_TO_9_CM, 1, true);
+    if (!stopAtEnd) rotateToHeading(270.0f);
   }
   else {
-    int dir = (toNode > fromNode) ? 90 : 270;
+    float dir = (toNode > fromNode) ? 90.0f : 270.0f;
     rotateToHeading(dir);
     traceUntilIntersection(stopAtEnd);
   }
@@ -524,8 +505,6 @@ void leaveZone(int zone) {
           }
         }
       } else {
-        // 가속(탈출 시작 기준)과 감속(잔여거리 기준)의 최소값 — 라인을 즉시 감지해도
-        // 최저속에 고착되지 않고 정상 가감속(사다리꼴) 프로파일로 extraSpan 통과
         int up = rampMarkSpeed(motionStart, openSpeed);
         int down = decelMarkSpeed(lineMark, extraSpan, openSpeed);
         int speed = (up < down) ? up : down;
@@ -602,11 +581,26 @@ void leaveZone(int zone) {
 void enterZoneAt(int zone) {
   finishFromZone6Exit = false;
   int targetNode = zoneToIntersection(zone);
-  int zoneHeading = (zone == 3 || zone == 4) ? 180 : 0;
-  if (headingDeg != 0 && headingDeg != 180) rotateToHeading(zoneHeading);
+  float zoneHeading = (zone == 3 || zone == 4) ? 180.0f : 0.0f;
+  
+  float modH = headingDeg;
+  while (modH >= 360.0f) modH -= 360.0f;
+  while (modH < 0.0f) modH += 360.0f;
+  
+  bool isNorth = (modH < 0.1f || modH > 359.9f);
+  bool isSouth = (modH > 179.9f && modH < 180.1f);
+  if (!isNorth && !isSouth) rotateToHeading(zoneHeading);
 
   if (targetNode == 7) enableTeeZoneSteering = true;
-  if (headingDeg == zoneHeading) {
+  
+  modH = headingDeg;
+  while (modH >= 360.0f) modH -= 360.0f;
+  while (modH < 0.0f) modH += 360.0f;
+  
+  bool isSame = (modH > zoneHeading - 0.1f && modH < zoneHeading + 0.1f) ||
+                (modH > zoneHeading + 359.9f && modH < zoneHeading + 360.1f);
+                
+  if (isSame) {
     enterZoneForward(zone);
     enteredZoneForward = true;
   } else {
@@ -628,9 +622,8 @@ void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts) {
   DPRINTF(" -> ");
   DPRINTLN(toZone);
 
-  // 1↔3 배송: 무정지 연속 직진
   if (!opts.scanQr && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1))) {
-    rotateToHeading(0);
+    rotateToHeading(0.0f);
     enteredZoneForward = (fromZone == 1);
     g_seamlessTo = toZone;
     leaveZone(fromZone);
