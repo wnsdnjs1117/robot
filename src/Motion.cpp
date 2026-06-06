@@ -305,36 +305,37 @@ static void spinPlainCounts(bool clockwise, long counts) {
    if (idealAccelSpan > 0 && accelSpan < idealAccelSpan) {
      peakSpeed = RAMP_MIN_SPEED + (int)((long)(SPIN_SPEED - RAMP_MIN_SPEED) * accelSpan / idealAccelSpan);
    }
- 
-   int fl0, fc0, fr0;
-   readFrontLineSensors(fl0, fc0, fr0);
-   bool skipLineTrim = (fc0 != 0);
-   bool oppositeWasOn = clockwise ? (fl0 != 0) : (fr0 != 0);
+
+   // 라인 트림 감지: 시작 시 라인 위에 있어도 꺼지지 않도록 '무장(arming)' 방식 사용.
+   // opposite 센서가 한 번 OFF(시작 라인을 벗어남)된 뒤부터, 새로 잡는 라인 = 목적지 라인.
+   bool lineTrimArmed = false;
    bool lineTrimmed = false;
    int lastCurSpeed = RAMP_MIN_SPEED;
- 
+
    while (true) {
     long pos = (labs(prizm.readEncoderCount(1) - startL) + labs(prizm.readEncoderCount(2) - startR)) / 2;
     long remaining = targetCounts - pos;
 
     if (remaining <= 0) break;
 
-    if (!skipLineTrim && !lineTrimmed && pos >= (long)(targetCounts * SPIN_LINE_TRIM_MIN_FRAC)) {
+    if (!lineTrimmed && pos >= (long)(targetCounts * SPIN_LINE_TRIM_MIN_FRAC)) {
       int fl, fc, fr;
       readFrontLineSensors(fl, fc, fr);
       (void)fc;
       bool oppositeOn = clockwise ? (fl != 0) : (fr != 0);
-      if (oppositeOn && !oppositeWasOn) {
-        // 70% 이후 반대쪽 센서에 라인 — 남은 각의 절반만 마저 회전
+      if (!oppositeOn) {
+        lineTrimArmed = true;            // 시작 라인을 벗어남 → 감지 무장
+      } else if (lineTrimArmed) {
+        // 무장 뒤 반대쪽 센서가 새로 잡은 라인 = 목적지 라인 — 남은 각의 절반만 마저 회전
         long newRemaining = (long)(remaining * SPIN_LINE_TRIM_REMAIN_FRAC);
         targetCounts = pos + newRemaining;
         remaining = newRemaining;
         lineTrimmed = true;
-         
+
          decelSpan = remaining;
          if (decelSpan <= 0) decelSpan = 1;
-         accelSpan = 0; 
-         peakSpeed = lastCurSpeed; 
+         accelSpan = 0;
+         peakSpeed = lastCurSpeed;
          endDecelSpan = min(spinDegToCounts(SPIN_END_DECEL_DEG), decelSpan / 2);
        }
      }
