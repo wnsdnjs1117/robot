@@ -113,9 +113,7 @@ constexpr int ZONE_ENTRY_BLIND_BACK_SPEED = 40;
 constexpr int ZONE_EXIT_BLIND_SPEED = 40;
 constexpr int ZONE_EXIT_BLIND_BACK_SPEED = 40;
 
-// ── 진입/탈출 안전 가드 및 라인 감지 안정화 ──
-constexpr float ZONE_ENTRY_MAX_CM = 45.0f;  // 진입 라인 탐색 최대 거리(미검출 시 폭주/틀어짐 방지)
-constexpr float ZONE_EXIT_MAX_CM = 60.0f;   // 탈출 라인 탐색 최대 거리(미검출 시 폭주 방지)
+// ── 라인 감지 안정화 ──
 constexpr int EXIT_LINE_CONFIRM = 2;        // 탈출 시 목표 라인 감지 확정 횟수(노이즈 조기트리거 방지)
 constexpr int START_LINE_SEARCH_SPEED = 25; // 스타트→메인라인 첫 탐색 저속(얇은 선 놓침 방지)
 

@@ -65,22 +65,19 @@ void enterZone(int zone) {
 
   DPRINTF("\n+Fwd Z:"); DPRINT(zone);
 
-  // 1. Min/Max 삭제, 선 만날 때까지만 이동
+  // 1. 선 만날 때까지 이동 (최소/최대 거리 제한 없음)
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
     bool onLine = anyLine(L, C, R);
 
-    if (currentDist > CM(8.0f) && onLine) {
+    if (onLine) {
         if(!armed) DPRINTF(" L1");
         armed = true;
     }
     if (armed && !onLine) { DPRINTF(" L0"); break; }
-    // ★ 폭주/한쪽 쏠림 방지: 라인을 끝내 못 만나면 최대 거리에서 강제 종료
-    if (currentDist > CM(ZONE_ENTRY_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
-    // ★ 라인 위에서만 추종, 공백 구간에서는 직진(외삽 ±3 급조향으로 한쪽으로 틀어지는 것 방지)
+    // 라인 위에서만 추종, 공백 구간에서는 직진(외삽 ±3 급조향 방지)
     if (onLine) lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_ENTRY_BLIND_SPEED);
     else        drive(ZONE_ENTRY_BLIND_SPEED, ZONE_ENTRY_BLIND_SPEED);
     liftUpTick(); liftDownTick(); scanTick();
@@ -109,22 +106,19 @@ void reverseEnterZone(int zone) {
 
   DPRINTF("\n+Rev Z:"); DPRINT(zone);
 
-  // 1. Min/Max 삭제, 선 만날 때까지만 이동
+  // 1. 선 만날 때까지 이동 (최소/최대 거리 제한 없음)
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
     bool onLine = anyRearLine(RL, RC, RR);
 
-    if (currentDist > CM(8.0f) && onLine) {
+    if (onLine) {
         if(!armed) DPRINTF(" L1");
         armed = true;
     }
     if (armed && !onLine) { DPRINTF(" L0"); break; }
-    // ★ 폭주/한쪽 쏠림 방지: 라인을 끝내 못 만나면 최대 거리에서 강제 종료
-    if (currentDist > CM(ZONE_ENTRY_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
-    // ★ 라인 위에서만 추종, 공백 구간에서는 직진(외삽 ±3 급조향 방지)
+    // 라인 위에서만 추종, 공백 구간에서는 직진(외삽 ±3 급조향 방지)
     if (onLine) reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_ENTRY_BLIND_BACK_SPEED);
     else        drive(-ZONE_ENTRY_BLIND_BACK_SPEED, -ZONE_ENTRY_BLIND_BACK_SPEED);
     liftUpTick(); liftDownTick(); scanTick();
@@ -163,17 +157,14 @@ void reverseAcrossToOppositeZone(int zone) {
   long s = labs(prizm.readEncoderCount(1));
   bool armed = false;
   
-  // 두번째 선 찾기 (Min/Max 삭제)
+  // 두번째 선 찾기 (최소/최대 거리 제한 없음)
   while (true) {
     int L, C, R, RL, RC, RR;
     readSensors(L, C, R); readRearSensors(RL, RC, RR);
-    long currentDist = labs(labs(prizm.readEncoderCount(1)) - s);
 
-    if (currentDist > CM(8.0f)) { 
-        if (anyRearLine(RL, RC, RR)) {
-            if(!armed) DPRINTF(" L1");
-            armed = true;
-        }
+    if (anyRearLine(RL, RC, RR)) {
+        if(!armed) DPRINTF(" L1");
+        armed = true;
     }
     if (armed && !anyRearLine(RL, RC, RR)) { DPRINTF(" L0"); break; }
 

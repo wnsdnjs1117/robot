@@ -144,7 +144,7 @@ void exitZone(int zone) {
   ZoneCfg c = zoneCfg(zone);
   if (targetNode == 7) enableEdgeSteering = true;
 
-  lastSensorState = 0; 
+  lastSensorState = 0;
   long startEnc = labs(prizm.readEncoderCount(1));
 
   DPRINTF("\n-Exit Z:"); DPRINT(zone);
@@ -154,43 +154,36 @@ void exitZone(int zone) {
     bool lineHit = false;
     int conf = 0;  // ★ 라인 감지 확정 카운터(노이즈로 인한 조기 회전 방지)
 
-    // 1. 공백 구간(Gap)을 먼저 통과하여 목표 라인을 밟을 때까지 후진
+    // 1. 목표 라인을 밟을 때까지 후진 (최소/최대 거리 제한 없음)
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-       long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
 
-       if (dist > CM(10.0f)) {
-           if (zone == 1 || zone == 3) {
-               // ★ 1, 3번 존: 사거리(1.1.1) 감지 절대 안 함! 오직 공백이 끝나고 선이 시작되는 지점만 찾음
-               // ★ 노이즈 한 프레임에 즉시 break 하던 것을 EXIT_LINE_CONFIRM 연속 감지로 확정(조기 회전 버그 수정)
-               if (anyRearLine(RL, RC, RR)) {
-                   if (++conf >= EXIT_LINE_CONFIRM) {
-                       lineHit = true;
-                       DPRINTF(" L_ON (Gap Crossed)");
-                       break;
-                   }
-               } else conf = 0;
-           } else if (zone == 2 || zone == 4) {
-               // 2, 4번 존: 십자(┼) 교차로이므로 1.1.1 감지 사용
-               if (RL == 1 && RC == 1 && RR == 1) {
+       if (zone == 1 || zone == 3) {
+           // 1, 3번 존: 1.1.1 감지 안 함, EXIT_LINE_CONFIRM 연속으로 확정
+           if (anyRearLine(RL, RC, RR)) {
+               if (++conf >= EXIT_LINE_CONFIRM) {
                    lineHit = true;
-                   DPRINTF(" 1.1.1_CROSS_ON");
+                   DPRINTF(" L_ON (Gap Crossed)");
                    break;
                }
-           } else {
-               // 5, 6번 존: 메인 라인 진입 감지
-               if (anyRearLine(RL, RC, RR)) {
-                   if (++conf >= EXIT_LINE_CONFIRM) {
-                       lineHit = true;
-                       DPRINTF(" L_ON");
-                       break;
-                   }
-               } else conf = 0;
+           } else conf = 0;
+       } else if (zone == 2 || zone == 4) {
+           // 2, 4번 존: 십자(┼) 교차로
+           if (RL == 1 && RC == 1 && RR == 1) {
+               lineHit = true;
+               DPRINTF(" 1.1.1_CROSS_ON");
+               break;
            }
+       } else {
+           // 5, 6번 존: 메인 라인 감지, EXIT_LINE_CONFIRM 연속 확정
+           if (anyRearLine(RL, RC, RR)) {
+               if (++conf >= EXIT_LINE_CONFIRM) {
+                   lineHit = true;
+                   DPRINTF(" L_ON");
+                   break;
+               }
+           } else conf = 0;
        }
-
-       // ★ 미검출 폭주 방지 안전 가드
-       if (dist > CM(ZONE_EXIT_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
        reverseLineFollowStep(RL, RC, RR, L, C, R, ZONE_EXIT_BLIND_BACK_SPEED);
        liftUpTick(); liftDownTick(); scanTick();
@@ -241,43 +234,36 @@ void exitZone(int zone) {
     bool lineHit = false;
     int conf = 0;  // ★ 라인 감지 확정 카운터(노이즈로 인한 조기 회전 방지)
 
-    // 1. 공백 구간(Gap)을 먼저 통과하여 목표 라인을 밟을 때까지 전진
+    // 1. 목표 라인을 밟을 때까지 전진 (최소/최대 거리 제한 없음)
     while (true) {
        int L, C, R, RL, RC, RR; readSensors(L, C, R); readRearSensors(RL, RC, RR);
-       long dist = labs(labs(prizm.readEncoderCount(1)) - startEnc);
 
-       if (dist > CM(10.0f)) {
-           if (zone == 1 || zone == 3) {
-               // ★ 1, 3번 존: 사거리(1.1.1) 감지 절대 안 함! 오직 공백이 끝나고 선이 시작되는 지점만 찾음
-               // ★ 노이즈 한 프레임에 즉시 break 하던 것을 EXIT_LINE_CONFIRM 연속 감지로 확정(조기 회전 버그 수정)
-               if (anyLine(L, C, R)) {
-                   if (++conf >= EXIT_LINE_CONFIRM) {
-                       lineHit = true;
-                       DPRINTF(" L_ON (Gap Crossed)");
-                       break;
-                   }
-               } else conf = 0;
-           } else if (zone == 2 || zone == 4) {
-               // 2, 4번 존: 십자(┼) 교차로이므로 1.1.1 감지 사용
-               if (L == 1 && C == 1 && R == 1) {
+       if (zone == 1 || zone == 3) {
+           // 1, 3번 존: 1.1.1 감지 안 함, EXIT_LINE_CONFIRM 연속으로 확정
+           if (anyLine(L, C, R)) {
+               if (++conf >= EXIT_LINE_CONFIRM) {
                    lineHit = true;
-                   DPRINTF(" 1.1.1_CROSS_ON");
+                   DPRINTF(" L_ON (Gap Crossed)");
                    break;
                }
-           } else {
-               // 5, 6번 존: 메인 라인 진입 감지
-               if (anyLine(L, C, R)) {
-                   if (++conf >= EXIT_LINE_CONFIRM) {
-                       lineHit = true;
-                       DPRINTF(" L_ON");
-                       break;
-                   }
-               } else conf = 0;
+           } else conf = 0;
+       } else if (zone == 2 || zone == 4) {
+           // 2, 4번 존: 십자(┼) 교차로
+           if (L == 1 && C == 1 && R == 1) {
+               lineHit = true;
+               DPRINTF(" 1.1.1_CROSS_ON");
+               break;
            }
+       } else {
+           // 5, 6번 존: 메인 라인 감지, EXIT_LINE_CONFIRM 연속 확정
+           if (anyLine(L, C, R)) {
+               if (++conf >= EXIT_LINE_CONFIRM) {
+                   lineHit = true;
+                   DPRINTF(" L_ON");
+                   break;
+               }
+           } else conf = 0;
        }
-
-       // ★ 미검출 폭주 방지 안전 가드
-       if (dist > CM(ZONE_EXIT_MAX_CM)) { DPRINTF(" MAXCAP"); break; }
 
        lineFollowStepFull(L, C, R, RL, RC, RR, ZONE_EXIT_BLIND_SPEED);
        liftUpTick(); liftDownTick(); scanTick();
@@ -325,27 +311,35 @@ void exitZone(int zone) {
   }
   
   // 모든 탈출 로직 및 바퀴축 정렬이 종료되면 모터 강제 정지
-  stopAll(); 
-  
+  stopAll();
+  scanDisarm(); // ★ 탈출 완료 후 스캔 종료: 이후 노드 이동 중 엉뚱한 QR 오기록 방지
+
   float actualCm = (float)(labs(labs(prizm.readEncoderCount(1)) - startEnc)) / COUNTS_PER_CM;
   DPRINTF(" Done (실제 이동: "); DPRINT(actualCm); DPRINTLNF(" cm)");
-  
+
   if (targetNode == 7) enableEdgeSteering = false;
   currentNode = targetNode;
 }
 
 void goToZoneDirect(int zone) {
   int targetNode = zoneToNode(zone);
+
+  // ★ 노드 이동 중 스캔 차단: 이동 경로에서 보이는 QR이 목적지 존에 오기록되는 것 방지
+  int savedScanZone = g_scanTargetZone;
+  scanDisarm();
   moveToNode(targetNode);
-  
+
   // 탈출 직후 방향(robotHeading)과 타겟 방향(zoneSide)을 비교하여 즉시 회전 수행
   int zoneSide = (zone == 3 || zone == 4) ? 180 : 0;
   if (robotHeading != 0 && robotHeading != 180) turnToHeading(zoneSide);
-  
+
   if (targetNode == 7) enableEdgeSteering = true;
 
+  // 진입 직전 스캔 복원 (들어가는 동안 + 머무르는 동안 인식 가능)
+  if (savedScanZone) scanArm(savedScanZone);
+
   bool enterForward = (robotHeading == zoneSide);
-  if (enterForward) { enterZone(zone); lastEntryWasForward = true; } 
+  if (enterForward) { enterZone(zone); lastEntryWasForward = true; }
   else { reverseEnterZone(zone); lastEntryWasForward = false; }
   
   if (targetNode == 7) enableEdgeSteering = false;
