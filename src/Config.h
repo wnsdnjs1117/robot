@@ -10,7 +10,7 @@
 // ============================================================
 // [1] 펌웨어 모드
 // ============================================================
-#define RUN_TEST_MODE 1         // 1이면 테스트 모드 실행
+#define RUN_TEST_MODE 0         // 1이면 테스트 모드 실행
 #define QR_SIMULATION 0         // 1이면 QR 스캔 시뮬레이션 활성화
 
 // ============================================================
@@ -18,7 +18,7 @@
 // ============================================================
 constexpr int MAX_RESCAN_TRIES = 99;                     // QR 스캔 실패 시 최대 재시도 횟수
 constexpr unsigned long SCAN_DWELL_MS = 2000;            // QR 스캔 대기 시간 (ms)
-constexpr unsigned long SCAN_POLL_MS = 20;               // QR 스캔 폴링 주기 (ms)
+constexpr unsigned long SCAN_POLL_MS = 10;               // QR 스캔 폴링 주기 (ms)
 constexpr unsigned long BUZZER_QR_FOUND_MS = 500;       // QR 인식 성공 시 부저 울림 시간 (ms)
 constexpr unsigned int BUZZER_TONE_HZ = 1000;            // 부저 톤 주파수 (Hz)
 constexpr unsigned long BUZZER_TONE_HALF_US = 500000UL / BUZZER_TONE_HZ; // 부저 반주기 (us)
@@ -46,7 +46,7 @@ constexpr float DIST_AXIS_TO_FRONT_SENSOR_CM = 6.0f;     // 바퀴 중심축 ~ �
 constexpr float DIST_AXIS_TO_REAR_SENSOR_CM = 4.0f;      // 바퀴 중심축 ~ 후방 센서까지의 거리
 constexpr float DIST_AXIS_TO_LIFT_CM = 10.5f;            // 바퀴 중심축 ~ 리프트까지의 거리
 constexpr float LINE_THICKNESS_CM = 2.0f;                // 바닥 라인의 두께
-constexpr float COUNTS_PER_CM = 3650.0f / 80.0f;         // 1cm 이동에 해당하는 엔코더 카운트
+constexpr float COUNTS_PER_CM = 3750.0f / 80.0f;         // 1cm 이동에 해당하는 엔코더 카운트
 
 inline int toEncoderCounts(float cm) {
   return (int)(cm * COUNTS_PER_CM + 0.5f);
@@ -66,7 +66,7 @@ constexpr int EXIT_LINE_CONFIRM = 1;                                // 탈출 �
 // [6] 박스 존(1~6) 진입 · 탈출 프로파일
 // ============================================================
 struct ZoneMotionProfile {
-  float entryForwardExtra = 35.0f;  // 전진 진입 시 라인 감지 후 추가 주행 거리
+  float entryForwardExtra = 34.5f;  // 전진 진입 시 라인 감지 후 추가 주행 거리
   float entryReverseExtra = 11.5f;  // 후진 진입 시 라인 감지 후 추가 주행 거리
   float exitForwardExtra = 0.0f;    // 전진 탈출 시 라인 감지 후 추가 주행 거리
   float exitReverseExtra = 0.0f;    // 후진 탈출 시 라인 감지 후 추가 주행 거리
@@ -101,11 +101,11 @@ inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
 // ============================================================
 // [7] 직진 가·감속 램프 (부드러운 출발/정지)
 // ============================================================
-constexpr int RAMP_MIN_SPEED = 30;         // 가감속 최소(출발/도착) 속도
+constexpr int RAMP_MIN_SPEED = 25;         // 가감속 최소(출발/도착) 속도
 constexpr int RAMP_REF_SPEED = 40;         // 가감속 비율 계산을 위한 기준 속도
-constexpr float RAMP_ACCEL_CM = 20.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
-constexpr float RAMP_DECEL_CM = 17.0f;     // 정지를 위한 감속 구간 거리
-constexpr int RAMP_MAX_SPEED_STEP = 5;    // 모터 1틱당 허용되는 최대 속도 변화량
+constexpr float RAMP_ACCEL_CM = 15.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
+constexpr float RAMP_DECEL_CM = 15.0f;     // 정지를 위한 감속 구간 거리
+constexpr int RAMP_MAX_SPEED_STEP = 3;    // 모터 1틱당 허용되는 최대 속도 변화량
 
 inline float rampCruiseFactor(int speed) {
   int s = speed < 0 ? -speed : speed;
@@ -128,9 +128,9 @@ constexpr int SPEED_LINE_FOLLOW_FWD = 40;  // 전진 라인 트레이싱 기본 
 constexpr int SPEED_LINE_FOLLOW_REV = 35;  // 후진 라인 트레이싱 기본 속도
 constexpr int SPEED_OPEN_ZONE_FWD = 55;    // 박스존 내 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_ZONE_REV = 50;    // 박스존 내 후진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_FWD = 90;   // 일반 트랙 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_TRACK_FWD = 80;   // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;   // 일반 트랙 후진 개방(블라인드) 속도
-constexpr int START_LINE_SEARCH_SPEED = 30;// 스타트 직후 최초 라인 탐색 진입 속도
+constexpr int START_LINE_SEARCH_SPEED = 20;// 스타트 직후 최초 라인 탐색 진입 속도
 
 // ============================================================
 // [9] 제자리 회전 (Spin Turn)
@@ -151,7 +151,7 @@ constexpr int SPEED_TRACK_7_9_LINE = 65;             // 7, 8, 9번 메인 트랙
 constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;       // 메인 트랙 라인 부드러운 조향 게인
 constexpr float LINE_KP_TRACK_7_9_HARD = 2.7f;       // 메인 트랙 라인 강한 조향 게인
 constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;     // 7-8 및 8-9 노드 간 기본 간격
-constexpr float DIST_TRACK_8_TO_9_CM = 65.0f;        // 8->9 진입 시 감속을 시작할 거리
+constexpr float DIST_TRACK_8_TO_9_CM = 60.0f;        // 8->9 진입 시 감속을 시작할 거리
 constexpr float DIST_9_TO_8_CM = 45.0f;              // 9->8 진입 시 감속을 시작할 비대칭 거리
 constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f; // 7에서 9까지의 연속 거리
 constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;// 8번 통과 시 십자선 감지를 무시할 반경
