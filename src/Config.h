@@ -170,10 +170,10 @@ inline float rampSpinDecelDeg(int spinSpeed) {
 // [10] 메인 트랙 가로축 노드 7 — 8 — 9
 // ============================================================
 
-constexpr int SPEED_TRACK_7_9_LINE = 70;
+constexpr int SPEED_TRACK_7_9_LINE = 60;
 constexpr float LINE_KP_TRACK_7_9_SOFT = 1.8f;
 constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;
-constexpr float DIST_TRACK_NODE_SPAN_CM = 67.0f;
+constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
 // 8->9 만 따로 인식 거리를 두어 더 일찍 감속하게 한다(7-8 에는 영향 없음).
 // 값을 줄이면 노드 9 도달 전 감속 시작이 앞당겨진다.
 constexpr float DIST_TRACK_8_TO_9_CM = 65.0f;
