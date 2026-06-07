@@ -29,7 +29,7 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
   bool perfectAligned = false;
   long accelStartTraveled = 0;
 
-  // 라인 끝단에서 한쪽 에지만 남아 홱 틀어지는 것 방지: 가운데를 잃은 뒤 2cm만 직진.
+  // 라인 끝단에서 한쪽 에지만 남아 홱 틀어지는 것 방지: 가운데를 잃은 뒤 0.2cm만 직진.
   DriveEncMark centerLostMark = {0, 0};
   bool centerLostArmed = false;
 
@@ -72,13 +72,13 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
         int dir = reverse ? -1 : 1;
 
         // 조향: 일자든 아니든 끝까지 라인트레이싱(일자면 오차가 작아 소프트 조향만 걸림).
-        // 단, 가운데를 잃은 직후 2cm는 라인 끝단으로 보고 직진해 끝단 틀어짐만 막는다.
+        // 단, 가운데를 잃은 직후 0.2cm만 라인 끝단으로 보고 직진해 끝단 틀어짐만 막는다.
         if (sawCenter && !centerOn) {
           if (!centerLostArmed) {
             centerLostArmed = true;
             centerLostMark = captureDriveEnc();
           }
-          if (encoderTraveledSince(centerLostMark) < toEncoderCounts(2.0f)) {
+          if (encoderTraveledSince(centerLostMark) < toEncoderCounts(0.2f)) {
             setWheelSpeeds(dir * speed, dir * speed);
           } else if (reverse) {
             traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
