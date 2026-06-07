@@ -311,6 +311,8 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
     blindDriveAndAlign(HEADING_9_TO_10, 90.0f, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);
   }
   else if (fromNode == 9 && toNode == 11) {
+    // 노드 9에서 바로 꺾지 않고 현재 진행 방향으로 30cm 더 빠져나온 뒤 11쪽으로 꺾는다.
+    driveDistanceCm(DIST_9_EXTRA_BEFORE_11_CM, SPEED_OPEN_TRACK_FWD, true);
     blindDriveAndAlign(HEADING_9_TO_11, -1.0f, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true);
   }
   else if (fromNode == 10 && toNode == 11) {
