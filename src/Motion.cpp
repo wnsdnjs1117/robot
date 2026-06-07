@@ -221,7 +221,7 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  void stopMotors() {
    prizm.setMotorPower(1, 125);
    prizm.setMotorPower(2, 125);
-   delayWithTicks(80);
+   delayWithTicks(20);
    prizm.setMotorSpeeds(0, 0);
  }
  
@@ -342,8 +342,8 @@ static void spinPlainCounts(bool clockwise, long counts) {
   delayWithTicks(40);
   setWheelSpeeds(0, 0);
 
-  // 회전 종료 후 100ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
-  delayWithTicks(100);
+  // 회전 종료 후 50ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
+  delayWithTicks(50);
 
   if (lineTrimmed) {
     int fl, fc, fr;

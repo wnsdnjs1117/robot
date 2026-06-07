@@ -33,9 +33,9 @@ inline void checkDebugKey() {}
 // [2] QR 스캔 · 재탐색
 // ============================================================
 
-constexpr int MAX_RESCAN_TRIES = 99;
-constexpr unsigned long SCAN_DWELL_MS = 1500;
-constexpr unsigned long SCAN_POLL_MS = 30;
+constexpr int MAX_RESCAN_TRIES = 10;
+constexpr unsigned long SCAN_DWELL_MS = 1000;
+constexpr unsigned long SCAN_POLL_MS = 20;
 constexpr unsigned long BUZZER_QR_FOUND_MS = 1000;
 constexpr unsigned int BUZZER_TONE_HZ = 1000;
 constexpr unsigned long BUZZER_TONE_HALF_US = 500000UL / BUZZER_TONE_HZ;
@@ -87,7 +87,7 @@ constexpr int EXIT_LINE_CONFIRM = 1;
 // ============================================================
 
 struct ZoneMotionProfile {
-  float entryForwardExtra = 34.5f;
+  float entryForwardExtra = 35.0f;
   float entryReverseExtra = 11.0f;
   float exitForwardExtra = 0.0f;
   float exitReverseExtra = 0.0f;
@@ -129,7 +129,7 @@ constexpr int RAMP_MIN_SPEED = 25;
 constexpr int RAMP_REF_SPEED = 40;
 constexpr float RAMP_ACCEL_CM = 10.0f;
 constexpr float RAMP_DECEL_CM = 17.0f;
-constexpr int RAMP_MAX_SPEED_STEP = 10;
+constexpr int RAMP_MAX_SPEED_STEP = 15;
 
 inline float rampCruiseFactor(int speed) {
   int s = speed < 0 ? -speed : speed;
@@ -149,20 +149,20 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // [8] 주행 cruise 속도 (모터 출력 0~100)
 // ============================================================
 
-constexpr int SPEED_LINE_FOLLOW_FWD = 45;
-constexpr int SPEED_LINE_FOLLOW_REV = 35;
+constexpr int SPEED_LINE_FOLLOW_FWD = 35;
+constexpr int SPEED_LINE_FOLLOW_REV = 30;
 constexpr int SPEED_OPEN_ZONE_FWD = 60;
 constexpr int SPEED_OPEN_ZONE_REV = 60;
 constexpr int SPEED_OPEN_TRACK_FWD = 80;
 constexpr int SPEED_OPEN_TRACK_REV = 60;
-constexpr int SPEED_9_TO_8 = 40;
+constexpr int SPEED_9_TO_8 = 45;
 constexpr int START_LINE_SEARCH_SPEED = 30;
 
 // ============================================================
 // [9] 제자리 회전 (spin)
 // ============================================================
 
-constexpr int SPIN_SPEED = 30;
+constexpr int SPIN_SPEED = 35;
 constexpr int SPIN_90_COUNTS = 1170;
 constexpr float RAMP_SPIN_ACCEL_DEG = 20.0f;
 constexpr float RAMP_SPIN_DECEL_DEG = 40.0f;
@@ -186,8 +186,8 @@ inline float rampSpinDecelDeg(int spinSpeed) {
 // ============================================================
 
 constexpr int SPEED_TRACK_7_9_LINE = 70;
-constexpr float LINE_KP_TRACK_7_9_SOFT = 1.4f;
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.2f;
+constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;
+constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;
 
 constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
 // 9->8 은 8->9(70cm)와 비대칭. 실측상 9->8 구간은 약 35cm 이므로
@@ -222,9 +222,9 @@ constexpr float DIST_TRACK_13_TO_9_CM = 70.0f;
 // ============================================================
 
 constexpr float HEADING_9_TO_10 = 88.0f;
-constexpr float HEADING_9_TO_11 = 89.0f;
-constexpr float HEADING_10_TO_11 = 88.0f;
-constexpr float HEADING_11_TO_10 = 272.0f;
+constexpr float HEADING_9_TO_11 = 89.5f;
+constexpr float HEADING_10_TO_11 = 87.5f;
+constexpr float HEADING_11_TO_10 = 272.5f;
 
 constexpr float HEADING_10_TO_12 = 240.0f;
 constexpr float DIST_10_TO_12_CM = 55.0f;
@@ -243,18 +243,18 @@ constexpr float DIST_TRACK_12_TO_9_CM = 20.0f;
 // [13] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
 // ============================================================
 
-constexpr float HEADING_11_TO_FINISH = 350.0f;
+constexpr float HEADING_11_TO_FINISH = 348.0f;
 constexpr float HEADING_FINISH_PARK = 0.0f;
 constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
-constexpr float DIST_FINISH_PARK_REV_CM = 15.0f;
+constexpr float DIST_FINISH_PARK_REV_CM = 17.0f;
 
 // ============================================================
 // [14] PID 라인 추종 · 직진 보정
 // ============================================================
 
-constexpr float LINE_KP_FWD_SOFT = 1.2f;
+constexpr float LINE_KP_FWD_SOFT = 1.4f;
 constexpr float LINE_KP_FWD_HARD = 1.8f;
-constexpr float LINE_KP_REV_SOFT = 1.0f;
+constexpr float LINE_KP_REV_SOFT = 1.2f;
 constexpr float LINE_KP_REV_HARD = 1.3f;
 constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.5f;
 
@@ -281,20 +281,20 @@ constexpr float LIFT_CARRY_LOW_CM = 15.0f;
 
 constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;
 constexpr float LIFT_UP_CLEAR_CM = 5.0f;
-constexpr float LIFT_DOWN_CLEAR_CM = 0.0f;
-constexpr int LIFT_UP_POWER = 100;
+constexpr float LIFT_DOWN_CLEAR_CM = 1.0f;
+constexpr int LIFT_UP_POWER = 60;
 constexpr int LIFT_DOWN_POWER = 100;
 
-constexpr float LIFT_UP_SLOW_ZONE_CM = 20.0f;
+constexpr float LIFT_UP_SLOW_ZONE_CM = 18.0f;
 constexpr int LIFT_UP_SLOW_POWER_L = 40;
 constexpr int LIFT_UP_SLOW_POWER_R = 40;
 
-constexpr float LIFT_DOWN_SLOW_ZONE_CM = 10.0f;
-constexpr int LIFT_DOWN_SLOW_POWER_L = 15;
-constexpr int LIFT_DOWN_SLOW_POWER_R = 15;
+constexpr float LIFT_DOWN_SLOW_ZONE_CM = 8.0f;
+constexpr int LIFT_DOWN_SLOW_POWER_L = 20;
+constexpr int LIFT_DOWN_SLOW_POWER_R = 20;
 
 constexpr float LIFT_SYNC_GAIN = 5.0f;
-constexpr unsigned long LIFT_TICK_INTERVAL_MS = 15;
+constexpr unsigned long LIFT_TICK_INTERVAL_MS = 20;
 constexpr unsigned long LIFT_FLOOR_TIME_MS = 2000;
 
 // ============================================================
