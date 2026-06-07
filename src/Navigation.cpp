@@ -18,6 +18,8 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
   resetLineTracePid();
   DriveEncMark motionStart = captureDriveEnc();
   long extraSpan = toEncoderCounts(extraDistance);
+  // 처박힘 방지: 라인을 아직 못 본 블라인드 탐색이 이 거리를 넘으면 정지+경고.
+  long blindMaxSpan = toEncoderCounts(DIST_ZONE_ENTRY_BLIND_MAX_CM);
 
   bool sawLine = false;
   bool sawCenter = false;
@@ -29,6 +31,13 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
     int fl, fc, fr, rl, rc, rr;
     readLineSensors(fl, fc, fr, rl, rc, rr);
     bool onLine = reverse ? rearOnLine(rl, rc, rr) : frontOnLine(fl, fc, fr);
+
+    // 라인을 한 번도 못 본 채 상한 거리를 넘기면 더 처박지 말고 정지.
+    if (!sawLine && encoderTraveledSince(motionStart) >= blindMaxSpan) {
+      stopMotors();
+      playBeep(BUZZER_FAILSAFE_MS);
+      return;
+    }
 
     if (!pastLine) {
       if (onLine) {
@@ -223,12 +232,20 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
 
   DriveEncMark motionStart = captureDriveEnc();
   long extraSpan = toEncoderCounts(targetProfile.entryReverseExtra);
+  // 처박힘 방지: 맞은편 존으로 건너가며 첫 라인을 못 본 채 이 거리를 넘으면 정지+경고.
+  long crossMaxSpan = toEncoderCounts(DIST_ZONE_CROSS_MAX_CM);
 
   while (true) {
     int fl, fc, fr, rl, rc, rr;
     readLineSensors(fl, fc, fr, rl, rc, rr);
     if (rearOnLine(rl, rc, rr)) {
       break;
+    }
+    if (encoderTraveledSince(motionStart) >= crossMaxSpan) {
+      stopMotors();
+      playBeep(BUZZER_FAILSAFE_MS);
+      if (enableScan) endZoneScan();
+      return;
     }
     int speed = rampMarkSpeed(motionStart, SPEED_OPEN_ZONE_REV);
     speed = smoothRampSpeed(speed);
