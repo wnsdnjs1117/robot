@@ -103,7 +103,11 @@ void runFinishApproachFrom11() {
   }
 
   stopMotors();
-  rotateToHeading(HEADING_FINISH_PARK);
+  // 스타트박스에 닿은 뒤 10cm 더 후진
+  driveDistanceCm(DIST_FINISH_AFTER_TOUCH_CM, -SPEED_OPEN_TRACK_REV, true);
+  // 5도만큼 꺾기 (현재 접근 heading 기준 상대 회전)
+  rotateToHeading(HEADING_11_TO_FINISH + FINISH_TURN_DEG);
+  // 후진으로 12cm 이동
   driveDistanceCm(DIST_FINISH_PARK_REV_CM, -SPEED_OPEN_TRACK_REV, true);
   stopMotors();
 }
@@ -281,7 +285,7 @@ void driveToFinishArea() {
 
   finishFromZone6Exit = false;
 
-  playBeep(1500);
+  playBeep(BUZZER_FINISH_MS);   // 마무리 부저 3초
   prizm.setGreenLED(HIGH);
 }
 

@@ -230,9 +230,13 @@ constexpr float DIST_TRACK_12_TO_9_CM = 20.0f;
 // ============================================================
 
 constexpr float HEADING_11_TO_FINISH = 348.0f;
-constexpr float HEADING_FINISH_PARK = 0.0f;
 constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
-constexpr float DIST_FINISH_PARK_REV_CM = 17.0f;
+// 마무리(11->finish) 하드코딩 시퀀스 — 모두 config 로 조정 가능.
+// 11에서 후진 → 후방센서가 스타트박스에 닿음 → 아래 순서로 마무리.
+constexpr float DIST_FINISH_AFTER_TOUCH_CM = 10.0f;  // 닿은 뒤 추가 후진(cm)
+constexpr float FINISH_TURN_DEG = 5.0f;              // 그 뒤 꺾는 각도(deg, +시계 / -반시계)
+constexpr float DIST_FINISH_PARK_REV_CM = 12.0f;     // 꺾은 뒤 마지막 후진(cm)
+constexpr unsigned long BUZZER_FINISH_MS = 3000;     // 마무리 부저(ms)
 
 // ============================================================
 // [14] PID 라인 추종 · 직진 보정
