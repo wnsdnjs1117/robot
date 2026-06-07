@@ -18,7 +18,7 @@
 // ============================================================
 constexpr int MAX_RESCAN_TRIES = 99;                     // QR 스캔 실패 시 최대 재시도 횟수
 constexpr unsigned long SCAN_DWELL_MS = 2000;            // QR 스캔 대기 시간 (ms)
-constexpr unsigned long SCAN_POLL_MS = 50;               // QR 스캔 폴링 주기 (ms)
+constexpr unsigned long SCAN_POLL_MS = 20;               // QR 스캔 폴링 주기 (ms)
 constexpr unsigned long BUZZER_QR_FOUND_MS = 500;       // QR 인식 성공 시 부저 울림 시간 (ms)
 constexpr unsigned int BUZZER_TONE_HZ = 1000;            // 부저 톤 주파수 (Hz)
 constexpr unsigned long BUZZER_TONE_HALF_US = 500000UL / BUZZER_TONE_HZ; // 부저 반주기 (us)
@@ -105,7 +105,7 @@ constexpr int RAMP_MIN_SPEED = 30;         // 가감속 최소(출발/도착) �
 constexpr int RAMP_REF_SPEED = 40;         // 가감속 비율 계산을 위한 기준 속도
 constexpr float RAMP_ACCEL_CM = 10.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
 constexpr float RAMP_DECEL_CM = 17.0f;     // 정지를 위한 감속 구간 거리
-constexpr int RAMP_MAX_SPEED_STEP = 10;    // 모터 1틱당 허용되는 최대 속도 변화량
+constexpr int RAMP_MAX_SPEED_STEP = 5;    // 모터 1틱당 허용되는 최대 속도 변화량
 
 inline float rampCruiseFactor(int speed) {
   int s = speed < 0 ? -speed : speed;
@@ -126,9 +126,9 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // ============================================================
 constexpr int SPEED_LINE_FOLLOW_FWD = 40;  // 전진 라인 트레이싱 기본 속도
 constexpr int SPEED_LINE_FOLLOW_REV = 35;  // 후진 라인 트레이싱 기본 속도
-constexpr int SPEED_OPEN_ZONE_FWD = 60;    // 박스존 내 전진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_ZONE_REV = 55;    // 박스존 내 후진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_FWD = 80;   // 일반 트랙 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_ZONE_FWD = 55;    // 박스존 내 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_ZONE_REV = 50;    // 박스존 내 후진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_TRACK_FWD = 90;   // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;   // 일반 트랙 후진 개방(블라인드) 속도
 constexpr int START_LINE_SEARCH_SPEED = 30;// 스타트 직후 최초 라인 탐색 진입 속도
 
