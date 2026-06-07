@@ -340,9 +340,32 @@ void rotateByDegrees(float degrees, bool clockwise) {
    readRearLineSensors(rl, rc, rr);
  }
  
+// 운반 박스 미리 내리기 예약: 장애물 통과 지점부터 일정 거리(주행) 후 14cm로 부분 하강.
+// 거리 측정은 주행 엔코더(g_encL/g_encR) 기준이라 driveLoopTick 이 도는 모든 주행에서 진행된다.
+static bool g_carryPreLowerPending = false;
+static DriveEncMark g_carryPreLowerMark = {0, 0};
+static long g_carryPreLowerCounts = 0;
+
+void scheduleCarryPreLower(float afterCm) {
+  g_carryPreLowerPending = true;
+  g_carryPreLowerMark = captureDriveEnc();
+  g_carryPreLowerCounts = toEncoderCounts(afterCm);
+}
+
+void cancelCarryPreLower() { g_carryPreLowerPending = false; }
+
+static void carryPreLowerTick() {
+  if (!g_carryPreLowerPending) return;
+  if (encoderTraveledSince(g_carryPreLowerMark) >= g_carryPreLowerCounts) {
+    g_carryPreLowerPending = false;
+    liftDownToStart(LIFT_CARRY_LOW_CM);
+  }
+}
+
 void driveLoopTick() {
   liftUpTick();
   liftDownTick();
+  carryPreLowerTick();
   updateBeep();
 }
  

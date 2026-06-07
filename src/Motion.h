@@ -22,7 +22,11 @@ inline bool frontCrossFull(int left, int center, int right) {
   return left == 1 && center == 1 && right == 1;
 }
 
-void driveLoopTick(); 
+void driveLoopTick();
+
+// 운반 박스 미리 내리기: 호출 시점부터 afterCm 주행 후 14cm로 부분 하강 예약(driveLoopTick 진행).
+void scheduleCarryPreLower(float afterCm);
+void cancelCarryPreLower();
 
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr);
 void traceLineForward(int fl, int fc, int fr, int rl, int rc, int rr, int speed);

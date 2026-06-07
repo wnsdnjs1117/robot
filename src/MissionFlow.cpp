@@ -27,8 +27,14 @@ void deliverBoxBetweenZones(int fromZone, int toZone, bool alreadyInFromZone = f
   liftUpStart(lowLift ? LIFT_CARRY_LOW_CM : LIFT_CARRY_HIGH_CM);
   liftUpWaitClear();
 
+  // HIGH(24)로 든 경우, 장애물 노드(8/9)를 지난 뒤 이동 중 미리 14cm로 내리도록 arm.
+  // (트리거: 7번으로 가는 8->7·9->7, 그리고 9->10/11 의 20cm 지점 — MapRouter)
+  g_carryPreLowerArmed = !lowLift;
+
   moveBetweenZones(fromZone, toZone, zoneMoveOpts(false, true));
 
+  g_carryPreLowerArmed = false;  // 트리거 못한 경로(예: 9->8 도착 등)면 여기서 해제
+  cancelCarryPreLower();         // 미실행 예약이 남아있으면 취소(곧 zone에서 바닥까지 내림)
   liftDownUntilClear();
   leaveZone(toZone);
   liftDownWait();

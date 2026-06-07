@@ -10,6 +10,7 @@ extern float headingDeg;          // 현재 방위각 (0=북, 90=동, 180=남, 2
 extern int   intersectionNode;    // 현재 교차로 노드 (7~11)
 extern bool  enteredZoneForward;  // 마지막 구역 진입이 전진이었는지
 extern bool  finishFromZone6Exit; // 6번 탈출 직후 11번 — 피니시 전용 경로
+extern bool  g_carryPreLowerArmed; // 24cm 운반 박스를 장애물 통과 후 14cm로 미리 내릴지
 
 void rotateToHeading(float targetDeg); // 변경됨: float
 void driveTrackLegBlind(float targetHeading, float alignHeading, bool stopAtEnd,
