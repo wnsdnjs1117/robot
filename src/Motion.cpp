@@ -128,7 +128,6 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
    unsigned long start = millis();
    while (millis() - start < ms) {
      driveLoopTick();
-     checkDebugKey();
    }
  }
  
@@ -169,8 +168,6 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  }
  
  void setWheelSpeeds(int left, int right) {
-   checkDebugKey();
- 
    if (left == 0 && right == 0) { prizm.setMotorSpeeds(0, 0); return; }
  
    static unsigned long lastTime = 0;
@@ -230,7 +227,6 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  }
  
 static void spinMotorSpeeds(bool clockwise, int speed) {
-  checkDebugKey();
   if (speed <= 0) {
     prizm.setMotorSpeeds(0, 0);
     return;

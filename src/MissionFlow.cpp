@@ -80,9 +80,6 @@ void deliverReadyBoxesWithinZones1to4(int inZone) {
 }  // namespace
 
 void runSearchPhase() {
-  DPRINTLNF("\n========================================");
-  DPRINTLNF(">> [STAGE 1] 1~6구역 전체 QR 탐색 기동");
-
   liftDownStart();
   driveOntoMainTrack();
   liftDownWait();
@@ -91,10 +88,6 @@ void runSearchPhase() {
   headingDeg = 270.0f;
 
   int currentZone = searchQrInZones1to4();
-
-  DPRINTF("\n>> [STAGE 1-A] 탐색 완료. 현 위치: ");
-  DPRINT(currentZone);
-  DPRINTLNF("구역. 5,6구역 스캔으로 이동합니다.");
 
   if (countScannedBoxesInZones1to4() >= 2) {
     deliverReadyBoxesWithinZones1to4(currentZone);
@@ -106,15 +99,9 @@ void runSearchPhase() {
 
   scanZoneWithRescan(5, true);
   scanZoneWithRescan(6, false);
-
-  DPRINTLNF(">> [STAGE 1-B] 모든 구역(1~6) 스캔 완수!");
-  DPRINTLNF("========================================\n");
 }
 
 void runDeliveryPhase() {
-  DPRINTLNF("\n========================================");
-  DPRINTLNF(">> [STAGE 2] 직접 라우팅 배송 가동");
-
   bool zoneOccupied[7] = {false};
   for (int i = 1; i <= 6; i++) zoneOccupied[i] = boxes[i].present;
 
@@ -130,14 +117,10 @@ void runDeliveryPhase() {
         int dest = boxes[6].destination;
 
         if (dest == 6) {
-          DPRINTLNF("\n[STAY] 6구역: 이미 정답 위치.");
           delivered[6] = true;
           deliveredCount++;
           movedThisTurn = true;
         } else if (!zoneOccupied[dest]) {
-          DPRINTF("\n[ROUTE] 6 -> ");
-          DPRINTLN(dest);
-
           deliverBoxBetweenZones(6, dest, true);
           insideZone6 = false;
 
@@ -152,7 +135,6 @@ void runDeliveryPhase() {
       }
 
       if (!movedThisTurn) {
-        DPRINTLNF("\n[EXIT] 다른 구역 작업을 위해 6구역에서 먼저 탈출합니다.");
         leaveZone(6);
         insideZone6 = false;
       }
@@ -164,9 +146,6 @@ void runDeliveryPhase() {
       int dest = boxes[zone].destination;
 
       if (dest == zone) {
-        DPRINTF("\n[STAY] ");
-        DPRINT(zone);
-        DPRINTLNF("구역: 이미 정답 위치.");
         delivered[zone] = true;
         deliveredCount++;
         movedThisTurn = true;
@@ -174,11 +153,6 @@ void runDeliveryPhase() {
       }
 
       if (!zoneOccupied[dest]) {
-        DPRINTF("\n[ROUTE] ");
-        DPRINT(zone);
-        DPRINTF(" -> ");
-        DPRINTLN(dest);
-
         deliverBoxBetweenZones(zone, dest);
 
         boxes[zone].present = false;
@@ -200,11 +174,6 @@ void runDeliveryPhase() {
       }
       if (stuckZone == 0 || emptyZone == 0) break;
 
-      DPRINTF("\n[DEADLOCK] ");
-      DPRINT(stuckZone);
-      DPRINTF(" -> 빈 구역 ");
-      DPRINTLN(emptyZone);
-
       deliverBoxBetweenZones(stuckZone, emptyZone);
 
       boxes[emptyZone].present = true;
@@ -217,7 +186,4 @@ void runDeliveryPhase() {
       zoneOccupied[emptyZone] = true;
     }
   }
-
-  DPRINTLNF("\n>> [STAGE 2] 배송 완료!");
-  DPRINTLNF("========================================\n");
 }

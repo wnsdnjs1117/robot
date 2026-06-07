@@ -61,16 +61,7 @@ void setup() {
   }
   HuskyQR::begin();
 #endif
-
-#if ROBOT_DEBUG
-  // PrizmBegin에서 이미 1회 Start — 디버그 시 2번째 누름으로 경기 시작
-  Serial.println(F("시스템 준비 완료. 초록색 Start 버튼을 누르면 자율 주행을 시작합니다."));
-  prizm.setGreenLED(HIGH);
-  while (prizm.readStartButton() == 0) delay(10);
-  prizm.setGreenLED(LOW);
-  delayWithTicks(200);
-#endif
-  // ROBOT_DEBUG 0: PrizmBegin의 Start 직후 loop()에서 경기 시작
+  // PrizmBegin의 Start 직후 loop()에서 경기 시작
 }
 
 void loop() {

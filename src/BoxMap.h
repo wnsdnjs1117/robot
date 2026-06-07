@@ -17,7 +17,6 @@ extern BoxInfo boxes[7];
 
 void setupRandomLayout();
 bool waitForZoneScan(int zone);
-void printSearchResult();
 
 extern volatile int activeScanZone; // 1~6: 스캔 중인 구역 / 0: 비활성
 void beginZoneScan(int zone);
