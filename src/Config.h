@@ -11,7 +11,7 @@
 // [1] 펌웨어 모드
 // ============================================================
 
-#define RUN_TEST_MODE 1
+#define RUN_TEST_MODE 0
 #define QR_SIMULATION 0
 
 // ============================================================
@@ -110,9 +110,9 @@ inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
 // [7] 직진 가·감속 램프
 // ============================================================
 
-constexpr int RAMP_MIN_SPEED = 25;
+constexpr int RAMP_MIN_SPEED = 30;
 constexpr int RAMP_REF_SPEED = 40;
-constexpr float RAMP_ACCEL_CM = 10.0f;
+constexpr float RAMP_ACCEL_CM = 8.0f;
 constexpr float RAMP_DECEL_CM = 17.0f;
 constexpr int RAMP_MAX_SPEED_STEP = 15;
 
@@ -171,10 +171,10 @@ inline float rampSpinDecelDeg(int spinSpeed) {
 // ============================================================
 
 constexpr int SPEED_TRACK_7_9_LINE = 70;
-constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;
+constexpr float LINE_KP_TRACK_7_9_SOFT = 1.8f;
 constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;
 
-constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
+constexpr float DIST_TRACK_NODE_SPAN_CM = 68.0f;
 // 9->8 은 8->9(70cm)와 비대칭. 실측상 9->8 구간은 약 35cm 이므로
 // 미리 감속할 수 있도록 별도 거리를 둔다.
 constexpr float DIST_9_TO_8_CM = 35.0f;
@@ -200,7 +200,7 @@ inline long trackNodeApproachStartCounts(int cruiseSpeed) {
 
 constexpr float DIST_START_TO_13_CM = 90.0f;
 constexpr float HEADING_13_TO_9 = 305.0f;
-constexpr float DIST_TRACK_13_TO_9_CM = 70.0f;
+constexpr float DIST_TRACK_13_TO_9_CM = 60.0f;
 
 // ============================================================
 // [12] 맵 경로 — 9 · 10 · 11 · 12 (남쪽 루프)
@@ -237,9 +237,9 @@ constexpr float DIST_FINISH_PARK_REV_CM = 17.0f;
 // [14] PID 라인 추종 · 직진 보정
 // ============================================================
 
-constexpr float LINE_KP_FWD_SOFT = 1.4f;
+constexpr float LINE_KP_FWD_SOFT = 1.2f;
 constexpr float LINE_KP_FWD_HARD = 1.8f;
-constexpr float LINE_KP_REV_SOFT = 1.2f;
+constexpr float LINE_KP_REV_SOFT = 1.0f;
 constexpr float LINE_KP_REV_HARD = 1.3f;
 constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.5f;
 
