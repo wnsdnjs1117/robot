@@ -17,7 +17,7 @@
 // [2] QR 스캔 · 재탐색
 // ============================================================
 constexpr int MAX_RESCAN_TRIES = 99;                     // QR 스캔 실패 시 최대 재시도 횟수
-constexpr unsigned long SCAN_DWELL_MS = 2000;            // QR 스캔 대기 시간 (ms)
+constexpr unsigned long SCAN_DWELL_MS = 1000;            // QR 스캔 대기 시간 (ms)
 constexpr unsigned long SCAN_POLL_MS = 10;               // QR 스캔 폴링 주기 (ms)
 constexpr unsigned long BUZZER_QR_FOUND_MS = 500;       // QR 인식 성공 시 부저 울림 시간 (ms)
 constexpr unsigned int BUZZER_TONE_HZ = 1000;            // 부저 톤 주파수 (Hz)
@@ -128,9 +128,9 @@ constexpr int SPEED_LINE_FOLLOW_FWD = 40;  // 전진 라인 트레이싱 기본 
 constexpr int SPEED_LINE_FOLLOW_REV = 35;  // 후진 라인 트레이싱 기본 속도
 constexpr int SPEED_OPEN_ZONE_FWD = 55;    // 박스존 내 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_ZONE_REV = 50;    // 박스존 내 후진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_FWD = 80;   // 일반 트랙 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_TRACK_FWD = 75;   // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;   // 일반 트랙 후진 개방(블라인드) 속도
-constexpr int START_LINE_SEARCH_SPEED = 20;// 스타트 직후 최초 라인 탐색 진입 속도
+constexpr int START_LINE_SEARCH_SPEED = 10;// 스타트 직후 최초 라인 탐색 진입 속도
 
 // ============================================================
 // [9] 제자리 회전 (Spin Turn)
@@ -151,7 +151,7 @@ constexpr int SPEED_TRACK_7_9_LINE = 65;             // 7, 8, 9번 메인 트랙
 constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;       // 메인 트랙 라인 부드러운 조향 게인
 constexpr float LINE_KP_TRACK_7_9_HARD = 2.7f;       // 메인 트랙 라인 강한 조향 게인
 constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;     // 7-8 및 8-9 노드 간 기본 간격
-constexpr float DIST_TRACK_8_TO_9_CM = 60.0f;        // 8->9 진입 시 감속을 시작할 거리
+constexpr float DIST_TRACK_8_TO_9_CM = 55.0f;        // 8->9 진입 시 감속을 시작할 거리
 constexpr float DIST_9_TO_8_CM = 45.0f;              // 9->8 진입 시 감속을 시작할 비대칭 거리
 constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f; // 7에서 9까지의 연속 거리
 constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;// 8번 통과 시 십자선 감지를 무시할 반경
@@ -174,7 +174,7 @@ inline long trackNodeApproachStartCounts(int cruiseSpeed) {
 // ============================================================
 constexpr float DIST_START_TO_13_CM = 70.0f;         // [실측 반영] 스타트 박스에서 13번 노드까지 거리
 constexpr float HEADING_13_TO_9 = 300.0f;            // 13에서 9로 향하는 대각선 각도
-constexpr float DIST_TRACK_13_TO_9_CM = 75.0f;       // 13에서 9까지의 대각선 주행 거리
+constexpr float DIST_TRACK_13_TO_9_CM = 80.0f;       // 13에서 9까지의 대각선 주행 거리
 
 // ============================================================
 // [12] 맵 경로 — 9 · 10 · 11 · 12 (남쪽 루프)
@@ -234,7 +234,7 @@ constexpr int MOTOR_OFFSET_R = 0;                    // 오른쪽 모터 하드�
 constexpr float LIFT_COUNTS_PER_CM = 200.0f;         // 리프트 1cm 당 엔코더 카운트
 constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;          // 리프트 최대 상승 가능 높이
 constexpr float LIFT_CARRY_HIGH_CM = LIFT_MAX_HEIGHT_CM; // 장애물 존 통과용 높은 높이
-constexpr float LIFT_CARRY_LOW_CM = 15.0f;           // 평시 박스 운반 높이
+constexpr float LIFT_CARRY_LOW_CM = 24.0f;           // 평시 박스 운반 높이
 
 constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;           // 바닥 근접으로 판단하는 높이
 constexpr float LIFT_UP_CLEAR_CM = 4.0f;             // [실측 반영] 박스 들기 완료 판단 높이
