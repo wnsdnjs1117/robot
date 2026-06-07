@@ -12,18 +12,19 @@
 
 namespace {
 
-bool deliveryCrossesNode9(int fromZone, int toZone) {
-  bool fromTop = (fromZone >= 1 && fromZone <= 4);
-  bool toTop = (toZone >= 1 && toZone <= 4);
-  return fromTop != toTop;
+// 1<->3, 5<->6 배송만 노드 8·9(장애물)를 지나지 않으므로 낮게(LOW) 든다.
+// 그 외 모든 배송은 노드 8 또는 9를 지나므로 높이(HIGH) 든다.
+bool deliveryUsesLowLift(int fromZone, int toZone) {
+  return (fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1)
+      || (fromZone == 5 && toZone == 6) || (fromZone == 6 && toZone == 5);
 }
 
 void deliverBoxBetweenZones(int fromZone, int toZone, bool alreadyInFromZone = false) {
   if (!alreadyInFromZone) navigateToZone(fromZone);
-  bool cross9 = deliveryCrossesNode9(fromZone, toZone);
 
-  // 박스를 들고 장애물이 있는 9번을 지날 때만 24cm, 그 외에는 12cm까지만 든다.
-  liftUpStart(cross9 ? LIFT_CARRY_HIGH_CM : LIFT_CARRY_LOW_CM);
+  // 1<->3, 5<->6 만 장애물(노드 8·9) 없이 이동 → 낮게. 그 외엔 노드 8/9 통과 → 높이.
+  bool lowLift = deliveryUsesLowLift(fromZone, toZone);
+  liftUpStart(lowLift ? LIFT_CARRY_LOW_CM : LIFT_CARRY_HIGH_CM);
   liftUpWaitClear();
 
   moveBetweenZones(fromZone, toZone, zoneMoveOpts(false, true));
