@@ -234,6 +234,88 @@ static void stepMainTrackToCross(float heading, bool stopAtEnd,
   }
 }
 
+// 메인 가로 트랙을 빠른 라인트레이싱으로 달리며, 중간 십자선 passCount 개를
+// "감속 없이 그대로 통과"한 뒤 마지막 목표 십자선에서 정지/정렬한다.
+// (예: 9->7 은 노드 8 을 통과(passCount=1)하고 노드 7 에서 정지 — 7->9 처럼 연속 주행)
+// 마지막 구간 감속은 직전 통과 십자선 기준 finalApproachDistCm 로 계산하므로
+// 시작점(노드 9)이 매번 달라도 안정적이다.
+static void stepMainTrackMultiCross(float heading, bool stopAtEnd,
+    int passCount, float finalApproachDistCm, int cruiseSpeed) {
+  rotateToHeading(heading);
+  resetLineTracePid();
+  clearIntersectionCross();
+
+  long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
+  long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
+  long finalApproachStart = trackLegApproachStartCounts(finalApproachDistCm, cruiseSpeed);
+  long decelSpan = rampDecelSpanCounts(cruiseSpeed);
+
+  DriveEncMark segStart = captureDriveEnc();   // 현재 구간 시작(시작점 또는 직전 통과 십자선)
+  int crossesLeft = passCount;                 // 더 통과해야 할 중간 십자선 수
+  bool approachDecel = false;
+  DriveEncMark approachMark = {0, 0};
+  bool crossFound = false;                      // 최종 십자선 도달
+  DriveEncMark crossMark = {0, 0};
+  int lastCurSpeed = RAMP_MIN_SPEED;
+
+  intersectionArmed = true;
+  intersectionHitCount = 0;
+
+  while (true) {
+    int fl, fc, fr, rl, rc, rr;
+    readFrontLineSensors(fl, fc, fr);
+    readRearLineSensors(rl, rc, rr);
+
+    if (!crossFound) {
+      // 구간 시작 직후 ignoreSpan 동안은 십자선 감지를 끔(직전 십자선/노드 9 stub 회피).
+      if (encoderTraveledSince(segStart) >= ignoreSpan) {
+        bool isCross = frontCrossFull(fl, fc, fr);
+        if (isCross) intersectionHitCount++;
+        else { intersectionHitCount = 0; intersectionArmed = true; }
+        if (intersectionArmed && intersectionHitCount >= CROSS_CONFIRM) {
+          if (crossesLeft > 0) {
+            // 중간 십자선(예: 노드 8): 감속 없이 통과, 다음 구간 시작
+            crossesLeft--;
+            segStart = captureDriveEnc();
+            approachDecel = false;
+            intersectionArmed = false;
+            intersectionHitCount = 0;
+          } else {
+            if (!stopAtEnd) break;
+            crossFound = true;
+            crossMark = captureDriveEnc();
+            if (alignSpan <= 0) break;
+          }
+        }
+      }
+
+      if (!crossFound) {
+        // 마지막 구간이고 감속 시작점을 지났으면 미리 감속, 그 외엔 순항.
+        int target;
+        if (crossesLeft > 0 || encoderTraveledSince(segStart) < finalApproachStart) {
+          target = cruiseSpeed;
+        } else {
+          if (!approachDecel) { approachDecel = true; approachMark = captureDriveEnc(); }
+          target = decelMarkSpeed(approachMark, decelSpan, cruiseSpeed);
+        }
+        int speed = smoothRampSpeed(target);
+        lastCurSpeed = speed;
+        traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+            LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
+        driveLoopTick();
+        continue;
+      }
+    }
+
+    int speed = crossAlignSpeed(crossMark, alignSpan, lastCurSpeed);
+    speed = smoothRampSpeed(speed);
+    if (finishAlignSpan(crossMark, alignSpan, speed)) break;
+    traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+        LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
+    driveLoopTick();
+  }
+}
+
 static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   rotateToHeading(90.0f);
   resetLineTracePid();
@@ -301,6 +383,11 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
   else if (fromNode == 7 && toNode == 9) {
     stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, stopAtEnd);
   }
+  else if (fromNode == 9 && toNode == 7) {
+    // 7->9 처럼 연속 주행: 노드 8 을 감속·정지 없이 통과하고 노드 7 에서 정지.
+    stepMainTrackMultiCross(270.0f, stopAtEnd, 1, DIST_TRACK_NODE_SPAN_CM,
+        SPEED_TRACK_7_9_LINE);
+  }
   else if (fromNode == 8 && toNode == 7) {
     stepMainTrackToCross(270.0f, stopAtEnd);
   }
@@ -349,6 +436,7 @@ static int nextIntersectionNode(int cur, int target) {
   if (cur == 10 && target == 11) return 11;
   if (cur == 11 && target == 10) return 10;
   if (cur == 9 && target == 8) return 8;
+  if (cur == 9 && target == 7) return 7;   // 9->7 은 한 다리로 연속(노드 8 통과)
   if (cur == 8 && target == 7) return 7;
   return (cur < target) ? cur + 1 : cur - 1;
 }
