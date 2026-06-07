@@ -696,15 +696,10 @@ void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts) {
     navigateToZone(fromZone);
   }
 
-  if (!opts.scanQr && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1))) {
-    rotateToHeading(0.0f);
-    enteredZoneForward = (fromZone == 1);
-    g_seamlessTo = toZone;
-    leaveZone(fromZone);
-    g_seamlessTo = 0;
-    return;
-  }
-
+  // 1↔3 배송은 존 안에서 회전한 뒤 곧장 건너가는 무정지(seamless) 지름길 대신,
+  // 아래 일반 경로로 처리한다. 일반 경로는 leaveZone 으로 7번까지 '먼저 빠져나온 뒤'
+  // 교차로에서 회전하므로, 박스를 들고 3번 존 안에서 제자리 회전(처박힘/충돌)하던
+  // 문제가 사라진다.
   if (opts.scanQr
       && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1)
        || (fromZone == 2 && toZone == 4) || (fromZone == 4 && toZone == 2))) {
