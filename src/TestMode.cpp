@@ -143,21 +143,12 @@ static void _mtBrake() {
 
 static void _mtMove(float cm, int speed) {
   int spd = constrain(abs(speed), 1, 100);
-  int dir = (cm >= 0) ? 1 : -1;
-  float absCm = fabs(cm);
-  float compCm = (absCm >= 2.0) ? (absCm - 1.0) : absCm;
-  long targetCounts = toEncoderCounts(compCm);
-  if (targetCounts <= 0) return;
 
   prizm.resetEncoders(); _mtWait(40);
 
-  // 칼각: 일정 속도로 이동 후 즉시 제동
-  while (true) {
-    long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
-    if (targetCounts - pos <= 0) break;
-    setWheelSpeeds(spd * dir, spd * dir);
-  }
-  _mtBrake();
+  // 실주행과 동일한 부드러운 가감속(거리 기반 램프 + 제동 보정)으로 이동.
+  // driveDistanceCm 이 방향(cm 부호)·가속·감속·정지를 모두 처리한다.
+  driveDistanceCm(cm, spd, true);
 }
 
 static void _mtTurn(float deg, int speed) {
@@ -172,13 +163,23 @@ static void _mtTurn(float deg, int speed) {
   if (targetCounts <= 0) return;
 
   prizm.resetEncoders(); _mtWait(40);
+  resetRampSpeedLimiter(RAMP_MIN_SPEED);
 
-  // 칼각: 일정 속도로 회전 후 즉시 제동
+  // 실주행과 동일한 부드러운 가감속: 출발 가속 → 순항 → 도착 감속 후 제동.
+  long accelSpan = rampAccelSpanCounts(spd);
+  long decelSpan = rampDecelSpanCounts(spd);
+
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1)) + labs(prizm.readEncoderCount(2))) / 2;
-    if (targetCounts - pos <= 0) break;
-    if (right) setWheelSpeeds(spd, -spd);
-    else       setWheelSpeeds(-spd, spd);
+    long remaining = targetCounts - pos;
+    if (remaining <= 0) break;
+
+    int up   = calcRampUpSpeed(pos, accelSpan, spd);
+    int down = calcRampDownSpeed(remaining, decelSpan, spd);
+    int curSpeed = smoothRampSpeed(up < down ? up : down);
+
+    if (right) setWheelSpeeds(curSpeed, -curSpeed);
+    else       setWheelSpeeds(-curSpeed, curSpeed);
   }
   _mtBrake();
 }
