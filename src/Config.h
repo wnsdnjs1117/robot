@@ -16,10 +16,10 @@
 // ============================================================
 // [2] QR 스캔 · 재탐색
 // ============================================================
-constexpr int MAX_RESCAN_TRIES = 10;                     // QR 스캔 실패 시 최대 재시도 횟수
-constexpr unsigned long SCAN_DWELL_MS = 1500;            // QR 스캔 대기 시간 (ms)
-constexpr unsigned long SCAN_POLL_MS = 20;               // QR 스캔 폴링 주기 (ms)
-constexpr unsigned long BUZZER_QR_FOUND_MS = 1000;       // QR 인식 성공 시 부저 울림 시간 (ms)
+constexpr int MAX_RESCAN_TRIES = 99;                     // QR 스캔 실패 시 최대 재시도 횟수
+constexpr unsigned long SCAN_DWELL_MS = 2000;            // QR 스캔 대기 시간 (ms)
+constexpr unsigned long SCAN_POLL_MS = 50;               // QR 스캔 폴링 주기 (ms)
+constexpr unsigned long BUZZER_QR_FOUND_MS = 500;       // QR 인식 성공 시 부저 울림 시간 (ms)
 constexpr unsigned int BUZZER_TONE_HZ = 1000;            // 부저 톤 주파수 (Hz)
 constexpr unsigned long BUZZER_TONE_HALF_US = 500000UL / BUZZER_TONE_HZ; // 부저 반주기 (us)
 
@@ -75,11 +75,11 @@ struct ZoneMotionProfile {
 inline ZoneMotionProfile getZoneProfile(int zone) {
   ZoneMotionProfile p;
   if (zone == 1) {
-    p.exitForwardExtra = 35.0f;
-    p.exitReverseExtra = 32.5f;     // [실측 반영]
+    p.exitForwardExtra = 36.0f;
+    p.exitReverseExtra = 32.0f;     // [실측 반영]
   } else if (zone == 3) {
-    p.exitForwardExtra = 37.0f;
-    p.exitReverseExtra = 34.5f;     // [실측 반영]
+    p.exitForwardExtra = 38.0f;
+    p.exitReverseExtra = 34.0f;     // [실측 반영]
   } else if (zone == 5 || zone == 6) {
     p.exitReverseExtra = 27.5f;
   }
@@ -103,9 +103,9 @@ inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
 // ============================================================
 constexpr int RAMP_MIN_SPEED = 30;         // 가감속 최소(출발/도착) 속도
 constexpr int RAMP_REF_SPEED = 40;         // 가감속 비율 계산을 위한 기준 속도
-constexpr float RAMP_ACCEL_CM = 8.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
+constexpr float RAMP_ACCEL_CM = 10.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
 constexpr float RAMP_DECEL_CM = 17.0f;     // 정지를 위한 감속 구간 거리
-constexpr int RAMP_MAX_SPEED_STEP = 15;    // 모터 1틱당 허용되는 최대 속도 변화량
+constexpr int RAMP_MAX_SPEED_STEP = 10;    // 모터 1틱당 허용되는 최대 속도 변화량
 
 inline float rampCruiseFactor(int speed) {
   int s = speed < 0 ? -speed : speed;
@@ -135,25 +135,14 @@ constexpr int START_LINE_SEARCH_SPEED = 30;// 스타트 직후 최초 라인 탐
 // ============================================================
 // [9] 제자리 회전 (Spin Turn)
 // ============================================================
-constexpr int SPIN_SPEED = 40;                       // [실측 반영] 제자리 회전 최고 속도
+constexpr int SPIN_SPEED = 30;                       // [실측 반영] 제자리 회전 속도 (고정)
 constexpr int SPIN_90_COUNTS = 1170;                 // 90도 회전에 해당하는 기준 엔코더 카운트
-constexpr float RAMP_SPIN_ACCEL_DEG = 20.0f;         // 제자리 회전 가속 구간 (도)
-constexpr float RAMP_SPIN_DECEL_DEG = 40.0f;         // 제자리 회전 감속 구간 (도)
-constexpr float SPIN_END_DECEL_DEG = 10.0f;          // 제자리 회전 막바지 추가 감속 구간 (도)
 constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;   // 회전 관성으로 인한 오버슛 사전 보정 비율
 
-constexpr float SPIN_OPPOSITE_CHECK_FRAC = 0.30f;    // 회전 중 반대쪽 센서 감시 시작 지점 (50%)
+constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.6f;   // 라인 감지 후 남은 회전 타겟 감소 비율
+constexpr float SPIN_OPPOSITE_CHECK_FRAC = 0.50f;    // 회전 중 반대쪽 센서 감시 시작 지점 (50%)
 constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.80f;     // [실측 반영] 회전 중 라인 정밀 맞춤을 시작할 최소 회전량
-constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.5f;   // 라인 감지 후 남은 회전 타겟 감소 비율
 constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;       // 라인을 놓친(오버스핀) 경우 되돌아오는 복구 각도 (도)
-
-inline float rampSpinAccelDeg(int spinSpeed) {
-  return RAMP_SPIN_ACCEL_DEG * rampCruiseFactor(spinSpeed);
-}
-
-inline float rampSpinDecelDeg(int spinSpeed) {
-  return RAMP_SPIN_DECEL_DEG * rampCruiseFactor(spinSpeed);
-}
 
 // ============================================================
 // [10] 메인 트랙 가로축 노드 7 — 8 — 9

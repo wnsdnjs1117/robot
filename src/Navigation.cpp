@@ -105,9 +105,9 @@ void runFinishApproachFrom11() {
   stopMotors();
   // 스타트박스에 닿은 뒤 10cm 더 후진
   driveDistanceCm(DIST_FINISH_AFTER_TOUCH_CM, -SPEED_OPEN_TRACK_REV, true);
-  // 5도만큼 꺾기 (현재 접근 heading 기준 상대 회전)
+  // 지정 각도만큼 꺾기 (현재 접근 heading 기준 상대 회전)
   rotateToHeading(HEADING_11_TO_FINISH + FINISH_TURN_DEG);
-  // 후진으로 12cm 이동
+  // 최종 후진 주차 이동
   driveDistanceCm(DIST_FINISH_PARK_REV_CM, -SPEED_OPEN_TRACK_REV, true);
   stopMotors();
 }
@@ -279,7 +279,7 @@ void driveOntoMainTrack() {
   // 정렬 직후 브레이크와 동시에 270도 칼각 회전
   rotateToHeading(270.0f);
   
-  // 저속 강제 직진(traceUntilIntersection) 대신, MapRouter의 고속 주행 로직에 위임
+  // 저속 강제 직진 대신, MapRouter의 고속 주행 로직에 위임
   intersectionNode = 9;
   driveToIntersectionNode(8);
 }
@@ -291,7 +291,7 @@ void driveToFinishArea() {
 
   finishFromZone6Exit = false;
 
-  playBeep(BUZZER_FINISH_MS);   // 마무리 부저 3초
+  playBeep(BUZZER_FINISH_MS);   // 마무리 부저
   prizm.setGreenLED(HIGH);
 }
 
@@ -323,15 +323,40 @@ int searchQrInZones1to4() {
 
 int rescanMissingQrZones1to4() {
   int tries = 0;
+  // 1 -> 3 -> 2 -> 4 순서대로 재탐색을 진행합니다.
+  const int scanOrder[4] = {1, 3, 2, 4};
+
   while (countScannedBoxesInZones1to4() < 2 && tries < MAX_RESCAN_TRIES) {
-    for (int z = 1; z <= 4 && countScannedBoxesInZones1to4() < 2; z++) {
-      if (boxes[z].found) continue;
-      beginZoneScan(z);
-      navigateToZone(z);
-      waitForZoneScan(z);
-      endZoneScan();
-      if (countScannedBoxesInZones1to4() >= 2) return z;
-      leaveZone(z);
+    int lastVisitedZone = 0; // 0이면 현재 로봇이 트랙(교차로)에 있다는 뜻
+
+    for (int i = 0; i < 4 && countScannedBoxesInZones1to4() < 2; i++) {
+      int targetZ = scanOrder[i];
+      if (boxes[targetZ].found) continue; // 이미 찾은 박스존은 패스
+
+      if (lastVisitedZone == 0) {
+        // 루프 첫 시작 혹은 이전 방문 구역이 없는 경우: 정상적으로 트랙에서 진입
+        beginZoneScan(targetZ);
+        navigateToZone(targetZ);
+        waitForZoneScan(targetZ);
+      } else {
+        // 직전에 탐색을 마치고 현재 특정 Zone에 들어가 있는 경우: 
+        // moveBetweenZones를 활용하여(alreadyInFromZone=true) 자연스럽게 다음 Zone으로 이동합니다.
+        // 이때 1->3 혹은 2->4처럼 맞은편인 경우, 교차로 탈출 없이 곧바로 다이렉트 후진 진입이 실행됩니다.
+        moveBetweenZones(lastVisitedZone, targetZ, zoneMoveOpts(true, true));
+        waitForZoneScan(targetZ);
+      }
+      
+      lastVisitedZone = targetZ;
+
+      // 2개를 모두 찾았다면 스캔을 끝내고 탐색 완료
+      if (countScannedBoxesInZones1to4() >= 2) {
+        return finishZoneSearch(targetZ);
+      }
+    }
+    
+    // 네 군데를 다 돌았는데도 실패했다면, 다음 try를 위해 현재 머무는 Zone에서 빠져나옵니다.
+    if (lastVisitedZone != 0) {
+      leaveZone(lastVisitedZone);
     }
     tries++;
   }

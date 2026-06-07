@@ -218,7 +218,7 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  void stopMotors() {
    prizm.setMotorPower(1, 125);
    prizm.setMotorPower(2, 125);
-   delayWithTicks(20);
+   delayWithTicks(10);
    prizm.setMotorSpeeds(0, 0);
  }
  
@@ -238,14 +238,13 @@ static void spinMotorSpeeds(bool clockwise, int speed) {
 
 static void spinPlainCounts(bool clockwise, long counts) {
   if (counts <= 0) return;
-  resetRampSpeedLimiter(RAMP_MIN_SPEED);
   long startL = prizm.readEncoderCount(1);
   long startR = prizm.readEncoderCount(2);
   while (true) {
     long pos = (labs(prizm.readEncoderCount(1) - startL)
               + labs(prizm.readEncoderCount(2) - startR)) / 2;
     if (pos >= counts) break;
-    spinMotorSpeeds(clockwise, RAMP_MIN_SPEED);
+    spinMotorSpeeds(clockwise, RAMP_MIN_SPEED); // 복구용 저속 회전
     driveLoopTick();
   }
   spinMotorSpeeds(clockwise, 0);
@@ -253,53 +252,37 @@ static void spinPlainCounts(bool clockwise, long counts) {
   setWheelSpeeds(0, 0);
 }
  
- void rotateByDegrees(float degrees, bool clockwise) {
-   setWheelSpeeds(0, 0);
-   delayWithTicks(40);
-   resetRampSpeedLimiter(RAMP_MIN_SPEED);
-   float absDeg = degrees >= 0.0f ? degrees : -degrees;
-   float compDeg = absDeg * (1.0f - SPIN_OVERSHOOT_COMP_FRAC);
-   long targetCounts = spinDegToCounts(compDeg);
-   if (targetCounts <= 0) return;
- 
-   long startL = prizm.readEncoderCount(1);
-   long startR = prizm.readEncoderCount(2);
-   
-   long idealAccelSpan = spinDegToCounts(rampSpinAccelDeg(SPIN_SPEED));
-   long idealDecelSpan = spinDegToCounts(rampSpinDecelDeg(SPIN_SPEED));
-   long accelSpan, decelSpan;
+void rotateByDegrees(float degrees, bool clockwise) {
+  setWheelSpeeds(0, 0);
+  delayWithTicks(40);
+  
+  float absDeg = degrees >= 0.0f ? degrees : -degrees;
+  float compDeg = absDeg * (1.0f - SPIN_OVERSHOOT_COMP_FRAC);
+  long targetCounts = spinDegToCounts(compDeg);
+  if (targetCounts <= 0) return;
 
-   if (targetCounts >= idealAccelSpan + idealDecelSpan) {
-     accelSpan = idealAccelSpan;
-     decelSpan = idealDecelSpan;
-   } else {
-     accelSpan = targetCounts * idealAccelSpan / (idealAccelSpan + idealDecelSpan);
-     decelSpan = targetCounts - accelSpan; 
-   }
+  long startL = prizm.readEncoderCount(1);
+  long startR = prizm.readEncoderCount(2);
 
-   long endDecelSpan = spinDegToCounts(SPIN_END_DECEL_DEG);
-   if (endDecelSpan > decelSpan / 2) endDecelSpan = decelSpan / 2;
- 
-   int peakSpeed = SPIN_SPEED;
-   if (idealAccelSpan > 0 && accelSpan < idealAccelSpan) {
-     peakSpeed = RAMP_MIN_SPEED + (int)((long)(SPIN_SPEED - RAMP_MIN_SPEED) * accelSpan / idealAccelSpan);
-   }
+  bool lineTrimArmed = false;
+  bool lineTrimmed = false;
+  bool oppositeSeen = false;
 
-   bool lineTrimArmed = false;
-   bool lineTrimmed = false;
-   int lastCurSpeed = RAMP_MIN_SPEED;
-
-   while (true) {
+  while (true) {
     long pos = (labs(prizm.readEncoderCount(1) - startL) + labs(prizm.readEncoderCount(2) - startR)) / 2;
     long remaining = targetCounts - pos;
 
     if (remaining <= 0) break;
 
+    int fl, fc, fr;
+    readFrontLineSensors(fl, fc, fr);
+    bool oppositeOn = clockwise ? (fl != 0) : (fr != 0);
+
+    if (pos >= (long)(targetCounts * SPIN_OPPOSITE_CHECK_FRAC) && oppositeOn) {
+      oppositeSeen = true;
+    }
+
     if (!lineTrimmed && pos >= (long)(targetCounts * SPIN_LINE_TRIM_MIN_FRAC)) {
-      int fl, fc, fr;
-      readFrontLineSensors(fl, fc, fr);
-      (void)fc;
-      bool oppositeOn = clockwise ? (fl != 0) : (fr != 0);
       if (!oppositeOn) {
         lineTrimArmed = true;
       } else if (lineTrimArmed) {
@@ -307,30 +290,11 @@ static void spinPlainCounts(bool clockwise, long counts) {
         targetCounts = pos + newRemaining;
         remaining = newRemaining;
         lineTrimmed = true;
+      }
+    }
 
-         decelSpan = remaining;
-         if (decelSpan <= 0) decelSpan = 1;
-         accelSpan = 0;
-         peakSpeed = lastCurSpeed;
-         endDecelSpan = min(spinDegToCounts(SPIN_END_DECEL_DEG), decelSpan / 2);
-       }
-     }
- 
-     int curSpeed;
-     if (pos < accelSpan && !lineTrimmed) {
-       curSpeed = calcRampUpSpeed(pos, accelSpan, peakSpeed);
-     } else {
-       curSpeed = peakSpeed;
-       if (remaining <= decelSpan)
-         curSpeed = min(curSpeed, calcRampDownSpeed(remaining, decelSpan, peakSpeed));
-       if (remaining <= endDecelSpan)
-         curSpeed = min(curSpeed, calcRampDownSpeed(remaining, endDecelSpan, peakSpeed));
-     }
-     
-    curSpeed = smoothRampSpeed(curSpeed);
-    lastCurSpeed = curSpeed; 
-
-    spinMotorSpeeds(clockwise, curSpeed);
+    // [수정] 스무스 회전 완전 제거. 일정한 최대 속도(SPIN_SPEED)로 회전
+    spinMotorSpeeds(clockwise, SPIN_SPEED);
     driveLoopTick();
   }
 
@@ -338,15 +302,18 @@ static void spinPlainCounts(bool clockwise, long counts) {
   delayWithTicks(40);
   setWheelSpeeds(0, 0);
 
-  // 회전 종료 후 20ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
-  delayWithTicks(50);
+  // 회전 종료 후 10ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
+  delayWithTicks(10);
 
-  if (lineTrimmed) {
+  // 트리밍이 작동했거나, 회전 도중 선을 보았을 경우(불이 켜졌었다면)
+  if (lineTrimmed || oppositeSeen) {
     int fl, fc, fr;
     readFrontLineSensors(fl, fc, fr);
-    bool oppositeStillOn = clockwise ? (fl != 0) : (fr != 0);
-    if (!oppositeStillOn)
+    
+    // 현재 모든 전방 센서(fl, fc, fr)가 꺼져 있다면, 선을 완전히 지나친 오버스핀이므로 즉시 복구
+    if (fl == 0 && fc == 0 && fr == 0) {
       spinPlainCounts(!clockwise, spinDegToCounts(SPIN_LINE_RECOVER_DEG));
+    }
   }
 }
  
