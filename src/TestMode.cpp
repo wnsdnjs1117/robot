@@ -156,10 +156,10 @@ static void _mtTurn(float deg, int speed) {
   bool right = (deg >= 0);
 
   float absDeg = fabs(deg);
-  // ★ 스마트 각도 보정 (관성 미끄러짐 예측 — 칼각 정지 시 오버슈트 보정)
-  float compDeg = absDeg - (absDeg / 90.0) * 2.5;
+  // 실제 주행(rotateByDegrees)과 동일한 오버슈트 보정 계수 사용
+  float compDeg = absDeg * (1.0f - SPIN_OVERSHOOT_COMP_FRAC);
 
-  long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg);
+  long targetCounts = (long)((SPIN_90_COUNTS / 90.0) * compDeg + 0.5);
   if (targetCounts <= 0) return;
 
   prizm.resetEncoders(); _mtWait(40);
