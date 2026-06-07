@@ -132,11 +132,18 @@ void runFinishApproachFrom11() {
   bool blindArmed = false;
   DriveEncMark blindMark = {0, 0};
 
+  // 11번 세로선 위(블라인드 전)에서는 후진 라인트레이싱으로 정렬한다.
+  // 가운데(rc)를 잃으면 0.2cm만 직진해 끝단 하드조향 틀어짐을 막은 뒤 다시 추종.
+  bool sawCenter = false;
+  bool centerLostArmed = false;
+  DriveEncMark centerLostMark = {0, 0};
+
   while (true) {
     int rl, rc, rr;
     readRearLineSensors(rl, rc, rr);
     bool onLine = rearOnLine(rl, rc, rr);
     long traveled = encoderTraveledSince(motionStart);
+    if (rc != 0) { sawCenter = true; centerLostArmed = false; }
 
     if (!seenBlind) {
       if (!onLine) {
@@ -153,7 +160,24 @@ void runFinishApproachFrom11() {
     }
 
     int speed = smoothRampSpeed(calcRampUpSpeed(traveled, accelSpan, cruiseSpeed));
-    setWheelSpeeds(-speed, -speed);
+
+    if (!seenBlind && onLine) {
+      // 11번 세로선 추종(후진). 끝단에서 가운데를 잃으면 0.2cm만 직진(끝단 가드).
+      if (sawCenter && rc == 0) {
+        if (!centerLostArmed) {
+          centerLostArmed = true;
+          centerLostMark = captureDriveEnc();
+        }
+        if (encoderTraveledSince(centerLostMark) < toEncoderCounts(0.2f))
+          setWheelSpeeds(-speed, -speed);
+        else
+          traceLineReverse(rl, rc, rr, 0, 0, 0, speed);
+      } else {
+        traceLineReverse(rl, rc, rr, 0, 0, 0, speed);
+      }
+    } else {
+      setWheelSpeeds(-speed, -speed);
+    }
     driveLoopTick();
   }
 
