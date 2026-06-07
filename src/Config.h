@@ -101,7 +101,7 @@ inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
 // ============================================================
 // [7] 직진 가·감속 램프 (부드러운 출발/정지)
 // ============================================================
-constexpr int RAMP_MIN_SPEED = 25;         // 가감속 최소(출발/도착) 속도
+constexpr int RAMP_MIN_SPEED = 30;         // 가감속 최소(출발/도착) 속도
 constexpr int RAMP_REF_SPEED = 40;         // 가감속 비율 계산을 위한 기준 속도
 constexpr float RAMP_ACCEL_CM = 15.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
 constexpr float RAMP_DECEL_CM = 15.0f;     // 정지를 위한 감속 구간 거리
@@ -126,8 +126,8 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // ============================================================
 constexpr int SPEED_LINE_FOLLOW_FWD = 40;  // 전진 라인 트레이싱 기본 속도
 constexpr int SPEED_LINE_FOLLOW_REV = 35;  // 후진 라인 트레이싱 기본 속도
-constexpr int SPEED_OPEN_ZONE_FWD = 55;    // 박스존 내 전진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_ZONE_REV = 50;    // 박스존 내 후진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_ZONE_FWD = 50;    // 박스존 내 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_ZONE_REV = 45;    // 박스존 내 후진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_FWD = 75;   // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;   // 일반 트랙 후진 개방(블라인드) 속도
 constexpr int START_LINE_SEARCH_SPEED = 10;// 스타트 직후 최초 라인 탐색 진입 속도
@@ -147,9 +147,9 @@ constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;       // 라인을 놓친(오버�
 // ============================================================
 // [10] 메인 트랙 가로축 노드 7 — 8 — 9
 // ============================================================
-constexpr int SPEED_TRACK_7_9_LINE = 65;             // 7, 8, 9번 메인 트랙 고속 주행 속도
-constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;       // 메인 트랙 라인 부드러운 조향 게인
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.7f;       // 메인 트랙 라인 강한 조향 게인
+constexpr int SPEED_TRACK_7_9_LINE = 70;             // 7, 8, 9번 메인 트랙 고속 주행 속도
+constexpr float LINE_KP_TRACK_7_9_SOFT = 1.8f;       // 메인 트랙 라인 부드러운 조향 게인
+constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;       // 메인 트랙 라인 강한 조향 게인
 constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;     // 7-8 및 8-9 노드 간 기본 간격
 constexpr float DIST_TRACK_8_TO_9_CM = 55.0f;        // 8->9 진입 시 감속을 시작할 거리
 constexpr float DIST_9_TO_8_CM = 45.0f;              // 9->8 진입 시 감속을 시작할 비대칭 거리
