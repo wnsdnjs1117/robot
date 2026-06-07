@@ -286,7 +286,7 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
 
 static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
   if (fromNode == 8 && toNode == 9) {
-    stepTrackLegToLineEnd(DIST_TRACK_NODE_SPAN_CM, stopAtEnd);
+    stepTrackLegToLineEnd(DIST_TRACK_8_TO_9_CM, stopAtEnd);
   }
   else if (fromNode == 7 && toNode == 8) {
     stepTrackLeg78(90.0f, stopAtEnd);

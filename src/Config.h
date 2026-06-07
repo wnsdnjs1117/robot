@@ -174,6 +174,10 @@ constexpr int SPEED_TRACK_7_9_LINE = 70;
 constexpr float LINE_KP_TRACK_7_9_SOFT = 1.8f;
 constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;
 constexpr float DIST_TRACK_NODE_SPAN_CM = 67.0f;
+// 8->9 만 따로 인식 거리를 두어 더 일찍 감속하게 한다(7-8 에는 영향 없음).
+// 값을 줄이면 노드 9 도달 전 감속 시작이 앞당겨진다.
+constexpr float DIST_TRACK_8_TO_9_CM = 65.0f;
+// 9->8 은 8->9 와 비대칭. legStart 기준 거리로 미리 감속한다.
 constexpr float DIST_9_TO_8_CM = 45.0f;
 constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f;
 constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;
