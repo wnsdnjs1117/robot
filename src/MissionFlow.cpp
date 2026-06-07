@@ -77,17 +77,6 @@ void deliverReadyBoxesWithinZones1to4(int inZone) {
   }
 }
 
-// 지금 바로 배송 가능한(제자리이거나 목적지가 빈) 박스가 하나라도 있는가?
-bool anyDeliverableNow(const bool zoneOccupied[7], const bool delivered[7]) {
-  for (int z = 1; z <= 6; z++) {
-    if (!boxes[z].found || !boxes[z].present || delivered[z]) continue;
-    int d = boxes[z].destination;
-    if (d == z) return true;
-    if (d >= 1 && d <= 6 && !zoneOccupied[d]) return true;
-  }
-  return false;
-}
-
 // exclude 칸을 제외한 첫 번째 빈 칸(1~6). 없으면 0.
 int firstEmptyZone(const bool zoneOccupied[7], int exclude) {
   for (int z = 1; z <= 6; z++)
@@ -151,10 +140,11 @@ void runDeliveryPhase() {
           delivered[6] = true;
           deliveredCount++;
           movedThisTurn = true;
-        } else if (!anyDeliverableNow(zoneOccupied, delivered)) {
-          // 목적지가 막혔고 지금 바로 배송 가능한 박스도 없는 교착(예: 5<->6 스왑).
-          // 이미 6번 안에 있으니 빈 손으로 나갔다 다시 들어오지 말고, box6 를
-          // 빈 칸으로 바로 들어 옮겨 교착을 푼다(목적지는 유지, 이후 단계에서 배송).
+        } else {
+          // 목적지가 막혀 바로 배송할 수 없는 경우. 이미 6번 안에 있으므로 빈 손으로
+          // 나갔다가 나중에 다시 6번으로 들어와 박스를 집는 낭비(나옴→재진입→나옴)를
+          // 없앤다. QR 을 찍은 그 자리에서 box6 을 바로 들어 빈 칸으로 옮기고,
+          // 실제 목적지 배송은 이후 일반 단계에서 처리한다(목적지는 유지).
           int tmp = firstEmptyZone(zoneOccupied, dest);
           if (tmp != 0) {
             deliverBoxBetweenZones(6, tmp, true);
