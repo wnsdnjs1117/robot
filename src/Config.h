@@ -190,6 +190,9 @@ constexpr float LINE_KP_TRACK_7_9_SOFT = 1.4f;
 constexpr float LINE_KP_TRACK_7_9_HARD = 2.2f;
 
 constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
+// 9->8 은 8->9(70cm)와 비대칭. 실측상 9->8 구간은 약 35cm 이므로
+// 미리 감속할 수 있도록 별도 거리를 둔다.
+constexpr float DIST_9_TO_8_CM = 35.0f;
 constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f;
 constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;
 constexpr float DIST_NODE_DETECT_CRAWL_CM = 5.0f;

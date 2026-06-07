@@ -299,10 +299,13 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
   }
   else if (fromNode == 9 && toNode == 8) {
     rotateToHeading(270.0f);
+    DriveEncMark legStart = captureDriveEnc();
     driveOverLinesAndAlign(1, 0.0f, SPEED_9_TO_8, false);
     setWheelSpeeds(0, 0);
     delayWithTicks(40);
-    traceUntilIntersection(stopAtEnd, SPEED_9_TO_8);
+    // 9->8 은 약 35cm 로 8->9(70cm)보다 짧다. legStart 기준 누적 거리로
+    // 노드 8 도달 전에 미리 감속한다(cruise 속도는 SPEED_9_TO_8 유지).
+    traceUntilIntersection(stopAtEnd, SPEED_9_TO_8, legStart, DIST_9_TO_8_CM);
   }
   else if (fromNode == 9 && toNode == 10) {
     blindDriveAndAlign(HEADING_9_TO_10, 90.0f, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);

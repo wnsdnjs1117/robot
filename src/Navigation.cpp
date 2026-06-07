@@ -131,12 +131,25 @@ int countScannedBoxesInZones1to4() {
 void traceUntilIntersection(bool stopAtEnd) { traceUntilIntersection(stopAtEnd, SPEED_LINE_FOLLOW_FWD); }
 
 void traceUntilIntersection(bool stopAtEnd, int cruiseSpeed) {
+  traceUntilIntersection(stopAtEnd, cruiseSpeed, {0, 0}, 0.0f);
+}
+
+void traceUntilIntersection(bool stopAtEnd, int cruiseSpeed,
+    DriveEncMark legStart, float legSpanCm) {
   resetLineTracePid();
   clearIntersectionCross();
 
   long startEnc = labs(prizm.readEncoderCount(1));
   long accelSpan = rampAccelSpanCounts(cruiseSpeed);
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
+
+  // legSpanCm 이 주어지면 legStart 부터의 누적 거리를 기준으로 교차로 도달
+  // 전에 미리 감속한다(예: 9->8 비대칭 구간).
+  bool useApproach = (legSpanCm > 0.0f);
+  long approachStart = useApproach
+      ? trackLegApproachStartCounts(legSpanCm, cruiseSpeed) : 0;
+  bool approachDecel = false;
+  DriveEncMark approachMark = {0, 0};
 
   intersectionArmed = true;
   intersectionHitCount = 0;
@@ -167,6 +180,15 @@ void traceUntilIntersection(bool stopAtEnd, int cruiseSpeed) {
         if (alignSpan <= 0) break;
       } else {
         int speed = calcRampUpSpeed(traveled, accelSpan, cruiseSpeed);
+        if (useApproach && encoderTraveledSince(legStart) >= approachStart) {
+          if (!approachDecel) {
+            approachDecel = true;
+            approachMark = captureDriveEnc();
+          }
+          int down = decelMarkSpeed(approachMark, rampDecelSpanCounts(cruiseSpeed),
+              cruiseSpeed);
+          if (down < speed) speed = down;
+        }
         speed = smoothRampSpeed(speed);
         lastCurSpeed = speed;
         traceLineForward(fl2, fc2, fr2, rl, rc, rr, speed);
