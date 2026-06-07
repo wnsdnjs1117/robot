@@ -300,11 +300,11 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
   else if (fromNode == 9 && toNode == 8) {
     rotateToHeading(270.0f);
     DriveEncMark legStart = captureDriveEnc();
-    driveOverLinesAndAlign(1, 0.0f, SPEED_9_TO_8, false);
-    setWheelSpeeds(0, 0);
-    delayWithTicks(40);
-    // 9->8 은 약 35cm 로 8->9(70cm)보다 짧다. legStart 기준 누적 거리로
-    // 노드 8 도달 전에 미리 감속한다(cruise 속도는 SPEED_9_TO_8 유지).
+    // 선에 어떻게 진입했든 노드 8까지 최소 35cm 이동(보장 최소값). legStart(회전
+    // 직후 지점) 기준으로 35cm 를 가정해 미리 감속한다: 35cm 에서 최저속 도달,
+    // 이후 노드 8 십자선(앞 1.1.1) 감지까지 최저속을 유지하며 진행.
+    // (시작 지점 노드 9 stub 의 헛십자선은 traceUntilIntersection 내부의
+    //  clearIntersectionCross() 가 먼저 지나쳐 준다.)
     traceUntilIntersection(stopAtEnd, SPEED_9_TO_8, legStart, DIST_9_TO_8_CM);
   }
   else if (fromNode == 9 && toNode == 10) {
