@@ -792,7 +792,7 @@ void PRIZM::setMotorSpeed (int channel, long Mspeed){      // === set speed of e
   Wire.write(hibyte);
   Wire.write(lobyte);
   Wire.endTransmission();
-  delay(10);
+  delay(5);   // [튜닝] I2C settle 10->5ms (라인트레이싱 루프 주기 단축)
 
 }
 
@@ -837,7 +837,7 @@ void PRIZM::setMotorSpeeds (long Mspeed1, long Mspeed2){      // === BLOCK write
   Wire.write(hibyte2);
   Wire.write(lobyte2);
   Wire.endTransmission();
-  delay(10);
+  delay(5);   // [튜닝] I2C settle 10->5ms (라인트레이싱 루프 주기 단축)
 }
 
 void EXPANSION::setMotorSpeeds (int address, long Mspeed1, long Mspeed2){      // === BLOCK write to set speeds of both EXPANSIONANSION motors at once == 1440 CPR encoder must be installed to do PID
@@ -1168,7 +1168,7 @@ long PRIZM::readEncoderCount (int channel){   // ============================= R
   Wire.beginTransmission(5);
   Wire.write(channel);
   Wire.endTransmission();
-  delay(10);
+  delay(5);   // [튜닝] I2C settle 10->5ms (라인트레이싱 루프 주기 단축)
 
   Wire.requestFrom(5, 4);
   byte1 = Wire.read();
@@ -1180,7 +1180,7 @@ long PRIZM::readEncoderCount (int channel){   // ============================= R
   eCount = (eCount*256)+byte2;
   eCount = (eCount*256)+byte3;
   eCount = (eCount*256)+byte4;
-  delay(10);
+  delay(5);   // [튜닝] I2C settle 10->5ms (라인트레이싱 루프 주기 단축)
   return eCount;
 
 }
