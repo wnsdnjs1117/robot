@@ -24,12 +24,6 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
   DriveEncMark lineStartMark = {0, 0};
   DriveEncMark pastLineMark = {0, 0};
 
-  if (reverse)
-    DPRINTF("\n+Rev Z:");
-  else
-    DPRINTF("\n+Fwd Z:");
-  DPRINT(zone);
-
   while (true) {
     int fl, fc, fr, rl, rc, rr;
     readLineSensors(fl, fc, fr, rl, rc, rr);
@@ -38,7 +32,6 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
     if (!pastLine) {
       if (onLine) {
         if (!sawLine) {
-          DPRINTF(" L1");
           sawLine = true;
           lineStartMark = captureDriveEnc();
         }
@@ -49,7 +42,6 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
         else
           traceLineForward(fl, fc, fr, rl, rc, rr, speed);
       } else if (sawLine) {
-        DPRINTF(" L0");
         pastLine = true;
         pastLineMark = captureDriveEnc();
         if (extraSpan <= 0) break;
@@ -70,9 +62,6 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
   }
 
   stopMotors();
-  DPRINTF(" Done (실제 이동: ");
-  DPRINT((float)encoderTraveledSince(motionStart) / COUNTS_PER_CM);
-  DPRINTLNF(" cm)");
 }
 
 void runFinishApproachFrom11() {
@@ -215,8 +204,6 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
   ZoneMotionProfile targetProfile = getZoneProfile(targetZone);
   lineTraceLastEdge = 0;
   resetLineTracePid();
-  DPRINTF("\n+Cross Z:");
-  DPRINT(targetZone);
 
   if (enableScan && fromZone > 0) beginZoneScan(fromZone);
 
@@ -227,7 +214,6 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
     int fl, fc, fr, rl, rc, rr;
     readLineSensors(fl, fc, fr, rl, rc, rr);
     if (rearOnLine(rl, rc, rr)) {
-      DPRINTF(" FindLine");
       break;
     }
     int speed = rampMarkSpeed(motionStart, SPEED_OPEN_ZONE_REV);
@@ -248,7 +234,6 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
       speed = smoothRampSpeed(speed);
       traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
     } else {
-      DPRINTF(" L0");
       DriveEncMark pastLineMark = captureDriveEnc();
       if (extraSpan <= 0) break;
       while (true) {
@@ -264,7 +249,6 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
   }
 
   stopMotors();
-  DPRINTLNF(" Cross Done");
 }
 
 void driveOntoMainTrack() {
@@ -304,7 +288,6 @@ void driveToFinishArea() {
 static int finishZoneSearch(int z) {
   endZoneScan();
   stopMotors();
-  printSearchResult();
   return z;
 }
 

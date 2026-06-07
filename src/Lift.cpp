@@ -131,7 +131,6 @@ void liftDownStart() {
   liftUpRunning   = false;  // 상승 중이었더라도 중단(모터 충돌 방지)
   liftDownTargetCm = 0.0f;  // 바닥 착지
   liftDownRunning = true;
-  DPRINTLNF(">> [LIFT] 하강 시작");
 }
 
 // 바닥까지가 아닌 중간 높이(targetCm)까지만 내리고 정지 — 이동 중 미리 내리기용
@@ -142,7 +141,6 @@ void liftDownToStart(float targetCm) {
   liftUpRunning   = false;
   liftDownTargetCm = targetCm;
   liftDownRunning = true;
-  DPRINTLNF(">> [LIFT] 중간 높이 하강 시작");
 }
 
 void liftDownTick() {
@@ -159,17 +157,15 @@ void liftDownTick() {
   } else {
     if (!nearFloorL && heightL <= LIFT_NEAR_FLOOR_CM) {
       nearFloorL = true; nearFloorDurL = calcNearFloorDur(heightL); nearFloorStartL = now;
-      DPRINTLNF(">> [LIFT-L] 바닥 근접 — 타이머 시작");
     }
     if (!nearFloorR && heightR <= LIFT_NEAR_FLOOR_CM) {
       nearFloorR = true; nearFloorDurR = calcNearFloorDur(heightR); nearFloorStartR = now;
-      DPRINTLNF(">> [LIFT-R] 바닥 근접 — 타이머 시작");
     }
     if (nearFloorL && !stoppedL && (now - nearFloorStartL >= nearFloorDurL)) {
-      stoppedL = true; DPRINTLNF(">> [LIFT-L] 하강 완료");
+      stoppedL = true;
     }
     if (nearFloorR && !stoppedR && (now - nearFloorStartR >= nearFloorDurR)) {
-      stoppedR = true; DPRINTLNF(">> [LIFT-R] 하강 완료");
+      stoppedR = true;
     }
   }
 
@@ -185,7 +181,6 @@ void liftDownTick() {
       exc.resetEncoder(EXP_ID, LIFT_R);
       heightL = 0.0f;
       heightR = 0.0f;
-      DPRINTLNF(">> [LIFT] 하강 완전 완료");
     }
     liftDownRunning = false;
   }
@@ -194,11 +189,9 @@ void liftDownTick() {
 void liftDownWait() {
   if (!liftDownRunning) return;
   lastTickTime = 0;
-  DPRINTLNF(">> [LIFT] 착지 대기 중...");
   while (liftDownRunning) {
     liftDownTick();
   }
-  DPRINTLNF(">> [LIFT] 착지 확인 완료");
 }
 
 void liftDownUntilClear() {
@@ -206,5 +199,4 @@ void liftDownUntilClear() {
   while (heightL > LIFT_DOWN_CLEAR_CM || heightR > LIFT_DOWN_CLEAR_CM) {
     liftDownTick();
   }
-  DPRINTLNF(">> [LIFT] 주행 허가 기준 높이 도달 (배경 하강 계속)");
 }

@@ -397,10 +397,7 @@ void leaveZone(int zone) {
   DriveEncMark motionStart = captureDriveEnc();
   int lastExitSp = RAMP_MIN_SPEED;
 
-  DPRINTF("\n-Exit Z:"); DPRINT(zone);
-
   if (enteredZoneForward) {
-    DPRINTF(" Rev");
     const bool crossZone = (zone == 2 || zone == 4);
     long extraSpan = crossZone ? toEncoderCounts(DIST_AXIS_TO_REAR_SENSOR_CM)
         : toEncoderCounts(profile.exitReverseExtra);
@@ -424,7 +421,6 @@ void leaveZone(int zone) {
         if (exitLineDetected(zone, true, fl, fc, fr, rl, rc, rr, confirmCount)) {
           lineDetected = true;
           lineMark = captureDriveEnc();
-          DPRINTF(" L_ON");
           if (extraSpan <= 0) break;
         } else {
           if (crossZone && rearOnLine(rl, rc, rr) && !approachDecel) {
@@ -464,7 +460,6 @@ void leaveZone(int zone) {
       driveLoopTick();
     }
   } else {
-    DPRINTF(" Fwd");
     const bool crossZone = (zone == 2 || zone == 4);
     long extraSpan = crossZone ? toEncoderCounts(DIST_AXIS_TO_FRONT_SENSOR_CM)
         : toEncoderCounts(profile.exitForwardExtra);
@@ -487,7 +482,6 @@ void leaveZone(int zone) {
         if (exitLineDetected(zone, false, fl, fc, fr, rl, rc, rr, confirmCount)) {
           lineDetected = true;
           lineMark = captureDriveEnc();
-          DPRINTF(" L_ON");
           if (extraSpan <= 0) break;
         } else {
           if (crossZone && frontOnLine(fl, fc, fr) && !frontCrossFull(fl, fc, fr) && !approachDecel) {
@@ -573,9 +567,6 @@ void leaveZone(int zone) {
   if (zone == 2 || zone == 4) setWheelSpeeds(0, 0);
   else stopMotors();
   endZoneScan();
-  DPRINTF(" Done (실제 이동: ");
-  DPRINT((float)encoderTraveledSince(motionStart) / COUNTS_PER_CM);
-  DPRINTLNF(" cm)");
 
   if (targetNode == 7) enableTeeZoneSteering = false;
   intersectionNode = targetNode;
@@ -614,11 +605,6 @@ void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts) {
   if (!opts.alreadyInFromZone) {
     navigateToZone(fromZone);
   }
-
-  DPRINTF("\n[MOVE] ");
-  DPRINT(fromZone);
-  DPRINTF(" -> ");
-  DPRINTLN(toZone);
 
   if (!opts.scanQr && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1))) {
     rotateToHeading(0.0f);

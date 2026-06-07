@@ -8,26 +8,11 @@
 #include <PRIZM.h>
 
 // ============================================================
-// [1] 펌웨어 모드 · 디버그
+// [1] 펌웨어 모드
 // ============================================================
 
-#define RUN_TEST_MODE 0
+#define RUN_TEST_MODE 1
 #define QR_SIMULATION 0
-#define ROBOT_DEBUG 0
-
-#if ROBOT_DEBUG
-#define DPRINT(x) Serial.print(x)
-#define DPRINTLN(x) Serial.println(x)
-#define DPRINTF(x) Serial.print(F(x))
-#define DPRINTLNF(x) Serial.println(F(x))
-#else
-#define DPRINT(x)
-#define DPRINTLN(x)
-#define DPRINTF(x)
-#define DPRINTLNF(x)
-#endif
-
-inline void checkDebugKey() {}
 
 // ============================================================
 // [2] QR 스캔 · 재탐색
