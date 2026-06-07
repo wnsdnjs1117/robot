@@ -1,6 +1,6 @@
 /* ============================================================
- * Config.h — 로봇 튜닝 파라미터 (Arduino UNO + TETRIX PRIZM)
- * ============================================================ */
+* Config.h — 로봇 튜닝 파라미터 (Arduino UNO + TETRIX PRIZM)
+* ============================================================ */
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -28,6 +28,10 @@ constexpr int PIN_LINE_REAR_CENTER = A2;  // 후방 중앙 아날로그 라인 �
 constexpr int PIN_LINE_REAR_RIGHT = A3;   // 후방 우측 아날로그 라인 센서 핀
 constexpr int REAR_LINE_THRESHOLD = 200;  // 후방 아날로그 센서 흑/백 판단 임계값
 
+////////////////////// cm단위 count계산
+constexpr float COUNTS_PER_CM = 3750.0f / 80.0f;      // 1cm 이동에 해당하는 엔코더 카운트
+constexpr int SPIN_90_COUNTS = 1170;                // 90도 회전에 해당하는 기준 엔코더 카운트
+//////////////
 // ============================================================
 // [3] 물리 치수 · 엔코더 (바퀴축 기준, cm)
 // ============================================================
@@ -36,7 +40,6 @@ constexpr float DIST_AXIS_TO_FRONT_SENSOR_CM = 6.0f;  // 바퀴 중심축 ~ 전�
 constexpr float DIST_AXIS_TO_REAR_SENSOR_CM = 4.0f;   // 바퀴 중심축 ~ 후방 센서까지의 거리
 constexpr float DIST_AXIS_TO_LIFT_CM = 10.5f;         // 바퀴 중심축 ~ 리프트까지의 거리
 constexpr float LINE_THICKNESS_CM = 2.0f;             // 바닥 라인의 두께
-constexpr float COUNTS_PER_CM = 3750.0f / 80.0f;      // 1cm 이동에 해당하는 엔코더 카운트
 
 inline int toEncoderCounts(float cm) { return (int)(cm * COUNTS_PER_CM + 0.5f); }
 
@@ -164,7 +167,6 @@ inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
 // [11] 제자리 회전 (Spin Turn)
 // ============================================================
 constexpr int SPIN_SPEED = 30;                      // [실측 반영] 제자리 회전 속도 (고정)
-constexpr int SPIN_90_COUNTS = 1170;                // 90도 회전에 해당하는 기준 엔코더 카운트
 constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;  // 회전 관성으로 인한 오버슛 사전 보정 비율
 
 constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.6f;  // 라인 감지 후 남은 회전 타겟 감소 비율
