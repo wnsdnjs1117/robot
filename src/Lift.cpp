@@ -3,6 +3,9 @@
  * 상승: 각 모터가 24cm 도달 시 개별 정지 (20cm 이상 시 좌/우 독립 감속)
  * 하강: 각 모터가 설정 이하 진입 후 비례 타이머 만료 시 개별 정지 (좌/우 독립 감속)
  * 동기화: 양쪽 구동 중일 때 높이 편차를 기반으로 파워 실시간 보정
+ * 높이 측정: 엔코더 절대값 기반(height = encoder / COUNTS_PER_CM). 바닥에서
+ *   엔코더가 0으로 리셋되므로(부팅·완전 하강 시) 항상 절대 높이를 그대로 읽는다.
+ *   증분 누적 방식과 달리, 중간에 멈췄다 다시 움직여도 오차가 누적되지 않는다.
  * 보정: 리프트 계산 높이가 음수(< 0)가 될 경우 0으로 강제 클램핑 처리
  * ============================================================ */
 #include "Lift.h"
@@ -33,34 +36,33 @@ static bool          stoppedL   = false, stoppedR   = false;
 static unsigned long nearFloorStartL = 0, nearFloorStartR = 0;
 static unsigned long nearFloorDurL   = 0, nearFloorDurR   = 0;
 
-static long          prevEncL     = 0, prevEncR     = 0;
 static unsigned long lastTickTime = 0;
 
 // ── 내부 헬퍼 ────────────────────────────────────────────────
 
+// 엔코더 절대값 → 높이(cm). 바닥 기준 엔코더 0이므로 그대로 절대 높이가 된다.
+static void syncHeightFromEncoder() {
+  long curL = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
+  long curR = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
+
+  heightL = (float)curL / LIFT_COUNTS_PER_CM;
+  heightR = (float)curR / LIFT_COUNTS_PER_CM;
+
+  // 높이가 음수 수치로 내려가면 0으로 클램핑
+  if (heightL < 0.0f) heightL = 0.0f;
+  if (heightR < 0.0f) heightR = 0.0f;
+}
+
 static void resetState() {
-  prevEncL     = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
-  prevEncR     = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
-  lastTickTime = 0;
+  lastTickTime = 0;          // 다음 tick에서 즉시 한 번 샘플링
+  syncHeightFromEncoder();   // 시작 시점의 실제 높이로 동기화
 }
 
 static void updateHeight() {
   unsigned long now = millis();
   if (now - lastTickTime < LIFT_TICK_INTERVAL_MS) return;
-
-  long curL = exc.readEncoderCount(EXP_ID, LIFT_L) * DIR_L;
-  long curR = exc.readEncoderCount(EXP_ID, LIFT_R) * DIR_R;
-
-  heightL += (float)(curL - prevEncL) / LIFT_COUNTS_PER_CM;
-  heightR += (float)(curR - prevEncR) / LIFT_COUNTS_PER_CM;
-
-  // 높이가 음수 수치로 내려가면 0으로 클램핑
-  if (heightL < 0.0f) heightL = 0.0f;
-  if (heightR < 0.0f) heightR = 0.0f;
-
-  prevEncL = curL;
-  prevEncR = curR;
   lastTickTime = now;
+  syncHeightFromEncoder();
 }
 
 static unsigned long calcNearFloorDur(float h) {
