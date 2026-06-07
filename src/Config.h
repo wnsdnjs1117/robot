@@ -140,7 +140,7 @@ constexpr int SPEED_OPEN_ZONE_FWD = 60;
 constexpr int SPEED_OPEN_ZONE_REV = 60;
 constexpr int SPEED_OPEN_TRACK_FWD = 80;
 constexpr int SPEED_OPEN_TRACK_REV = 60;
-constexpr int SPEED_9_TO_8 = 45;
+constexpr int SPEED_9_TO_8 = 70;
 constexpr int START_LINE_SEARCH_SPEED = 30;
 
 // ============================================================
@@ -173,11 +173,8 @@ inline float rampSpinDecelDeg(int spinSpeed) {
 constexpr int SPEED_TRACK_7_9_LINE = 70;
 constexpr float LINE_KP_TRACK_7_9_SOFT = 1.8f;
 constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;
-
-constexpr float DIST_TRACK_NODE_SPAN_CM = 68.0f;
-// 9->8 은 8->9(70cm)와 비대칭. 실측상 9->8 구간은 약 35cm 이므로
-// 미리 감속할 수 있도록 별도 거리를 둔다.
-constexpr float DIST_9_TO_8_CM = 35.0f;
+constexpr float DIST_TRACK_NODE_SPAN_CM = 67.0f;
+constexpr float DIST_9_TO_8_CM = 45.0f;
 constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f;
 constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;
 constexpr float DIST_NODE_DETECT_CRAWL_CM = 5.0f;
@@ -207,9 +204,9 @@ constexpr float DIST_TRACK_13_TO_9_CM = 60.0f;
 // ============================================================
 
 constexpr float HEADING_9_TO_10 = 88.0f;
-constexpr float HEADING_9_TO_11 = 89.5f;
-constexpr float HEADING_10_TO_11 = 87.5f;
-constexpr float HEADING_11_TO_10 = 272.5f;
+constexpr float HEADING_9_TO_11 = 89.3f;
+constexpr float HEADING_10_TO_11 = 87.0f;
+constexpr float HEADING_11_TO_10 = 273.0f;
 
 constexpr float HEADING_10_TO_12 = 240.0f;
 constexpr float DIST_10_TO_12_CM = 55.0f;
