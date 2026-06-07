@@ -135,6 +135,10 @@ void runDeliveryPhase() {
         int dest = boxes[6].destination;
 
         if (dest == 6) {
+          // 6번이 이미 정답(출고 제자리): 박스는 그대로 두고 로봇만 11번으로
+          // 빠져나온다. (leaveZone 을 건너뛰면 로봇이 6번 존 안에 남은 채
+          //  intersectionNode 만 11 로 기록돼, 다음 이동 때 존 안에서 회전해버림)
+          leaveZone(6);
           delivered[6] = true;
           deliveredCount++;
           movedThisTurn = true;
