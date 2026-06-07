@@ -25,10 +25,19 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
   DriveEncMark lineStartMark = {0, 0};
   DriveEncMark pastLineMark = {0, 0};
 
+  // 완벽한 일자(0 1 0)를 한 번 잡으면 그 지점부터 가속을 시작(자세 래칭).
+  bool perfectAligned = false;
+  long accelStartTraveled = 0;
+
+  // 라인 끝단에서 한쪽 에지만 남아 홱 틀어지는 것 방지: 가운데를 잃은 뒤 2cm만 직진.
+  DriveEncMark centerLostMark = {0, 0};
+  bool centerLostArmed = false;
+
   while (true) {
     int fl, fc, fr, rl, rc, rr;
     readLineSensors(fl, fc, fr, rl, rc, rr);
     bool onLine = reverse ? rearOnLine(rl, rc, rr) : frontOnLine(fl, fc, fr);
+    long traveled = encoderTraveledSince(motionStart);
 
     if (!pastLine) {
       if (onLine) {
@@ -36,34 +45,70 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
           sawLine = true;
           lineStartMark = captureDriveEnc();
         }
+
         bool centerOn = reverse ? (rc != 0) : (fc != 0);
-        if (centerOn) sawCenter = true;
-        int speed = rampMarkSpeed(motionStart, openSpeed);
+        if (centerOn) {
+          sawCenter = true;
+          centerLostArmed = false;   // 가운데가 다시 켜지면 끝단 직진 락 해제
+        }
+
+        // 완벽한 일자(0 1 0)를 처음 감지하면 래칭하고 그 지점을 가속 기준점으로 삼는다.
+        bool isPerfectStraight = reverse ? (!rl && rc && !rr) : (!fl && fc && !fr);
+        if (isPerfectStraight && !perfectAligned) {
+          perfectAligned = true;
+          accelStartTraveled = traveled;
+        }
+
+        // 속도: 일자 잡히기 전엔 저속으로 끈질기게 교정, 잡힌 뒤엔 목표 속도로 가속.
+        int speed;
+        if (!perfectAligned) {
+          speed = RAMP_MIN_SPEED;
+        } else {
+          speed = calcRampUpSpeed(traveled - accelStartTraveled,
+              rampAccelSpanCounts(openSpeed), openSpeed);
+        }
         speed = smoothRampSpeed(speed);
-        // 진입 라인이 끝나며 한쪽 에지 센서만 남는 순간(가운데를 이미 지난 뒤)에는
-        // 라인트레이싱이 posP=±2 하드 조향을 걸어 차체가 틀어진다. 이때는 조향을
-        // 멈추고 직진해 라인이 완전히 끊길 때까지 자세를 유지한다.
+
+        int dir = reverse ? -1 : 1;
+
+        // 조향: 일자든 아니든 끝까지 라인트레이싱(일자면 오차가 작아 소프트 조향만 걸림).
+        // 단, 가운데를 잃은 직후 2cm는 라인 끝단으로 보고 직진해 끝단 틀어짐만 막는다.
         if (sawCenter && !centerOn) {
-          int dir = reverse ? -1 : 1;
-          setWheelSpeeds(dir * speed, dir * speed);
+          if (!centerLostArmed) {
+            centerLostArmed = true;
+            centerLostMark = captureDriveEnc();
+          }
+          if (encoderTraveledSince(centerLostMark) < toEncoderCounts(2.0f)) {
+            setWheelSpeeds(dir * speed, dir * speed);
+          } else if (reverse) {
+            traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
+          } else {
+            traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+          }
         } else if (reverse) {
           traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
         } else {
           traceLineForward(fl, fc, fr, rl, rc, rr, speed);
         }
+
       } else if (sawLine) {
         pastLine = true;
         pastLineMark = captureDriveEnc();
+        // 끝까지 일자를 못 잡고 저속으로 왔다면 블라인드 진입 순간부터 가속 시작.
+        if (!perfectAligned) accelStartTraveled = traveled;
         if (extraSpan <= 0) break;
       } else {
-        int speed = rampMarkSpeed(motionStart, openSpeed);
-        speed = smoothRampSpeed(speed);
+        // 회전 직후 라인을 밟기 전: 저속 진입.
+        int speed = smoothRampSpeed(RAMP_MIN_SPEED);
         int dir = reverse ? -1 : 1;
         setWheelSpeeds(dir * speed, dir * speed);
       }
     } else {
-      int speed = decelMarkSpeed(pastLineMark, extraSpan, openSpeed);
-      speed = smoothRampSpeed(speed);
+      // 존 내부 블라인드 추가 거리: 가속 ↔ 도착 감속 중 작은 값으로 부드럽게.
+      long totalAccelTraveled = encoderTraveledSince(motionStart) - accelStartTraveled;
+      int upSpeed = calcRampUpSpeed(totalAccelTraveled, rampAccelSpanCounts(openSpeed), openSpeed);
+      int downSpeed = decelMarkSpeed(pastLineMark, extraSpan, openSpeed);
+      int speed = smoothRampSpeed((upSpeed < downSpeed) ? upSpeed : downSpeed);
       if (finishEncoderSpan(pastLineMark, extraSpan, speed)) break;
       int dir = reverse ? -1 : 1;
       setWheelSpeeds(dir * speed, dir * speed);
@@ -267,16 +312,16 @@ void crossToOppositeZone(int targetZone, int fromZone, bool enableScan) {
 
 void driveOntoMainTrack() {
   headingDeg = 270.0f;
-  long startEnc = labs(prizm.readEncoderCount(1));
-  long accelSpan = rampAccelSpanCounts(START_LINE_SEARCH_SPEED);
+
+  // 스타트박스 구간은 가속 없이 START_LINE_SEARCH_SPEED 정속으로 라인을 찾으러 간다.
+  // 속도 제한기를 그 값으로 초기화해 첫 틱부터 정확히 그 속도가 나오게 한다(25 튐 방지).
+  resetRampSpeedLimiter(START_LINE_SEARCH_SPEED);
 
   while (true) {
-    long traveled = labs(prizm.readEncoderCount(1)) - startEnc;
     int fl, fc, fr;
     readFrontLineSensors(fl, fc, fr);
     if (frontOnLine(fl, fc, fr)) break;
-    int speed = calcRampUpSpeed(traveled, accelSpan, START_LINE_SEARCH_SPEED);
-    speed = smoothRampSpeed(speed);
+    int speed = smoothRampSpeed(START_LINE_SEARCH_SPEED);
     setWheelSpeeds(speed, speed);
     driveLoopTick();
   }

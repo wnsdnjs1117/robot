@@ -151,7 +151,7 @@ constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;                          // 메�
 constexpr float DIST_TRACK_NODE_SPAN_CM = 67.0f;                        // 7-8 및 8-9 노드 간 기본 간격
 constexpr float DIST_TRACK_8_TO_9_CM = 65.0f;                           // 8->9 진입 시 감속을 시작할 거리
 constexpr float DIST_9_TO_8_CM = 45.0f;                                 // 9->8 진입 시 감속을 시작할 비대칭 거리
-constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f;  // 7에서 9까지의 연속 거리
+constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM + DIST_TRACK_8_TO_9_CM;  // 7->9 연속 거리(7-8 + 8-9 비대칭 반영). 이 값으로 7->9 감속 시점이 정해짐
 constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;                   // 8번 통과 시 십자선 감지를 무시할 반경
 constexpr float DIST_NODE_DETECT_CRAWL_CM = 5.0f;                       // 십자선 감지 직전 기어가기 거리
 

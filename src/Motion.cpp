@@ -97,13 +97,18 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
 }
  
  int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed) {
+   // 목표 속도가 기본 출발 속도(RAMP_MIN) 이하면 가속 계산을 생략하고 그 속도 그대로 적용.
+   // (RAMP_MIN 미만을 목표로 하면 기존 수식이 RAMP_MIN으로 강제 클램프되어 25→10 튐 발생)
+   if (maxSpeed <= RAMP_MIN_SPEED) return maxSpeed;
    if (accelCounts <= 0 || traveledCounts >= accelCounts) return maxSpeed;
    int speed = RAMP_MIN_SPEED
        + (int)((long)(maxSpeed - RAMP_MIN_SPEED) * traveledCounts / accelCounts);
    return (speed < RAMP_MIN_SPEED) ? RAMP_MIN_SPEED : speed;
  }
- 
+
  int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed) {
+   // 감속 시작 속도가 기본 정지 속도(RAMP_MIN) 이하면 감속 계산을 생략하고 그대로 적용.
+   if (startSpeed <= RAMP_MIN_SPEED) return startSpeed;
    if (decelCounts <= 0 || remainingCounts >= decelCounts) return startSpeed;
    if (remainingCounts <= 0) return RAMP_MIN_SPEED;
    int speed = RAMP_MIN_SPEED
