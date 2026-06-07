@@ -164,19 +164,26 @@ void driveTrackLegBlind(float targetHeading, float alignHeading, bool stopAtEnd,
       anyFrontLine);
 }
 
-static void stepTrackLeg78(float heading, bool stopAtEnd) {
+// 메인 가로 트랙의 빠른 라인트레이싱(앞+뒤 센서 + LINE_KP_TRACK_7_9 게인)으로
+// heading 방향으로 달려 다음 십자선(앞 1.1.1)까지 간다. 7-8, 8-7 뿐 아니라
+// 9->8 도 이걸로 통일해서 사용한다.
+//  - approachDistCm: 십자선 도달 전 미리 감속을 시작할 기준 거리
+//  - cruiseSpeed: 순항 속도
+static void stepMainTrackToCross(float heading, bool stopAtEnd,
+    float approachDistCm = DIST_TRACK_NODE_SPAN_CM,
+    int cruiseSpeed = SPEED_TRACK_7_9_LINE) {
   rotateToHeading(heading);
   resetLineTracePid();
-  clearIntersectionCross(); 
+  clearIntersectionCross();
   DriveEncMark motionStart = captureDriveEnc();
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
-  long approachStart = trackNodeApproachStartCounts(SPEED_TRACK_7_9_LINE);
-  
+  long approachStart = trackLegApproachStartCounts(approachDistCm, cruiseSpeed);
+
   bool crossFound = false;
   bool approachDecel = false;
   DriveEncMark crossMark = {0, 0};
   DriveEncMark approachMark = {0, 0};
-  
+
   long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
   int lastCurSpeed = RAMP_MIN_SPEED;
 
@@ -203,7 +210,7 @@ static void stepTrackLeg78(float heading, bool stopAtEnd) {
           if (alignSpan <= 0) break;
         } else {
           int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
-              approachMark, SPEED_TRACK_7_9_LINE);
+              approachMark, cruiseSpeed);
           speed = smoothRampSpeed(speed);
           lastCurSpeed = speed;
           traceLineForward(fl, fc, fr, rl, rc, rr, speed,
@@ -289,23 +296,18 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
     stepTrackLegToLineEnd(DIST_TRACK_8_TO_9_CM, stopAtEnd);
   }
   else if (fromNode == 7 && toNode == 8) {
-    stepTrackLeg78(90.0f, stopAtEnd);
+    stepMainTrackToCross(90.0f, stopAtEnd);
   }
   else if (fromNode == 7 && toNode == 9) {
     stepTrackLegToLineEnd(DIST_TRACK_7_TO_9_CM, stopAtEnd);
   }
   else if (fromNode == 8 && toNode == 7) {
-    stepTrackLeg78(270.0f, stopAtEnd);
+    stepMainTrackToCross(270.0f, stopAtEnd);
   }
   else if (fromNode == 9 && toNode == 8) {
-    rotateToHeading(270.0f);
-    DriveEncMark legStart = captureDriveEnc();
-    // 선에 어떻게 진입했든 노드 8까지 최소 35cm 이동(보장 최소값). legStart(회전
-    // 직후 지점) 기준으로 35cm 를 가정해 미리 감속한다: 35cm 에서 최저속 도달,
-    // 이후 노드 8 십자선(앞 1.1.1) 감지까지 최저속을 유지하며 진행.
-    // (시작 지점 노드 9 stub 의 헛십자선은 traceUntilIntersection 내부의
-    //  clearIntersectionCross() 가 먼저 지나쳐 준다.)
-    traceUntilIntersection(stopAtEnd, SPEED_9_TO_8, legStart, DIST_9_TO_8_CM);
+    // 9->8 도 7-8/8-7 과 같은 빠른 라인트레이싱으로 통일. 회전 직후 지점부터
+    // DIST_9_TO_8_CM 기준으로 미리 감속하며 노드 8 십자선까지 진행.
+    stepMainTrackToCross(270.0f, stopAtEnd, DIST_9_TO_8_CM, SPEED_9_TO_8);
   }
   else if (fromNode == 9 && toNode == 10) {
     blindDriveAndAlign(HEADING_9_TO_10, 90.0f, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);
