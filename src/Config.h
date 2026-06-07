@@ -234,7 +234,7 @@ constexpr int MOTOR_OFFSET_R = 0;                    // 오른쪽 모터 하드�
 constexpr float LIFT_COUNTS_PER_CM = 200.0f;         // 리프트 1cm 당 엔코더 카운트
 constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;          // 리프트 최대 상승 가능 높이
 constexpr float LIFT_CARRY_HIGH_CM = LIFT_MAX_HEIGHT_CM; // 장애물 존 통과용 높은 높이
-constexpr float LIFT_CARRY_LOW_CM = 24.0f;           // 평시 박스 운반 높이
+constexpr float LIFT_CARRY_LOW_CM = 15.0f;           // 1<->3·5<->6 운반 높이(장애물 없음)
 
 constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;           // 바닥 근접으로 판단하는 높이
 constexpr float LIFT_UP_CLEAR_CM = 4.0f;             // [실측 반영] 박스 들기 완료 판단 높이
