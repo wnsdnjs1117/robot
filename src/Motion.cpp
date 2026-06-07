@@ -339,7 +339,7 @@ static void spinPlainCounts(bool clockwise, long counts) {
   setWheelSpeeds(0, 0);
 
   // 회전 종료 후 20ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
-  delayWithTicks(20);
+  delayWithTicks(50);
 
   if (lineTrimmed) {
     int fl, fc, fr;

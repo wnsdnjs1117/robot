@@ -19,7 +19,7 @@
 // ============================================================
 
 constexpr int MAX_RESCAN_TRIES = 10;
-constexpr unsigned long SCAN_DWELL_MS = 1000;
+constexpr unsigned long SCAN_DWELL_MS = 1500;
 constexpr unsigned long SCAN_POLL_MS = 20;
 constexpr unsigned long BUZZER_QR_FOUND_MS = 1000;
 constexpr unsigned int BUZZER_TONE_HZ = 1000;
@@ -62,7 +62,7 @@ inline int toEncoderCounts(float cm) {
 
 constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;
 constexpr float DIST_BRAKE_CATCH_CM = 0.5f;
-constexpr float DIST_BRAKE_CATCH_MAX_CM = 5.0f;
+constexpr float DIST_BRAKE_CATCH_MAX_CM = 4.0f;
 constexpr float DIST_IGNORE_NODE_CM = 5.0f;
 constexpr int CROSS_CONFIRM = 1;
 constexpr int EXIT_LINE_CONFIRM = 1;
@@ -73,7 +73,7 @@ constexpr int EXIT_LINE_CONFIRM = 1;
 
 struct ZoneMotionProfile {
   float entryForwardExtra = 35.0f;
-  float entryReverseExtra = 11.0f;
+  float entryReverseExtra = 11.5f;
   float exitForwardExtra = 0.0f;
   float exitReverseExtra = 0.0f;
 };
@@ -82,10 +82,10 @@ inline ZoneMotionProfile getZoneProfile(int zone) {
   ZoneMotionProfile p;
   if (zone == 1) {
     p.exitForwardExtra = 35.0f;
-    p.exitReverseExtra = 33.0f;
+    p.exitReverseExtra = 32.5f;
   } else if (zone == 3) {
     p.exitForwardExtra = 37.0f;
-    p.exitReverseExtra = 35.0f;
+    p.exitReverseExtra = 34.5f;
   } else if (zone == 5 || zone == 6) {
     p.exitReverseExtra = 27.5f;
   }
@@ -134,13 +134,12 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // [8] 주행 cruise 속도 (모터 출력 0~100)
 // ============================================================
 
-constexpr int SPEED_LINE_FOLLOW_FWD = 35;
-constexpr int SPEED_LINE_FOLLOW_REV = 30;
+constexpr int SPEED_LINE_FOLLOW_FWD = 40;
+constexpr int SPEED_LINE_FOLLOW_REV = 35;
 constexpr int SPEED_OPEN_ZONE_FWD = 60;
-constexpr int SPEED_OPEN_ZONE_REV = 60;
+constexpr int SPEED_OPEN_ZONE_REV = 55;
 constexpr int SPEED_OPEN_TRACK_FWD = 80;
 constexpr int SPEED_OPEN_TRACK_REV = 60;
-constexpr int SPEED_9_TO_8 = 70;
 constexpr int START_LINE_SEARCH_SPEED = 30;
 
 // ============================================================
@@ -154,8 +153,8 @@ constexpr float RAMP_SPIN_DECEL_DEG = 40.0f;
 constexpr float SPIN_END_DECEL_DEG = 10.0f;
 constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;
 
-constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.60f;
-constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.5f;
+constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.40f;
+constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.6f;
 constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;
 
 inline float rampSpinAccelDeg(int spinSpeed) {
@@ -170,9 +169,9 @@ inline float rampSpinDecelDeg(int spinSpeed) {
 // [10] 메인 트랙 가로축 노드 7 — 8 — 9
 // ============================================================
 
-constexpr int SPEED_TRACK_7_9_LINE = 60;
-constexpr float LINE_KP_TRACK_7_9_SOFT = 1.8f;
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.5f;
+constexpr int SPEED_TRACK_7_9_LINE = 65;
+constexpr float LINE_KP_TRACK_7_9_SOFT = 2.0f;
+constexpr float LINE_KP_TRACK_7_9_HARD = 2.7f;
 constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;
 // 8->9 만 따로 인식 거리를 두어 더 일찍 감속하게 한다(7-8 에는 영향 없음).
 // 값을 줄이면 노드 9 도달 전 감속 시작이 앞당겨진다.
@@ -199,9 +198,9 @@ inline long trackNodeApproachStartCounts(int cruiseSpeed) {
 // [11] 맵 경로 — 스타트 · 13번 · 9번
 // ============================================================
 
-constexpr float DIST_START_TO_13_CM = 90.0f;
-constexpr float HEADING_13_TO_9 = 305.0f;
-constexpr float DIST_TRACK_13_TO_9_CM = 60.0f;
+constexpr float DIST_START_TO_13_CM = 70.0f;
+constexpr float HEADING_13_TO_9 = 300.0f;
+constexpr float DIST_TRACK_13_TO_9_CM = 75.0f;
 
 // ============================================================
 // [12] 맵 경로 — 9 · 10 · 11 · 12 (남쪽 루프)
@@ -218,7 +217,7 @@ constexpr float DIST_10_TO_12_CM = 55.0f;
 constexpr float HEADING_11_TO_12 = 255.0f;
 constexpr float DIST_11_TO_12_CM = 115.0f;
 
-constexpr float HEADING_12_TO_9_2 = 310.0f;
+constexpr float HEADING_12_TO_9_2 = 305.0f;
 
 constexpr float DIST_TRACK_9_TO_10_CM = 60.0f;
 constexpr float DIST_TRACK_10_TO_11_CM = 70.0f;
@@ -233,10 +232,10 @@ constexpr float HEADING_11_TO_FINISH = 348.0f;
 constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 5.0f;
 // 마무리(11->finish) 하드코딩 시퀀스 — 모두 config 로 조정 가능.
 // 11에서 후진 → 후방센서가 스타트박스에 닿음 → 아래 순서로 마무리.
-constexpr float DIST_FINISH_AFTER_TOUCH_CM = 10.0f;  // 닿은 뒤 추가 후진(cm)
-constexpr float FINISH_TURN_DEG = 5.0f;              // 그 뒤 꺾는 각도(deg, +시계 / -반시계)
-constexpr float DIST_FINISH_PARK_REV_CM = 12.0f;     // 꺾은 뒤 마지막 후진(cm)
-constexpr unsigned long BUZZER_FINISH_MS = 3000;     // 마무리 부저(ms)
+constexpr float DIST_FINISH_AFTER_TOUCH_CM = 5.0f;  // 닿은 뒤 추가 후진(cm)
+constexpr float FINISH_TURN_DEG = 8.0f;              // 그 뒤 꺾는 각도(deg, +시계 / -반시계)
+constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;     // 꺾은 뒤 마지막 후진(cm)
+constexpr unsigned long BUZZER_FINISH_MS = 2000;     // 마무리 부저(ms)
 
 // ============================================================
 // [14] PID 라인 추종 · 직진 보정
@@ -270,7 +269,7 @@ constexpr float LIFT_CARRY_HIGH_CM = LIFT_MAX_HEIGHT_CM;
 constexpr float LIFT_CARRY_LOW_CM = 15.0f;
 
 constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;
-constexpr float LIFT_UP_CLEAR_CM = 5.0f;
+constexpr float LIFT_UP_CLEAR_CM = 4.0f;
 constexpr float LIFT_DOWN_CLEAR_CM = 1.0f;
 constexpr int LIFT_UP_POWER = 60;
 constexpr int LIFT_DOWN_POWER = 100;

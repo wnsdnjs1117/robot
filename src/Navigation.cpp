@@ -272,10 +272,16 @@ void driveOntoMainTrack() {
   }
 
   driveDistanceCm(DIST_START_TO_13_CM, SPEED_OPEN_TRACK_FWD, true);
-  driveTrackLegBlind(HEADING_13_TO_9, -1.0f, true, DIST_TRACK_13_TO_9_CM, 1, true);
+  
+  // 13->9 진입 시 12->9 처럼 stopAtEnd=false로 진입하여 감속 없이 정렬거리 통과
+  driveTrackLegBlind(HEADING_13_TO_9, -1.0f, false, DIST_TRACK_13_TO_9_CM, 1, true);
+  
+  // 정렬 직후 브레이크와 동시에 270도 칼각 회전
   rotateToHeading(270.0f);
-  traceUntilIntersection(true);
-  intersectionNode = 8;
+  
+  // 저속 강제 직진(traceUntilIntersection) 대신, MapRouter의 고속 주행 로직에 위임
+  intersectionNode = 9;
+  driveToIntersectionNode(8);
 }
 
 void driveToFinishArea() {

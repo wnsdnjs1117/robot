@@ -392,9 +392,9 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
     stepMainTrackToCross(270.0f, stopAtEnd);
   }
   else if (fromNode == 9 && toNode == 8) {
-    // 9->8 도 7-8/8-7 과 같은 빠른 라인트레이싱으로 통일. 회전 직후 지점부터
-    // DIST_9_TO_8_CM 기준으로 미리 감속하며 노드 8 십자선까지 진행.
-    stepMainTrackToCross(270.0f, stopAtEnd, DIST_9_TO_8_CM, SPEED_9_TO_8);
+    // 9->8 도 7-8/8-7 과 같은 빠른 라인트레이싱으로 통일.
+    // 기존 SPEED_9_TO_8 상수를 삭제하고 SPEED_TRACK_7_9_LINE 으로 변경
+    stepMainTrackToCross(270.0f, stopAtEnd, DIST_9_TO_8_CM, SPEED_TRACK_7_9_LINE);
   }
   else if (fromNode == 9 && toNode == 10) {
     blindDriveAndAlign(HEADING_9_TO_10, 90.0f, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);
