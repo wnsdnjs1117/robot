@@ -20,6 +20,7 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
   long extraSpan = toEncoderCounts(extraDistance);
 
   bool sawLine = false;
+  bool sawCenter = false;
   bool pastLine = false;
   DriveEncMark lineStartMark = {0, 0};
   DriveEncMark pastLineMark = {0, 0};
@@ -35,12 +36,21 @@ void runZoneEntry(bool reverse, int zone, int openSpeed) {
           sawLine = true;
           lineStartMark = captureDriveEnc();
         }
+        bool centerOn = reverse ? (rc != 0) : (fc != 0);
+        if (centerOn) sawCenter = true;
         int speed = rampMarkSpeed(motionStart, openSpeed);
         speed = smoothRampSpeed(speed);
-        if (reverse)
+        // 진입 라인이 끝나며 한쪽 에지 센서만 남는 순간(가운데를 이미 지난 뒤)에는
+        // 라인트레이싱이 posP=±2 하드 조향을 걸어 차체가 틀어진다. 이때는 조향을
+        // 멈추고 직진해 라인이 완전히 끊길 때까지 자세를 유지한다.
+        if (sawCenter && !centerOn) {
+          int dir = reverse ? -1 : 1;
+          setWheelSpeeds(dir * speed, dir * speed);
+        } else if (reverse) {
           traceLineReverse(rl, rc, rr, fl, fc, fr, speed);
-        else
+        } else {
           traceLineForward(fl, fc, fr, rl, rc, rr, speed);
+        }
       } else if (sawLine) {
         pastLine = true;
         pastLineMark = captureDriveEnc();
