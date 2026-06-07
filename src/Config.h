@@ -98,13 +98,6 @@ inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
   return 0;
 }
 
-// 처박힘 방지 failsafe: 진입 시 '라인을 아직 못 본' 블라인드 탐색 거리가 아래 값을
-// 넘으면(센서 놓침/라인 없음 추정) 더 들어가지 않고 정지 + 경고 부저.
-// 정상 진입의 블라인드 탐색 거리보다 넉넉히 크게 두고, 실측으로 줄여 튜닝한다.
-constexpr float DIST_ZONE_ENTRY_BLIND_MAX_CM = 40.0f;   // runZoneEntry 블라인드 탐색 상한
-constexpr float DIST_ZONE_CROSS_MAX_CM = 80.0f;         // crossToOppositeZone 첫 라인까지 상한
-constexpr unsigned long BUZZER_FAILSAFE_MS = 800;       // failsafe 경고 부저 길이
-
 // ============================================================
 // [7] 직진 가·감속 램프 (부드러운 출발/정지)
 // ============================================================
