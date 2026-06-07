@@ -10,7 +10,7 @@
 // ============================================================
 // [1] 펌웨어 모드
 // ============================================================
-#define RUN_TEST_MODE 0         // 1이면 테스트 모드 실행
+#define RUN_TEST_MODE 1         // 1이면 테스트 모드 실행
 #define QR_SIMULATION 0         // 1이면 QR 스캔 시뮬레이션 활성화
 
 // ============================================================
@@ -46,7 +46,7 @@ constexpr float DIST_AXIS_TO_FRONT_SENSOR_CM = 6.0f;     // 바퀴 중심축 ~ �
 constexpr float DIST_AXIS_TO_REAR_SENSOR_CM = 4.0f;      // 바퀴 중심축 ~ 후방 센서까지의 거리
 constexpr float DIST_AXIS_TO_LIFT_CM = 10.5f;            // 바퀴 중심축 ~ 리프트까지의 거리
 constexpr float LINE_THICKNESS_CM = 2.0f;                // 바닥 라인의 두께
-constexpr float COUNTS_PER_CM = 3570.0f / 80.0f;         // 1cm 이동에 해당하는 엔코더 카운트
+constexpr float COUNTS_PER_CM = 3650.0f / 80.0f;         // 1cm 이동에 해당하는 엔코더 카운트
 
 inline int toEncoderCounts(float cm) {
   return (int)(cm * COUNTS_PER_CM + 0.5f);
@@ -103,7 +103,7 @@ inline long zoneCrossApproachDecelSpan(int zone, bool reverse) {
 // ============================================================
 constexpr int RAMP_MIN_SPEED = 30;         // 가감속 최소(출발/도착) 속도
 constexpr int RAMP_REF_SPEED = 40;         // 가감속 비율 계산을 위한 기준 속도
-constexpr float RAMP_ACCEL_CM = 10.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
+constexpr float RAMP_ACCEL_CM = 20.0f;      // 목표 속도 도달에 필요한 가속 구간 거리
 constexpr float RAMP_DECEL_CM = 17.0f;     // 정지를 위한 감속 구간 거리
 constexpr int RAMP_MAX_SPEED_STEP = 5;    // 모터 1틱당 허용되는 최대 속도 변화량
 
@@ -136,7 +136,7 @@ constexpr int START_LINE_SEARCH_SPEED = 30;// 스타트 직후 최초 라인 탐
 // [9] 제자리 회전 (Spin Turn)
 // ============================================================
 constexpr int SPIN_SPEED = 30;                       // [실측 반영] 제자리 회전 속도 (고정)
-constexpr int SPIN_90_COUNTS = 1170;                 // 90도 회전에 해당하는 기준 엔코더 카운트
+constexpr int SPIN_90_COUNTS = 1165;                 // 90도 회전에 해당하는 기준 엔코더 카운트
 constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;   // 회전 관성으로 인한 오버슛 사전 보정 비율
 
 constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.6f;   // 라인 감지 후 남은 회전 타겟 감소 비율
