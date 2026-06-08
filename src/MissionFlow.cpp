@@ -163,6 +163,7 @@ void runDeliveryPhase() {
             boxes[6].destination = 0;
             zoneOccupied[6] = false;
             zoneOccupied[tmp] = true;
+            delivered[tmp] = false;  // 임시 보관소로 재사용 시 stale delivered 해제
             movedThisTurn = true;
           }
         }
@@ -218,6 +219,10 @@ void runDeliveryPhase() {
       boxes[stuckZone].destination = 0;
       zoneOccupied[stuckZone] = false;
       zoneOccupied[emptyZone] = true;
+      // delivered[]는 '존' 기준이라, 박스를 내보내 비워진 칸(delivered=true)을
+      // 임시 보관소로 재사용하면 새로 둔 박스가 영원히 건너뛰어진다(루프 데드락).
+      // 임시로 둔 박스는 아직 목적지로 안 갔으므로 해당 칸 delivered 를 다시 false 로.
+      delivered[emptyZone] = false;
     }
   }
 }
