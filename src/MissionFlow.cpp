@@ -84,11 +84,27 @@ void deliverReadyBoxesWithinZones1to4(int inZone) {
   }
 }
 
-// exclude 칸을 제외한 첫 번째 빈 칸(1~6). 없으면 0.
-int firstEmptyZone(const bool zoneOccupied[7], int exclude) {
-  for (int z = 1; z <= 6; z++)
-    if (z != exclude && !zoneOccupied[z]) return z;
-  return 0;
+// 존이 연결된 교차로 노드(MapRouter 의 zoneToIntersection 과 동일 규약).
+// 임시 보관 칸을 고를 때 이동 거리를 노드 번호 차이로 근사하는 데 쓴다.
+int zoneNode(int zone) {
+  if (zone == 1 || zone == 3) return 7;
+  if (zone == 2 || zone == 4) return 8;
+  if (zone == 5) return 10;
+  if (zone == 6) return 11;
+  return 8;
+}
+
+// fromZone 에서 이동 비용(노드 거리)이 가장 작은 빈 칸(1~6). 동률이면 낮은 번호.
+// exclude 칸은 후보에서 제외한다. 없으면 0.
+int nearestEmptyZone(const bool zoneOccupied[7], int fromZone, int exclude = 0) {
+  int best = 0, bestCost = 0;
+  for (int z = 1; z <= 6; z++) {
+    if (z == exclude || zoneOccupied[z]) continue;
+    int cost = zoneNode(z) - zoneNode(fromZone);
+    if (cost < 0) cost = -cost;
+    if (best == 0 || cost < bestCost) { best = z; bestCost = cost; }
+  }
+  return best;
 }
 
 }  // namespace
@@ -152,7 +168,7 @@ void runDeliveryPhase() {
           // 나갔다가 나중에 다시 6번으로 들어와 박스를 집는 낭비(나옴→재진입→나옴)를
           // 없앤다. QR 을 찍은 그 자리에서 box6 을 바로 들어 빈 칸으로 옮기고,
           // 실제 목적지 배송은 이후 일반 단계에서 처리한다(목적지는 유지).
-          int tmp = firstEmptyZone(zoneOccupied, dest);
+          int tmp = nearestEmptyZone(zoneOccupied, 6, dest);
           if (tmp != 0) {
             deliverBoxBetweenZones(6, tmp, true);
             boxes[tmp].present = true;
@@ -202,12 +218,14 @@ void runDeliveryPhase() {
     }
 
     if (!movedThisTurn && deliveredCount < 4) {
-      int stuckZone = 0, emptyZone = 0;
+      int stuckZone = 0;
       for (int z = 1; z <= 6; z++) {
         if (boxes[z].found && boxes[z].present && !delivered[z]) stuckZone = z;
-        if (!zoneOccupied[z]) emptyZone = z;
       }
-      if (stuckZone == 0 || emptyZone == 0) break;
+      if (stuckZone == 0) break;
+      // 마지막(최댓값) 빈 칸이 아니라, 막힌 박스에서 가장 가까운 빈 칸에 임시로 둔다.
+      int emptyZone = nearestEmptyZone(zoneOccupied, stuckZone);
+      if (emptyZone == 0) break;
 
       deliverBoxBetweenZones(stuckZone, emptyZone);
 
