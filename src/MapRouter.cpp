@@ -359,18 +359,11 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
   bool lineSeen = false;
   DriveEncMark approachMark = {0, 0};
 
-  // 9번 끝단 틀어짐 방지: '감속 구간(approachStart 이후)'에서만 가운데를 잃으면 0.1cm 직진.
-  // 고속 순항 구간에선 적용하지 않아 반응성을 최대한 살린다.
-  bool sawCenter = false;
-  bool centerLostArmed = false;
-  DriveEncMark centerLostMark = {0, 0};
-
   while (true) {
     int fl, fc, fr, rl, rc, rr;
     readFrontLineSensors(fl, fc, fr);
     readRearLineSensors(rl, rc, rr);
     if (frontOnLine(fl, fc, fr)) lineSeen = true;
-    if (fc != 0) { sawCenter = true; centerLostArmed = false; }
 
     long traveled = encoderTraveledSince(motionStart);
     int speed = trackLegSpeed(motionStart, ignoreSpan, approachStart, approachDecel,
@@ -395,22 +388,8 @@ static void stepTrackLegToLineEnd(float legSpanCm, bool stopAtEnd) {
     }
     resetRampSpeedLimiter(speed);
     speed = smoothRampSpeed(speed);
-    // 감속 구간에서 라인 끝단(가운데 잃음)을 만나면 0.1cm만 직진해 끝단 하드조향 틀어짐 방지.
-    if (traveled >= approachStart && sawCenter && fc == 0) {
-      if (!centerLostArmed) {
-        centerLostArmed = true;
-        centerLostMark = captureDriveEnc();
-      }
-      if (encoderTraveledSince(centerLostMark) < toEncoderCounts(0.1f)) {
-        setWheelSpeeds(speed, speed);
-      } else {
-        traceLineForward(fl, fc, fr, rl, rc, rr, speed,
-            LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
-      }
-    } else {
-      traceLineForward(fl, fc, fr, rl, rc, rr, speed,
-          LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
-    }
+    traceLineForward(fl, fc, fr, rl, rc, rr, speed,
+        LINE_KP_TRACK_7_9_SOFT, LINE_KP_TRACK_7_9_HARD);
     driveLoopTick();
   }
 }
