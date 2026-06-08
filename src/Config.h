@@ -131,13 +131,8 @@ constexpr int EXIT_LINE_CONFIRM = 1;                                 // 탈출 �
 // [10] 박스 존(1~6) 진입 · 탈출 프로파일
 // ============================================================
 struct ZoneMotionProfile {
-<<<<<<< HEAD
-  float entryForwardExtra = 34.5f;  // 전진 진입 시 라인 감지 후 추가 주행 거리
-  float entryReverseExtra = 11.0f;  // 후진 진입 시 라인 감지 후 추가 주행 거리
-=======
   float entryForwardExtra = 33.7f;  // 라인 감지 후 박스 존 진입을 위한 추가 주행 거리 (전진)
   float entryReverseExtra = 11.5f;  // 라인 감지 후 박스 존 진입을 위한 추가 주행 거리 (전진/후진)
->>>>>>> claude/sweet-wozniak-ppUnj
   float exitForwardExtra = 0.0f;    // 전진 탈출 시 라인 감지 후 추가 주행 거리
   float exitReverseExtra = 0.0f;    // 후진 탈출 시 라인 감지 후 추가 주행 거리
 };
@@ -145,19 +140,11 @@ struct ZoneMotionProfile {
 inline ZoneMotionProfile getZoneProfile(int zone) {
   ZoneMotionProfile p;
   if (zone == 1) {
-<<<<<<< HEAD
-    p.exitForwardExtra = 35.5f;
-    p.exitReverseExtra = 31.5f;     // [실측 반영]
-  } else if (zone == 3) {
-    p.exitForwardExtra = 37.5f;
-    p.exitReverseExtra = 33.5f;     // [실측 반영]
-=======
     p.exitForwardExtra = 34.0f;
     p.exitReverseExtra = 31.0f;  // [실측 반영]
   } else if (zone == 3) {
     p.exitForwardExtra = 36.0f;
     p.exitReverseExtra = 33.0f;  // [실측 반영]
->>>>>>> claude/sweet-wozniak-ppUnj
   } else if (zone == 5 || zone == 6) {
     p.exitReverseExtra = 27.5f;
   }
@@ -190,42 +177,6 @@ constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;      // 라인을 놓친(오버�
 // ============================================================
 // [12] 메인 트랙 가로축 노드 7 — 8 — 9
 // ============================================================
-<<<<<<< HEAD
-constexpr int SPEED_LINE_FOLLOW_FWD = 45;  // 전진 라인 트레이싱 기본 속도
-constexpr int SPEED_LINE_FOLLOW_REV = 40;  // 후진 라인 트레이싱 기본 속도
-constexpr int SPEED_OPEN_ZONE_FWD = 60;    // 박스존 내 전진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_ZONE_REV = 55;    // 박스존 내 후진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_FWD = 85;   // 일반 트랙 전진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_REV = 65;   // 일반 트랙 후진 개방(블라인드) 속도
-constexpr int SPEED_TRACK_7_9_LINE = 70;             // 7, 8, 9번 메인 트랙 고속 주행 속도
-constexpr int START_LINE_SEARCH_SPEED = 30;// 스타트 직후 최초 라인 탐색 진입 속도
-
-// ============================================================
-// [9] 제자리 회전 (Spin Turn)
-// ============================================================
-constexpr int SPIN_SPEED = 30;                       // [실측 반영] 제자리 회전 속도 (고정)
-constexpr int SPIN_90_COUNTS = 1170;                 // 90도 회전에 해당하는 기준 엔코더 카운트
-constexpr float SPIN_OVERSHOOT_COMP_FRAC = 0.005f;   // 회전 관성으로 인한 오버슛 사전 보정 비율
-
-constexpr float SPIN_LINE_TRIM_REMAIN_FRAC = 0.6f;   // 라인 감지 후 남은 회전 타겟 감소 비율
-constexpr float SPIN_OPPOSITE_CHECK_FRAC = 0.50f;    // 회전 중 반대쪽 센서 감시 시작 지점 (50%)
-constexpr float SPIN_LINE_TRIM_MIN_FRAC = 0.80f;     // [실측 반영] 회전 중 라인 정밀 맞춤을 시작할 최소 회전량
-constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;       // 라인을 놓친(오버스핀) 경우 되돌아오는 복구 각도 (도)
-
-// ============================================================
-// [10] 메인 트랙 가로축 노드 7 — 8 — 9
-// ============================================================
-constexpr float LINE_KP_TRACK_7_9_SOFT = 2.2f;       // 메인 트랙 라인 부드러운 조향 게인
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.7f;       // 메인 트랙 라인 강한 조향 게인
-constexpr float DIST_TRACK_NODE_SPAN_CM = 70.0f;     // 7-8 및 8-9 노드 간 기본 간격
-constexpr float DIST_TRACK_8_TO_9_CM = 60.0f;        // 8->9 진입 시 감속을 시작할 거리
-constexpr float DIST_9_TO_8_CM = 50.0f;              // 9->8 진입 시 감속을 시작할 비대칭 거리
-constexpr float DIST_TRACK_7_TO_9_CM = DIST_TRACK_NODE_SPAN_CM * 2.0f; // 7에서 9까지의 연속 거리
-constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;// 8번 통과 시 십자선 감지를 무시할 반경
-constexpr float DIST_NODE_DETECT_CRAWL_CM = 5.0f;    // 십자선 감지 직전 기어가기 거리
-
-constexpr float DIST_TRACK_OVERSHOOT_MIN_CM = 0.2f;  // 오버슛 최소 무시 거리 (레거시)
-=======
 constexpr float DIST_TRACK_NODE_SPAN_CM = 68.0f;  // 7-8 및 8-9 노드 간 기본 간격
 constexpr float DIST_TRACK_8_TO_9_CM = 65.0f;     // 8->9 진입 시 감속을 시작할 거리
 constexpr float DIST_9_TO_8_CM = 45.0f;           // 9->8 진입 시 감속을 시작할 비대칭 거리
@@ -236,7 +187,6 @@ constexpr float DIST_TRACK_NODE8_PASS_HALF_CM = 8.0f;  // 8번 통과 시 십자
 constexpr float DIST_NODE_DETECT_CRAWL_CM = 5.0f;      // 십자선 감지 직전 기어가기 거리
 
 constexpr float DIST_TRACK_OVERSHOOT_MIN_CM = 0.2f;  // 오버슛 최소 무시 거리 (레거시) 
->>>>>>> claude/sweet-wozniak-ppUnj
 constexpr float DIST_TRACK_OVERSHOOT_MAX_CM = 0.5f;  // 오버슛 최대 무시 거리 (레거시)
 
 inline long trackLegApproachStartCounts(float legSpanCm, int cruiseSpeed) {
@@ -270,51 +220,27 @@ constexpr float DIST_11_TO_12_CM = 115.0f;  // 11 -> 12 직진 주행 거리
 
 constexpr float HEADING_12_TO_9_2 = 307.0f;  // 12 -> 9 배송 복귀 목표 각도
 
-<<<<<<< HEAD
-constexpr float DIST_TRACK_9_TO_10_CM = 60.0f;       // 9 -> 10 트랙 직진 거리
-constexpr float DIST_TRACK_10_TO_11_CM = 70.0f;      // 10 -> 11 트랙 직진 거리
-constexpr float DIST_TRACK_9_TO_11_CM = 130.0f;      // 9 -> 11 연속 트랙 거리
-constexpr float DIST_TRACK_12_TO_9_CM = 30.0f;       // 12 -> 9 배송 복귀 직진 거리
-=======
 constexpr float DIST_TRACK_9_TO_10_CM = 60.0f;    // 9 -> 10 트랙 직진 거리
 constexpr float DIST_TRACK_10_TO_11_CM = 70.0f;   // 10 -> 11 트랙 직진 거리
 constexpr float DIST_TRACK_9_TO_11_CM = 130.0f;   // 9 -> 11 연속 트랙 거리
 constexpr float DIST_TRACK_12_TO_9_CM = 40.0f;  // 12 -> 9 배송 복귀 직진 거리
->>>>>>> claude/sweet-wozniak-ppUnj
 
 // ============================================================
 // [15] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
 // ============================================================
-<<<<<<< HEAD
-constexpr float HEADING_11_TO_FINISH = 348.0f;       // 11번에서 피니시(스타트박스)로 향하는 각도
-constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 10.0f; // 피니시 라인 탐색을 위한 센서 무시 거리
-constexpr float DIST_FINISH_AFTER_TOUCH_CM = 5.0f;   // 스타트박스 후방 터치 후 추가 후진 거리
-constexpr float FINISH_TURN_DEG = 8.0f;              // 벽면 정렬을 위한 마무리 꺾임 각도 (+시계)
-constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;     // 꺾은 후 최종 주차 후진 거리
-constexpr unsigned long BUZZER_FINISH_MS = 2000;     // 미션 종료 성공 시 부저 유지 시간
-=======
 constexpr float HEADING_11_TO_FINISH = 348.0f;         // 11번에서 피니시(스타트박스)로 향하는 각도
 constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 12.0f;  // 피니시 라인 탐색을 위한 센서 무시 거리
 constexpr float DIST_FINISH_AFTER_TOUCH_CM = 5.0f;     // 스타트박스 후방 터치 후 추가 후진 거리
 constexpr float FINISH_TURN_DEG = 6.0f;                // 벽면 정렬을 위한 마무리 꺾임 각도 (+시계)
 constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;       // 꺾은 후 최종 주차 후진 거리
->>>>>>> claude/sweet-wozniak-ppUnj
 
 // ============================================================
 // [16] 리프트 (Expansion DC #1·#2)
 // ============================================================
-<<<<<<< HEAD
-constexpr float LINE_KP_FWD_SOFT = 1.4f;             // 전진 라인 P게인 (오차가 작을 때)
-constexpr float LINE_KP_FWD_HARD = 1.8f;             // 전진 라인 P게인 (오차가 클 때)
-constexpr float LINE_KP_REV_SOFT = 1.2f;             // 후진 라인 P게인 (오차가 작을 때)
-constexpr float LINE_KP_REV_HARD = 1.3f;             // 후진 라인 P게인 (오차가 클 때)
-constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.5f; // 강한 조향 시 속도 감속 비율
-=======
 constexpr float LIFT_COUNTS_PER_CM = 200.0f;              // 리프트 1cm 당 엔코더 카운트
 constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;               // 리프트 최대 상승 가능 높이
 constexpr float LIFT_CARRY_HIGH_CM = LIFT_MAX_HEIGHT_CM;  // 장애물 존 통과용 높은 높이
 constexpr float LIFT_CARRY_LOW_CM = 19.0f;                // 1<->3·5<->6 운반 높이(장애물 없음)
->>>>>>> claude/sweet-wozniak-ppUnj
 
 constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;  // 바닥 근접으로 판단하는 높이
 constexpr float LIFT_UP_CLEAR_CM = 4.0f;    // [실측 반영] 박스 들기 완료 판단 높이
@@ -326,33 +252,9 @@ constexpr float LIFT_UP_SLOW_ZONE_CM = 18.0f;  // 상승 중 속도를 줄이기
 constexpr int LIFT_UP_SLOW_POWER_L = 50;       // 상승 슬로우 존 왼쪽 파워
 constexpr int LIFT_UP_SLOW_POWER_R = 50;       // 상승 슬로우 존 오른쪽 파워
 
-<<<<<<< HEAD
-// ============================================================
-// [15] 리프트 (Expansion DC #1·#2)
-// ============================================================
-constexpr float LIFT_COUNTS_PER_CM = 200.0f;         // 리프트 1cm 당 엔코더 카운트
-constexpr float LIFT_MAX_HEIGHT_CM = 24.0f;          // 리프트 최대 상승 가능 높이
-constexpr float LIFT_CARRY_HIGH_CM = LIFT_MAX_HEIGHT_CM; // 장애물 존 통과용 높은 높이
-constexpr float LIFT_CARRY_LOW_CM = 14.0f;           // 평시 박스 운반 높이
-
-constexpr float LIFT_NEAR_FLOOR_CM = 5.0f;           // 바닥 근접으로 판단하는 높이
-constexpr float LIFT_UP_CLEAR_CM = 4.0f;             // [실측 반영] 박스 들기 완료 판단 높이
-constexpr float LIFT_DOWN_CLEAR_CM = 1.0f;           // 박스 내려놓기 완료 판단 높이
-constexpr int LIFT_UP_POWER = 60;                    // 상승 기본 파워
-constexpr int LIFT_DOWN_POWER = 100;                 // 하강 기본 파워
-
-constexpr float LIFT_UP_SLOW_ZONE_CM = 18.0f;        // 상승 중 속도를 줄이기 시작할 높이
-constexpr int LIFT_UP_SLOW_POWER_L = 40;             // 상승 슬로우 존 왼쪽 파워
-constexpr int LIFT_UP_SLOW_POWER_R = 40;             // 상승 슬로우 존 오른쪽 파워
-
-constexpr float LIFT_DOWN_SLOW_ZONE_CM = 8.0f;       // 하강 중 속도를 줄이기 시작할 높이
-constexpr int LIFT_DOWN_SLOW_POWER_L = 20;           // 하강 슬로우 존 왼쪽 파워
-constexpr int LIFT_DOWN_SLOW_POWER_R = 20;           // 하강 슬로우 존 오른쪽 파워
-=======
 constexpr float LIFT_DOWN_SLOW_ZONE_CM = 10.0f;  // 하강 중 속도를 줄이기 시작할 높이
 constexpr int LIFT_DOWN_SLOW_POWER_L = 25;      // 하강 슬로우 존 왼쪽 파워
 constexpr int LIFT_DOWN_SLOW_POWER_R = 25;      // 하강 슬로우 존 오른쪽 파워
->>>>>>> claude/sweet-wozniak-ppUnj
 
 constexpr float LIFT_SYNC_GAIN = 5.0f;               // 좌우 리프트 높이 동기화 게인
 constexpr unsigned long LIFT_TICK_INTERVAL_MS = 20;  // 리프트 제어 루프 주기 (ms)
