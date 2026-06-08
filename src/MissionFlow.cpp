@@ -139,7 +139,15 @@ void runDeliveryPhase() {
   bool delivered[7] = {false};
   bool insideZone6 = true;
 
+  // 안전 가드: 박스 4개 배송에 필요한 이동(배송+임시보관)은 많아야 10여 회다.
+  // QR 오인식으로 두 박스가 같은 목적지를 갖는 등 해결 불가한 배치에서는
+  // stuck handler 가 박스를 빈 칸 사이로 영원히 옮겨 로봇이 멈추지 않을 수 있다.
+  // 충분히 큰 상한을 둬 정상 동작엔 영향 없이 무한 루프/무한 주행만 차단한다.
+  int loopGuard = 0;
+  const int MAX_DELIVERY_LOOPS = 64;
+
   while (deliveredCount < 4) {
+    if (++loopGuard > MAX_DELIVERY_LOOPS) break;
     bool movedThisTurn = false;
 
     if (insideZone6) {
