@@ -97,13 +97,18 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
 }
  
  int calcRampUpSpeed(long traveledCounts, long accelCounts, int maxSpeed) {
+   // 목표 속도가 기본 출발 속도(RAMP_MIN) 이하면 가속 계산을 생략하고 그 속도 그대로 적용.
+   // (RAMP_MIN 미만을 목표로 하면 기존 수식이 RAMP_MIN으로 강제 클램프되어 25→10 튐 발생)
+   if (maxSpeed <= RAMP_MIN_SPEED) return maxSpeed;
    if (accelCounts <= 0 || traveledCounts >= accelCounts) return maxSpeed;
    int speed = RAMP_MIN_SPEED
        + (int)((long)(maxSpeed - RAMP_MIN_SPEED) * traveledCounts / accelCounts);
    return (speed < RAMP_MIN_SPEED) ? RAMP_MIN_SPEED : speed;
  }
- 
+
  int calcRampDownSpeed(long remainingCounts, long decelCounts, int startSpeed) {
+   // 감속 시작 속도가 기본 정지 속도(RAMP_MIN) 이하면 감속 계산을 생략하고 그대로 적용.
+   if (startSpeed <= RAMP_MIN_SPEED) return startSpeed;
    if (decelCounts <= 0 || remainingCounts >= decelCounts) return startSpeed;
    if (remainingCounts <= 0) return RAMP_MIN_SPEED;
    int speed = RAMP_MIN_SPEED
@@ -335,9 +340,32 @@ void rotateByDegrees(float degrees, bool clockwise) {
    readRearLineSensors(rl, rc, rr);
  }
  
+// 운반 박스 미리 내리기 예약: 장애물 통과 지점부터 일정 거리(주행) 후 14cm로 부분 하강.
+// 거리 측정은 주행 엔코더(g_encL/g_encR) 기준이라 driveLoopTick 이 도는 모든 주행에서 진행된다.
+static bool g_carryPreLowerPending = false;
+static DriveEncMark g_carryPreLowerMark = {0, 0};
+static long g_carryPreLowerCounts = 0;
+
+void scheduleCarryPreLower(float afterCm) {
+  g_carryPreLowerPending = true;
+  g_carryPreLowerMark = captureDriveEnc();
+  g_carryPreLowerCounts = toEncoderCounts(afterCm);
+}
+
+void cancelCarryPreLower() { g_carryPreLowerPending = false; }
+
+static void carryPreLowerTick() {
+  if (!g_carryPreLowerPending) return;
+  if (encoderTraveledSince(g_carryPreLowerMark) >= g_carryPreLowerCounts) {
+    g_carryPreLowerPending = false;
+    liftDownToStart(LIFT_CARRY_LOW_CM);
+  }
+}
+
 void driveLoopTick() {
   liftUpTick();
   liftDownTick();
+  carryPreLowerTick();
   updateBeep();
 }
  

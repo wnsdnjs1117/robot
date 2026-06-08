@@ -12,22 +12,29 @@
 
 namespace {
 
-bool deliveryCrossesNode9(int fromZone, int toZone) {
-  bool fromTop = (fromZone >= 1 && fromZone <= 4);
-  bool toTop = (toZone >= 1 && toZone <= 4);
-  return fromTop != toTop;
+// 1<->3, 5<->6 배송만 노드 8·9(장애물)를 지나지 않으므로 낮게(LOW) 든다.
+// 그 외 모든 배송은 노드 8 또는 9를 지나므로 높이(HIGH) 든다.
+bool deliveryUsesLowLift(int fromZone, int toZone) {
+  return (fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1)
+      || (fromZone == 5 && toZone == 6) || (fromZone == 6 && toZone == 5);
 }
 
 void deliverBoxBetweenZones(int fromZone, int toZone, bool alreadyInFromZone = false) {
   if (!alreadyInFromZone) navigateToZone(fromZone);
-  bool cross9 = deliveryCrossesNode9(fromZone, toZone);
 
-  // 박스를 들고 장애물이 있는 9번을 지날 때만 24cm, 그 외에는 12cm까지만 든다.
-  liftUpStart(cross9 ? LIFT_CARRY_HIGH_CM : LIFT_CARRY_LOW_CM);
+  // 1<->3, 5<->6 만 장애물(노드 8·9) 없이 이동 → 낮게. 그 외엔 노드 8/9 통과 → 높이.
+  bool lowLift = deliveryUsesLowLift(fromZone, toZone);
+  liftUpStart(lowLift ? LIFT_CARRY_LOW_CM : LIFT_CARRY_HIGH_CM);
   liftUpWaitClear();
+
+  // HIGH(24)로 든 경우, 장애물 노드(8/9)를 지난 뒤 이동 중 미리 14cm로 내리도록 arm.
+  // (트리거: 7번으로 가는 8->7·9->7, 그리고 9->10/11 의 20cm 지점 — MapRouter)
+  g_carryPreLowerArmed = !lowLift;
 
   moveBetweenZones(fromZone, toZone, zoneMoveOpts(false, true));
 
+  g_carryPreLowerArmed = false;  // 트리거 못한 경로(예: 9->8 도착 등)면 여기서 해제
+  cancelCarryPreLower();         // 미실행 예약이 남아있으면 취소(곧 zone에서 바닥까지 내림)
   liftDownUntilClear();
   leaveZone(toZone);
   liftDownWait();
@@ -75,17 +82,6 @@ void deliverReadyBoxesWithinZones1to4(int inZone) {
     deliverBoxBetweenZones(z, boxes[z].destination);
     markBoxMoved(z, boxes[z].destination);
   }
-}
-
-// 지금 바로 배송 가능한(제자리이거나 목적지가 빈) 박스가 하나라도 있는가?
-bool anyDeliverableNow(const bool zoneOccupied[7], const bool delivered[7]) {
-  for (int z = 1; z <= 6; z++) {
-    if (!boxes[z].found || !boxes[z].present || delivered[z]) continue;
-    int d = boxes[z].destination;
-    if (d == z) return true;
-    if (d >= 1 && d <= 6 && !zoneOccupied[d]) return true;
-  }
-  return false;
 }
 
 // exclude 칸을 제외한 첫 번째 빈 칸(1~6). 없으면 0.
@@ -151,10 +147,11 @@ void runDeliveryPhase() {
           delivered[6] = true;
           deliveredCount++;
           movedThisTurn = true;
-        } else if (!anyDeliverableNow(zoneOccupied, delivered)) {
-          // 목적지가 막혔고 지금 바로 배송 가능한 박스도 없는 교착(예: 5<->6 스왑).
-          // 이미 6번 안에 있으니 빈 손으로 나갔다 다시 들어오지 말고, box6 를
-          // 빈 칸으로 바로 들어 옮겨 교착을 푼다(목적지는 유지, 이후 단계에서 배송).
+        } else {
+          // 목적지가 막혀 바로 배송할 수 없는 경우. 이미 6번 안에 있으므로 빈 손으로
+          // 나갔다가 나중에 다시 6번으로 들어와 박스를 집는 낭비(나옴→재진입→나옴)를
+          // 없앤다. QR 을 찍은 그 자리에서 box6 을 바로 들어 빈 칸으로 옮기고,
+          // 실제 목적지 배송은 이후 일반 단계에서 처리한다(목적지는 유지).
           int tmp = firstEmptyZone(zoneOccupied, dest);
           if (tmp != 0) {
             deliverBoxBetweenZones(6, tmp, true);

@@ -14,6 +14,19 @@ bool  enteredZoneForward = true;
 bool  finishFromZone6Exit = false;
 static int g_seamlessTo = 0;  // 1↔3 배송: leaveZone 직후 무정지 진입 대상 존
 
+// 24cm(HIGH)로 든 박스를 장애물 노드(8/9) 통과 후 이동 중 14cm로 미리 내릴지 여부.
+// deliverBoxBetweenZones 가 HIGH 운반일 때만 arm 하고, 장애물 통과 지점에서 1회 트리거된다.
+bool g_carryPreLowerArmed = false;
+
+// 장애물 노드를 지난 지점에서 호출: armed 면 'afterCm 더 주행한 뒤' 14cm로 내리도록 예약.
+// 리프트가 차체 중앙에 있어 센서가 노드를 감지한 순간엔 박스가 아직 노드를 못 지났으므로,
+// afterCm 여유(기본 20cm)를 둬서 박스가 장애물을 확실히 지난 뒤 하강하게 한다.
+static void scheduleCarryPreLowerIfArmed(float afterCm) {
+  if (!g_carryPreLowerArmed) return;
+  g_carryPreLowerArmed = false;
+  scheduleCarryPreLower(afterCm);
+}
+
 static int zoneToIntersection(int zone) {
   if (zone == 1 || zone == 3) return 7;
   if (zone == 2 || zone == 4) return 8;
@@ -71,12 +84,16 @@ static bool registerNodeLineHit(int lineCount, bool anyFrontLine, int& linesPass
 }
 
 static void blindDriveAndAlign(float targetHeading, float alignHeading, bool stopAtEnd,
-    float legSpanCm, int lineCount = 1, bool anyFrontLine = false) {
+    float legSpanCm, int lineCount = 1, bool anyFrontLine = false,
+    float preLowerCm = -1.0f) {  // >=0 이면 leg 시작 후 그 거리에서 운반 박스 14cm 미리 내리기
   rotateToHeading(targetHeading);
   resetLineTracePid();
   resetRampSpeedLimiter(RAMP_MIN_SPEED);
   const int cruiseSpeed = SPEED_OPEN_TRACK_FWD;
   DriveEncMark motionStart = captureDriveEnc();
+
+  // 9->10/11 처럼 노드 9를 떠난 직후(회전 후) 기준으로 preLowerCm 주행 뒤 운반 박스 14cm 내리기 예약.
+  if (preLowerCm >= 0.0f) scheduleCarryPreLowerIfArmed(preLowerCm);
 
   long ignoreSpan = toEncoderCounts(DIST_IGNORE_NODE_CM);
   float detectTargetCm = legSpanCm - DIST_NODE_DETECT_CRAWL_CM;
@@ -171,11 +188,13 @@ void driveTrackLegBlind(float targetHeading, float alignHeading, bool stopAtEnd,
 //  - cruiseSpeed: 순항 속도
 static void stepMainTrackToCross(float heading, bool stopAtEnd,
     float approachDistCm = DIST_TRACK_NODE_SPAN_CM,
-    int cruiseSpeed = SPEED_TRACK_7_9_LINE) {
+    int cruiseSpeed = SPEED_TRACK_7_9_LINE,
+    float preLowerCm = -1.0f) {  // >=0(8->7)이면 회전 후 그 거리 주행 뒤 운반 박스 14cm 내리기
   rotateToHeading(heading);
   resetLineTracePid();
   clearIntersectionCross();
   DriveEncMark motionStart = captureDriveEnc();
+  if (preLowerCm >= 0.0f) scheduleCarryPreLowerIfArmed(preLowerCm);
   long alignSpan = toEncoderCounts(DIST_CROSS_ALIGN_CM);
   long approachStart = trackLegApproachStartCounts(approachDistCm, cruiseSpeed);
 
@@ -276,6 +295,8 @@ static void stepMainTrackMultiCross(float heading, bool stopAtEnd,
           if (crossesLeft > 0) {
             // 중간 십자선(예: 노드 8): 감속 없이 통과, 다음 구간 시작
             crossesLeft--;
+            // 9->7 에서 노드 8 감지 → 20cm 더 가서(박스가 노드 8을 확실히 지난 뒤) 14cm 내리기 예약.
+            scheduleCarryPreLowerIfArmed(20.0f);
             segStart = captureDriveEnc();
             approachDecel = false;
             intersectionArmed = false;
@@ -389,7 +410,8 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
         SPEED_TRACK_7_9_LINE);
   }
   else if (fromNode == 8 && toNode == 7) {
-    stepMainTrackToCross(270.0f, stopAtEnd);
+    // 노드 8을 떠나 20cm 주행 뒤(박스가 노드 8을 지난 뒤) 운반 박스 14cm로 미리 내리기.
+    stepMainTrackToCross(270.0f, stopAtEnd, DIST_TRACK_NODE_SPAN_CM, SPEED_TRACK_7_9_LINE, 20.0f);
   }
   else if (fromNode == 9 && toNode == 8) {
     // 9->8 도 7-8/8-7 과 같은 빠른 라인트레이싱으로 통일.
@@ -397,10 +419,11 @@ static void stepBetweenNodes(int fromNode, int toNode, bool stopAtEnd) {
     stepMainTrackToCross(270.0f, stopAtEnd, DIST_9_TO_8_CM, SPEED_TRACK_7_9_LINE);
   }
   else if (fromNode == 9 && toNode == 10) {
-    blindDriveAndAlign(HEADING_9_TO_10, 90.0f, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true);
+    // 노드 9를 떠나 20cm 지난 시점부터 운반 박스 14cm로 미리 내리기.
+    blindDriveAndAlign(HEADING_9_TO_10, 90.0f, stopAtEnd, DIST_TRACK_9_TO_10_CM, 1, true, 20.0f);
   }
   else if (fromNode == 9 && toNode == 11) {
-    blindDriveAndAlign(HEADING_9_TO_11, -1.0f, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true);
+    blindDriveAndAlign(HEADING_9_TO_11, -1.0f, stopAtEnd, DIST_TRACK_9_TO_11_CM, 2, true, 20.0f);
   }
   else if (fromNode == 10 && toNode == 11) {
     blindDriveAndAlign(HEADING_10_TO_11, -1.0f, stopAtEnd, DIST_TRACK_10_TO_11_CM, 1, true);
@@ -696,15 +719,10 @@ void moveBetweenZones(int fromZone, int toZone, ZoneMoveOptions opts) {
     navigateToZone(fromZone);
   }
 
-  if (!opts.scanQr && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1))) {
-    rotateToHeading(0.0f);
-    enteredZoneForward = (fromZone == 1);
-    g_seamlessTo = toZone;
-    leaveZone(fromZone);
-    g_seamlessTo = 0;
-    return;
-  }
-
+  // 1↔3 배송은 존 안에서 회전한 뒤 곧장 건너가는 무정지(seamless) 지름길 대신,
+  // 아래 일반 경로로 처리한다. 일반 경로는 leaveZone 으로 7번까지 '먼저 빠져나온 뒤'
+  // 교차로에서 회전하므로, 박스를 들고 3번 존 안에서 제자리 회전(처박힘/충돌)하던
+  // 문제가 사라진다.
   if (opts.scanQr
       && ((fromZone == 1 && toZone == 3) || (fromZone == 3 && toZone == 1)
        || (fromZone == 2 && toZone == 4) || (fromZone == 4 && toZone == 2))) {

@@ -144,6 +144,7 @@ enum protocolAlgorithm
     ALGORITHM_COLOR_RECOGNITION,
     ALGORITHM_TAG_RECOGNITION,
     ALGORITHM_OBJECT_CLASSIFICATION,
+    ALGORITHM_QR_CODE_RECOGNITION,   // 7: QR 코드 인식 (HuskyLens Pro/EDU 펌웨어)
 };
 
 ///////////////////////////////////////////////////////////////////////////

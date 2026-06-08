@@ -16,9 +16,17 @@ namespace HuskyQR {
 void begin() {
   // Wire는 PRIZM(PrizmBegin)이 이미 시작함. 여기선 노크 핸드셰이크만 시도.
   huskylens.setTimeOutDuration(30);   // 기본 100ms → 30ms (주행 루프 보호)
+  bool connected = false;
   for (int i = 0; i < 5; i++) {       // 카메라 부팅 지연 대비 짧은 재시도(비치명적)
-    if (huskylens.begin(Wire)) break;
+    if (huskylens.begin(Wire)) { connected = true; break; }
     delay(50);
+  }
+  if (connected) {
+    // 부팅 시 카메라를 QR 코드 인식 모드로 강제 전환(이전 모드와 무관).
+    // OK 응답 실패해도 비치명적 — 짧게 재시도 후 포기(주행 루프 보호).
+    for (int i = 0; i < 3 && !huskylens.writeAlgorithm(ALGORITHM_QR_CODE_RECOGNITION); i++) {
+      delay(20);
+    }
   }
 }
 
