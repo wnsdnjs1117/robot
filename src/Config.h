@@ -102,8 +102,8 @@ constexpr float LINE_KP_FWD_HARD = 1.8f;              // 전진 라인 P게인 (
 constexpr float LINE_KP_REV_SOFT = 1.0f;              // 후진 라인 P게인 (오차가 작을 때)
 constexpr float LINE_KP_REV_HARD = 1.4f;              // 후진 라인 P게인 (오차가 클 때)
 constexpr float LINE_KP_TRACK_7_9_SOFT = 1.4f;        // 메인 트랙(7-8-9) 라인 부드러운 조향 게인
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.7f;        // 메인 트랙(7-8-9) 라인 강한 조향 게인
-constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.5f;  // 강한 조향 시 속도 감속 비율
+constexpr float LINE_KP_TRACK_7_9_HARD = 2.4f;        // 메인 트랙(7-8-9) 라인 강한 조향 게인
+constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.6f;  // 강한 조향 시 속도 감속 비율
 
 constexpr float LINE_KI = 0.0f;                      // 라인 트레이싱 I게인
 constexpr float LINE_KD = 9.0f;                      // 라인 트레이싱 D게인
@@ -178,7 +178,7 @@ constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;      // 라인을 놓친(오버�
 // [12] 메인 트랙 가로축 노드 7 — 8 — 9
 // ============================================================
 constexpr float DIST_TRACK_NODE_SPAN_CM = 68.0f;  // 7-8 및 8-9 노드 간 기본 간격
-constexpr float DIST_TRACK_8_TO_9_CM = 60.0f;     // 8->9 진입 시 감속을 시작할 거리
+constexpr float DIST_TRACK_8_TO_9_CM = 65.0f;     // 8->9 진입 시 감속을 시작할 거리
 constexpr float DIST_9_TO_8_CM = 45.0f;           // 9->8 진입 시 감속을 시작할 비대칭 거리
 constexpr float DIST_TRACK_7_TO_9_CM =
     DIST_TRACK_NODE_SPAN_CM +
