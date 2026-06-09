@@ -56,7 +56,7 @@ constexpr unsigned long BUZZER_FINISH_MS = 2000;                          // 미
 // [5] QR 스캔 · 재탐색
 // ============================================================
 constexpr int MAX_RESCAN_TRIES = 99;           // QR 스캔 실패 시 최대 재시도 횟수
-constexpr unsigned long SCAN_DWELL_MS = 1000;  // QR 스캔 대기 시간 (ms)
+constexpr unsigned long SCAN_DWELL_MS = 1500;  // QR 스캔 대기 시간 (ms)
 constexpr unsigned long SCAN_POLL_MS = 10;     // QR 스캔 폴링 주기 (ms)
 
 // ============================================================
@@ -64,7 +64,7 @@ constexpr unsigned long SCAN_POLL_MS = 10;     // QR 스캔 폴링 주기 (ms)
 // ============================================================
 constexpr int RAMP_MIN_SPEED = 35;      // 가감속 최소(출발/도착) 속도
 constexpr int RAMP_REF_SPEED = 40;      // 가감속 비율 계산을 위한 기준 속도
-constexpr float RAMP_ACCEL_CM = 15.0f;  // 목표 속도 도달에 필요한 가속 구간 거리
+constexpr float RAMP_ACCEL_CM = 13.0f;  // 목표 속도 도달에 필요한 가속 구간 거리
 constexpr float RAMP_DECEL_CM = 15.0f;  // 정지를 위한 감속 구간 거리
 constexpr int RAMP_MAX_SPEED_STEP = 5;  // 모터 1틱당 허용되는 최대 속도 변화량
 
@@ -122,7 +122,7 @@ constexpr int MOTOR_OFFSET_R = 0;  // 오른쪽 모터 하드웨어 출력 보�
 // ============================================================
 constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;  // 교차로 감지 후 정렬을 위한 추가 직진 거리
 constexpr float DIST_BRAKE_CATCH_CM = 0.3f;                          // 제동 시 미끄러짐 기본 보정치
-constexpr float DIST_BRAKE_CATCH_MAX_CM = 3.0f;                      // 제동 시 미끄러짐 최대 보정치
+constexpr float DIST_BRAKE_CATCH_MAX_CM = 4.0f;                      // 제동 시 미끄러짐 최대 보정치
 constexpr float DIST_IGNORE_NODE_CM = 5.0f;                          // 교차로 통과 직후 센서 감지를 무시할 거리
 constexpr int CROSS_CONFIRM = 1;                                     // 교차로 연속 감지 인정 횟수
 constexpr int EXIT_LINE_CONFIRM = 1;                                 // 탈출 라인 연속 감지 인정 횟수
@@ -178,8 +178,8 @@ constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;      // 라인을 놓친(오버�
 // [12] 메인 트랙 가로축 노드 7 — 8 — 9
 // ============================================================
 constexpr float DIST_TRACK_NODE_SPAN_CM = 68.0f;  // 7-8 및 8-9 노드 간 기본 간격
-constexpr float DIST_TRACK_8_TO_9_CM = 60.0f;     // 8->9 진입 시 감속을 시작할 거리
-constexpr float DIST_9_TO_8_CM = 45.0f;  // 9->8 진입 시 감속을 시작할 비대칭 거리
+constexpr float DIST_TRACK_8_TO_9_CM = 55.0f;     // 8->9 진입 시 감속을 시작할 거리
+constexpr float DIST_9_TO_8_CM = 50.0f;           // 9->8 진입 시 감속을 시작할 비대칭 거리
 constexpr float DIST_TRACK_7_TO_9_CM =
     DIST_TRACK_NODE_SPAN_CM +
     DIST_TRACK_8_TO_9_CM;  // 7->9 연속 거리(7-8 + 8-9 비대칭 반영). 이 값으로 7->9 감속 시점이 정해짐
@@ -229,7 +229,7 @@ constexpr float DIST_TRACK_12_TO_9_CM = 35.0f;   // 12 -> 9 배송 복귀 직진
 // [15] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
 // ============================================================
 constexpr float HEADING_11_TO_FINISH = 348.0f;         // 11번에서 피니시(스타트박스)로 향하는 각도
-constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 12.0f;  // 피니시 라인 탐색을 위한 센서 무시 거리
+constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 15.0f;  // 피니시 라인 탐색을 위한 센서 무시 거리
 constexpr float DIST_FINISH_AFTER_TOUCH_CM = 6.0f;     // 스타트박스 후방 터치 후 추가 후진 거리
 constexpr float FINISH_TURN_DEG = 6.0f;                // 벽면 정렬을 위한 마무리 꺾임 각도 (+시계)
 constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;       // 꺾은 후 최종 주차 후진 거리
