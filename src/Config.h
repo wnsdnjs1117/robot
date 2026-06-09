@@ -87,11 +87,11 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // ============================================================
 constexpr int SPEED_LINE_FOLLOW_FWD = 40;    // 전진 라인 트레이싱 기본 속도
 constexpr int SPEED_LINE_FOLLOW_REV = 35;    // 후진 라인 트레이싱 기본 속도
-constexpr int SPEED_OPEN_ZONE_FWD = 50;      // 박스존 내 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_ZONE_FWD = 65;      // 박스존 내 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_ZONE_REV = 45;      // 박스존 내 후진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_FWD = 75;     // 일반 트랙 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_TRACK_FWD = 90;     // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;     // 일반 트랙 후진 개방(블라인드) 속도
-constexpr int SPEED_TRACK_7_9_LINE = 65;     // 7, 8, 9번 메인 트랙 고속 주행 속도
+constexpr int SPEED_TRACK_7_9_LINE = 75;     // 7, 8, 9번 메인 트랙 고속 주행 속도
 constexpr int START_LINE_SEARCH_SPEED = 15;  // 스타트 직후 최초 라인 탐색 진입 속도
 
 // ============================================================
@@ -178,7 +178,7 @@ constexpr float SPIN_LINE_RECOVER_DEG = 20.0f;      // 라인을 놓친(오버�
 // [12] 메인 트랙 가로축 노드 7 — 8 — 9
 // ============================================================
 constexpr float DIST_TRACK_NODE_SPAN_CM = 68.0f;  // 7-8 및 8-9 노드 간 기본 간격
-constexpr float DIST_TRACK_8_TO_9_CM = 65.0f;     // 8->9 진입 시 감속을 시작할 거리
+constexpr float DIST_TRACK_8_TO_9_CM = 60.0f;     // 8->9 진입 시 감속을 시작할 거리
 constexpr float DIST_9_TO_8_CM = 45.0f;  // 9->8 진입 시 감속을 시작할 비대칭 거리
 constexpr float DIST_TRACK_7_TO_9_CM =
     DIST_TRACK_NODE_SPAN_CM +
@@ -216,14 +216,14 @@ constexpr float HEADING_10_TO_12 = 245.0f;  // 10 -> 12 이동 목표 각도
 constexpr float DIST_10_TO_12_CM = 55.0f;   // 10 -> 12 직진 주행 거리
 
 constexpr float HEADING_11_TO_12 = 255.0f;  // 11 -> 12 이동 목표 각도
-constexpr float DIST_11_TO_12_CM = 115.0f;  // 11 -> 12 직진 주행 거리
+constexpr float DIST_11_TO_12_CM = 110.0f;  // 11 -> 12 직진 주행 거리
 
 constexpr float HEADING_12_TO_9_2 = 307.0f;  // 12 -> 9 배송 복귀 목표 각도
 
 constexpr float DIST_TRACK_9_TO_10_CM = 60.0f;   // 9 -> 10 트랙 직진 거리
 constexpr float DIST_TRACK_10_TO_11_CM = 70.0f;  // 10 -> 11 트랙 직진 거리
 constexpr float DIST_TRACK_9_TO_11_CM = 130.0f;  // 9 -> 11 연속 트랙 거리
-constexpr float DIST_TRACK_12_TO_9_CM = 40.0f;   // 12 -> 9 배송 복귀 직진 거리
+constexpr float DIST_TRACK_12_TO_9_CM = 35.0f;   // 12 -> 9 배송 복귀 직진 거리
 
 // ============================================================
 // [15] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
