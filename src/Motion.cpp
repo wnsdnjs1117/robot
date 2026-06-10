@@ -253,7 +253,7 @@ static void spinPlainCounts(bool clockwise, long counts) {
     driveLoopTick();
   }
   spinMotorSpeeds(clockwise, 0);
-  delayWithTicks(10);
+  delayWithTicks(40);
   setWheelSpeeds(0, 0);
 }
 
@@ -304,7 +304,7 @@ void rotateByDegrees(float degrees, bool clockwise) {
   }
 
   spinMotorSpeeds(clockwise, 0);
-  delayWithTicks(10);
+  delayWithTicks(40);
   setWheelSpeeds(0, 0);
 
   // 회전 종료 후 10ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
