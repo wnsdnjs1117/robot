@@ -223,7 +223,7 @@ bool finishAlignSpan(DriveEncMark alignStart, long alignSpanCounts, int curSpeed
  void stopMotors() {
    prizm.setMotorPower(1, 125);
    prizm.setMotorPower(2, 125);
-   delayWithTicks(10);
+   delayWithTicks(40);  // 브레이크 유지: 잔여 구름이 남은 채 다음 동작이 엔코더 기준을 잡지 않게
    prizm.setMotorSpeeds(0, 0);
  }
  
@@ -307,8 +307,8 @@ void rotateByDegrees(float degrees, bool clockwise) {
   delayWithTicks(40);
   setWheelSpeeds(0, 0);
 
-  // 회전 종료 후 10ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
-  delayWithTicks(10);
+  // 회전 종료 후 40ms 동안 정지 상태로 두어 관성 오버스핀이 잦아든 뒤 라인 상태를 확인한다.
+  delayWithTicks(40);
 
   // 트리밍이 작동했거나, 회전 도중 선을 보았을 경우(불이 켜졌었다면)
   if (lineTrimmed || oppositeSeen) {
