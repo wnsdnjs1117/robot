@@ -252,7 +252,7 @@ static bool loopQrTest() {
     if (c == 'q' || c == 'Q') { Serial.read(); return false; }
   }
   unsigned long now = millis();
-  if (now - _qrLastPrint >= 200) {
+  if (now - _qrLastPrint >= SCAN_POLL_MS) {
     int id = HuskyQR::readBoxId();
     int dest = 0;
     for (int i = 0; i < 6; i++) if (DEST_HUSKY_ID[i] == id) { dest = i + 1; break; }
