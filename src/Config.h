@@ -228,10 +228,10 @@ constexpr float DIST_TRACK_12_TO_9_CM = 35.0f;   // 12 -> 9 배송 복귀 직진
 // ============================================================
 // [15] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
 // ============================================================
-constexpr float HEADING_11_TO_FINISH = 348.0f;         // 11번에서 피니시(스타트박스)로 향하는 각도
+constexpr float HEADING_11_TO_FINISH = 347.0f;         // 11번에서 피니시(스타트박스)로 향하는 각도
 constexpr float DIST_FINISH_BLIND_CONFIRM_CM = 10.0f;  // 이만큼 연속 블라인드를 밟은 뒤에야 다음 선을 스타트박스로 인식 (11선↔스타트박스 갭 19cm보다 작아야 함)
-constexpr float DIST_FINISH_AFTER_TOUCH_CM = 6.0f;     // 스타트박스 후방 터치 후 추가 후진 거리
-constexpr float FINISH_TURN_DEG = 6.0f;                // 벽면 정렬을 위한 마무리 꺾임 각도 (+시계)
+constexpr float DIST_FINISH_AFTER_TOUCH_CM = 5.0f;     // 스타트박스 후방 터치 후 추가 후진 거리
+constexpr float FINISH_TURN_DEG = 7.0f;                // 벽면 정렬을 위한 마무리 꺾임 각도 (+시계)
 constexpr float DIST_FINISH_PARK_REV_CM = 10.0f;       // 꺾은 후 최종 주차 후진 거리
 
 // ============================================================
