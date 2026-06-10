@@ -254,11 +254,14 @@ static bool loopQrTest() {
   unsigned long now = millis();
   if (now - _qrLastPrint >= 200) {
     int id = HuskyQR::readBoxId();
-    if (id >= 1 && id <= 6) {
-      Serial.print(F("인식 ID(목적지): ")); Serial.println(id);
+    int dest = 0;
+    for (int i = 0; i < 6; i++) if (DEST_HUSKY_ID[i] == id) { dest = i + 1; break; }
+    if (dest) {
+      Serial.print(F("인식 ID ")); Serial.print(id);
+      Serial.print(F(" → 목적지 ")); Serial.println(dest);
       playBeep(120);
     } else {
-      Serial.println(F("...(인식 없음)"));
+      Serial.print(F("...(인식 없음/미매핑 ID=")); Serial.print(id); Serial.println(F(")"));
     }
     _qrLastPrint = now;
   }

@@ -39,10 +39,14 @@ void pollZoneScan() {
   if (boxes[zone].present) { boxes[zone].found = true; startBeep(BUZZER_QR_FOUND_MS); }
 #else
   int id = HuskyQR::readBoxId();
-  if (id >= 1 && id <= 6) {
+  int dest = 0;
+  for (int i = 0; i < 6; i++) {          // 읽은 ID에 해당하는 목적지(i+1) 찾기
+    if (DEST_HUSKY_ID[i] == id) { dest = i + 1; break; }
+  }
+  if (dest >= 1 && dest <= 6) {
     boxes[zone].found = true;
     boxes[zone].present = true;
-    boxes[zone].destination = id;
+    boxes[zone].destination = dest;
     startBeep(BUZZER_QR_FOUND_MS);
   }
 #endif
