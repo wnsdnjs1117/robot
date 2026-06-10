@@ -106,7 +106,9 @@ void runFinishApproachFrom11() {
   bool blindArmed = false;
   DriveEncMark blindMark = {0, 0};
 
-  // 11번 세로선 위(블라인드 전)에서는 후진 라인트레이싱으로 정렬한다.
+  // 규칙: 11번에서 어떻게 출발하든 (라인이 있으면 후진 라인트레이싱으로 따라가다가)
+  //       연속 블라인드 >= DIST_FINISH_BLIND_CONFIRM_CM 를 채운 뒤에야 다음 선을 스타트박스로 인식한다.
+  //       라인을 밟으면 연속 블라인드 카운터는 리셋된다.
   while (true) {
     int rl, rc, rr;
     readRearLineSensors(rl, rc, rr);
