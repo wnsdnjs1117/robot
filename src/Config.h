@@ -57,7 +57,7 @@ constexpr unsigned long BUZZER_FINISH_MS = 2000;                          // 미
 // ============================================================
 constexpr int MAX_RESCAN_TRIES = 99;           // QR 스캔 실패 시 최대 재시도 횟수
 constexpr unsigned long SCAN_DWELL_MS = 1500;  // QR 스캔 대기 시간 (ms)
-constexpr unsigned long SCAN_POLL_MS = 10;     // QR 스캔 폴링 주기 (ms)
+constexpr unsigned long SCAN_POLL_MS = 0;      // QR 스캔 폴링 주기 (ms) — 0이면 매 루프 폴링(카메라 응답 속도가 실질 한계)
 
 // 각 목적지에 학습시킨 허스키렌즈 ID. 인덱스 0 = 목적지 1 … 인덱스 5 = 목적지 6.
 // 기본은 "1번 목적지 = id1, 2번 목적지 = id2 ...".
