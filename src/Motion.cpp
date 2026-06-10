@@ -259,8 +259,8 @@ static void spinPlainCounts(bool clockwise, long counts) {
 
 void rotateByDegrees(float degrees, bool clockwise) {
   setWheelSpeeds(0, 0);
-  delayWithTicks(10);
-  
+  delayWithTicks(40);  // 턴 직전: 직진 관성을 죽인 뒤 회전 기준 엔코더 캡처(짧으면 회전 조기 종료)
+
   float absDeg = degrees >= 0.0f ? degrees : -degrees;
   float compDeg = absDeg * (1.0f - SPIN_OVERSHOOT_COMP_FRAC);
   long targetCounts = spinDegToCounts(compDeg);
