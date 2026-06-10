@@ -89,9 +89,9 @@ constexpr int SPEED_LINE_FOLLOW_FWD = 40;    // 전진 라인 트레이싱 기�
 constexpr int SPEED_LINE_FOLLOW_REV = 35;    // 후진 라인 트레이싱 기본 속도
 constexpr int SPEED_OPEN_ZONE_FWD = 65;      // 박스존 내 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_ZONE_REV = 45;      // 박스존 내 후진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_FWD = 90;     // 일반 트랙 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_TRACK_FWD = 85;     // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;     // 일반 트랙 후진 개방(블라인드) 속도
-constexpr int SPEED_TRACK_7_9_LINE = 75;     // 7, 8, 9번 메인 트랙 고속 주행 속도
+constexpr int SPEED_TRACK_7_9_LINE = 70;     // 7, 8, 9번 메인 트랙 고속 주행 속도
 constexpr int START_LINE_SEARCH_SPEED = 15;  // 스타트 직후 최초 라인 탐색 진입 속도
 
 // ============================================================
@@ -101,8 +101,8 @@ constexpr float LINE_KP_FWD_SOFT = 1.2f;              // 전진 라인 P게인 (
 constexpr float LINE_KP_FWD_HARD = 1.8f;              // 전진 라인 P게인 (오차가 클 때)
 constexpr float LINE_KP_REV_SOFT = 1.0f;              // 후진 라인 P게인 (오차가 작을 때)
 constexpr float LINE_KP_REV_HARD = 1.4f;              // 후진 라인 P게인 (오차가 클 때)
-constexpr float LINE_KP_TRACK_7_9_SOFT = 1.4f;        // 메인 트랙(7-8-9) 라인 부드러운 조향 게인
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.4f;        // 메인 트랙(7-8-9) 라인 강한 조향 게인
+constexpr float LINE_KP_TRACK_7_9_SOFT = 1.5f;        // 메인 트랙(7-8-9) 라인 부드러운 조향 게인
+constexpr float LINE_KP_TRACK_7_9_HARD = 2.2f;        // 메인 트랙(7-8-9) 라인 강한 조향 게인
 constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.6f;  // 강한 조향 시 속도 감속 비율
 
 constexpr float LINE_KI = 0.0f;                      // 라인 트레이싱 I게인
