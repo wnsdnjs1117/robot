@@ -96,9 +96,9 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 // ============================================================
 constexpr int SPEED_LINE_FOLLOW_FWD = 40;    // 전진 라인 트레이싱 기본 속도
 constexpr int SPEED_LINE_FOLLOW_REV = 35;    // 후진 라인 트레이싱 기본 속도
-constexpr int SPEED_OPEN_ZONE_FWD = 65;      // 박스존 내 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_ZONE_FWD = 70;      // 박스존 내 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_ZONE_REV = 45;      // 박스존 내 후진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_TRACK_FWD = 85;     // 일반 트랙 전진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_TRACK_FWD = 80;     // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;     // 일반 트랙 후진 개방(블라인드) 속도
 constexpr int SPEED_TRACK_7_9_LINE = 70;     // 7, 8, 9번 메인 트랙 고속 주행 속도
 constexpr int START_LINE_SEARCH_SPEED = 15;  // 스타트 직후 최초 라인 탐색 진입 속도
@@ -217,7 +217,7 @@ constexpr float DIST_TRACK_13_TO_9_CM = 70.0f;  // 13에서 9까지의 대각선
 // [14] 맵 경로 — 9 · 10 · 11 · 12 (남쪽 루프)
 // ============================================================
 constexpr float HEADING_9_TO_10 = 88.0f;    // 9 -> 10 이동 목표 각도
-constexpr float HEADING_9_TO_11 = 89.0f;    // 9 -> 11 이동 목표 각도
+constexpr float HEADING_9_TO_11 = 89.1f;    // 9 -> 11 이동 목표 각도
 constexpr float HEADING_10_TO_11 = 87.0f;   // 10 -> 11 이동 목표 각도
 constexpr float HEADING_11_TO_10 = 273.0f;  // 11 -> 10 이동 목표 각도
 
@@ -232,7 +232,7 @@ constexpr float HEADING_12_TO_9_2 = 307.0f;  // 12 -> 9 배송 복귀 목표 각
 constexpr float DIST_TRACK_9_TO_10_CM = 60.0f;   // 9 -> 10 트랙 직진 거리
 constexpr float DIST_TRACK_10_TO_11_CM = 70.0f;  // 10 -> 11 트랙 직진 거리
 constexpr float DIST_TRACK_9_TO_11_CM = 130.0f;  // 9 -> 11 연속 트랙 거리
-constexpr float DIST_TRACK_12_TO_9_CM = 35.0f;   // 12 -> 9 배송 복귀 직진 거리
+constexpr float DIST_TRACK_12_TO_9_CM = 38.0f;   // 12 -> 9 배송 복귀 직진 거리
 
 // ============================================================
 // [15] 맵 경로 — 피니시 (11번 경유 → 스타트박스)
