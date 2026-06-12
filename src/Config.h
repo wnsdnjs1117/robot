@@ -75,7 +75,7 @@ constexpr int RAMP_MIN_SPEED = 35;      // 가감속 최소(출발/도착) 속�
 constexpr int RAMP_REF_SPEED = 40;      // 가감속 비율 계산을 위한 기준 속도
 constexpr float RAMP_ACCEL_CM = 15.0f;  // 목표 속도 도달에 필요한 가속 구간 거리
 constexpr float RAMP_DECEL_CM = 15.0f;  // 정지를 위한 감속 구간 거리
-constexpr int RAMP_MAX_SPEED_STEP = 5;  // 모터 1틱당 허용되는 최대 속도 변화량
+constexpr int RAMP_MAX_SPEED_STEP = 8;  // 모터 1틱당 허용되는 최대 속도 변화량
 
 inline float rampCruiseFactor(int speed) {
   int s = speed < 0 ? -speed : speed;
@@ -97,7 +97,7 @@ inline int rampDecelSpanCounts(int cruiseSpeed) {
 constexpr int SPEED_LINE_FOLLOW_FWD = 40;    // 전진 라인 트레이싱 기본 속도
 constexpr int SPEED_LINE_FOLLOW_REV = 35;    // 후진 라인 트레이싱 기본 속도
 constexpr int SPEED_OPEN_ZONE_FWD = 65;      // 박스존 내 전진 개방(블라인드) 속도
-constexpr int SPEED_OPEN_ZONE_REV = 45;      // 박스존 내 후진 개방(블라인드) 속도
+constexpr int SPEED_OPEN_ZONE_REV = 50;      // 박스존 내 후진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_FWD = 80;     // 일반 트랙 전진 개방(블라인드) 속도
 constexpr int SPEED_OPEN_TRACK_REV = 60;     // 일반 트랙 후진 개방(블라인드) 속도
 constexpr int SPEED_TRACK_7_9_LINE = 70;     // 7, 8, 9번 메인 트랙 고속 주행 속도
@@ -111,7 +111,7 @@ constexpr float LINE_KP_FWD_HARD = 1.8f;              // 전진 라인 P게인 (
 constexpr float LINE_KP_REV_SOFT = 1.0f;              // 후진 라인 P게인 (오차가 작을 때)
 constexpr float LINE_KP_REV_HARD = 1.4f;              // 후진 라인 P게인 (오차가 클 때)
 constexpr float LINE_KP_TRACK_7_9_SOFT = 1.6f;        // 메인 트랙(7-8-9) 라인 부드러운 조향 게인
-constexpr float LINE_KP_TRACK_7_9_HARD = 2.3f;        // 메인 트랙(7-8-9) 라인 강한 조향 게인
+constexpr float LINE_KP_TRACK_7_9_HARD = 2.4f;        // 메인 트랙(7-8-9) 라인 강한 조향 게인
 constexpr float LINE_HARD_STEER_SPEED_FACTOR = 0.6f;  // 강한 조향 시 속도 감속 비율
 
 constexpr float LINE_KI = 0.0f;                      // 라인 트레이싱 I게인
@@ -149,10 +149,10 @@ struct ZoneMotionProfile {
 inline ZoneMotionProfile getZoneProfile(int zone) {
   ZoneMotionProfile p;
   if (zone == 1) {
-    p.exitForwardExtra = 34.0f;
+    p.exitForwardExtra = 33.0f;
     p.exitReverseExtra = 31.0f;  // [실측 반영]
   } else if (zone == 3) {
-    p.exitForwardExtra = 36.0f;
+    p.exitForwardExtra = 35.0f;
     p.exitReverseExtra = 33.0f;  // [실측 반영]
   } else if (zone == 5 || zone == 6) {
     p.exitReverseExtra = 27.5f;
