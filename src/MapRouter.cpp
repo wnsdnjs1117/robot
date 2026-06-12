@@ -114,9 +114,11 @@ static void blindDriveAndAlign(float targetHeading, float alignHeading, bool sto
   int lineConfirmCount = 0;
 
   // 사선 진입이면 좌/우 센서가 중앙보다 먼저 라인에 닿아 정렬 마크가 일찍 잡힌다.
-  // 가로 오프셋이 없는 중앙 센서가 라인에 닿는 순간으로 마크를 다시 잡아 보정한다.
+  // 중앙 센서가 닿은 지점 + 정렬 거리(6cm)를 최종 목표로 잡되, 감속 프로파일은
+  // 첫 감지 마크 기준 하나로 유지해 속도 단차 없이 부드럽게 정지하게 한다.
   bool centerMarked = false;
   long centerWaitSpan = toEncoderCounts(DIST_CROSS_CENTER_WAIT_CM);
+  long alignTotalSpan = alignSpan + centerWaitSpan;  // 대기 중 잠정 목표(최악치)
 
   while (true) {
     int fl, fc, fr;
@@ -170,25 +172,21 @@ static void blindDriveAndAlign(float targetHeading, float alignHeading, bool sto
     }
 
     if (!centerMarked) {
+      long waited = encoderTraveledSince(lineMark);
       if (fc != 0) {
         centerMarked = true;
-        lineMark = captureDriveEnc();
-      } else if (encoderTraveledSince(lineMark) >= centerWaitSpan) {
-        // 라인을 스치듯 지나 중앙 센서가 닿지 않는 경우: 첫 감지 마크를 그대로 사용
+        alignTotalSpan = waited + alignSpan;  // 중앙 감지 지점 + 6cm가 최종 목표
+      } else if (waited >= centerWaitSpan) {
+        // 라인을 스치듯 지나 중앙 센서가 닿지 않는 경우: 기존처럼 첫 감지 + 6cm에서 정지
         centerMarked = true;
-      } else {
-        int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
-        speed = smoothRampSpeed(speed);
-        setWheelSpeeds(speed, speed);
-        driveLoopTick();
-        continue;
+        alignTotalSpan = alignSpan;
       }
     }
 
-    int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
+    int speed = crossAlignSpeed(lineMark, alignTotalSpan, lastCurSpeed);
     speed = smoothRampSpeed(speed);
-    if (stopAtEnd && finishAlignSpan(lineMark, alignSpan, speed)) break;
-    if (!stopAtEnd && encoderTraveledSince(lineMark) >= alignSpan) break;
+    if (stopAtEnd && finishAlignSpan(lineMark, alignTotalSpan, speed)) break;
+    if (!stopAtEnd && encoderTraveledSince(lineMark) >= alignTotalSpan) break;
     setWheelSpeeds(speed, speed);
     driveLoopTick();
   }
