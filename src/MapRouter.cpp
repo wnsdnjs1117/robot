@@ -113,6 +113,11 @@ static void blindDriveAndAlign(float targetHeading, float alignHeading, bool sto
   int lastCurSpeed = RAMP_MIN_SPEED;
   int lineConfirmCount = 0;
 
+  // 사선 진입이면 좌/우 센서가 중앙보다 먼저 라인에 닿아 정렬 마크가 일찍 잡힌다.
+  // 가로 오프셋이 없는 중앙 센서가 라인에 닿는 순간으로 마크를 다시 잡아 보정한다.
+  bool centerMarked = false;
+  long centerWaitSpan = toEncoderCounts(DIST_CROSS_CENTER_WAIT_CM);
+
   while (true) {
     int fl, fc, fr;
     readFrontLineSensors(fl, fc, fr);
@@ -161,6 +166,22 @@ static void blindDriveAndAlign(float targetHeading, float alignHeading, bool sto
           }
         }
         if (!lineFound) continue;
+      }
+    }
+
+    if (!centerMarked) {
+      if (fc != 0) {
+        centerMarked = true;
+        lineMark = captureDriveEnc();
+      } else if (encoderTraveledSince(lineMark) >= centerWaitSpan) {
+        // 라인을 스치듯 지나 중앙 센서가 닿지 않는 경우: 첫 감지 마크를 그대로 사용
+        centerMarked = true;
+      } else {
+        int speed = crossAlignSpeed(lineMark, alignSpan, lastCurSpeed);
+        speed = smoothRampSpeed(speed);
+        setWheelSpeeds(speed, speed);
+        driveLoopTick();
+        continue;
       }
     }
 

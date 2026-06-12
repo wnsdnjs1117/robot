@@ -130,6 +130,9 @@ constexpr int MOTOR_OFFSET_R = 0;  // 오른쪽 모터 하드웨어 출력 보�
 // [9] 교차로 감지 · 목표 정지 (트랙 공통)
 // ============================================================
 constexpr float DIST_CROSS_ALIGN_CM = DIST_AXIS_TO_FRONT_SENSOR_CM;  // 교차로 감지 후 정렬을 위한 추가 직진 거리
+constexpr float DIST_FRONT_SENSOR_SPACING_CM = 1.7f;                 // 전방 중앙~좌/우 라인 센서 가로 간격 (실측)
+constexpr float DIST_CROSS_CENTER_WAIT_CM =
+    DIST_FRONT_SENSOR_SPACING_CM * 2.0f;  // 사선 진입 시 측면 첫 감지 후 중앙 센서 감지를 기다리는 최대 추가 주행 거리(폴백 한계, 진입각 약 63도까지 허용)
 constexpr float DIST_BRAKE_CATCH_CM = 0.3f;                          // 제동 시 미끄러짐 기본 보정치
 constexpr float DIST_BRAKE_CATCH_MAX_CM = 4.0f;                      // 제동 시 미끄러짐 최대 보정치
 constexpr float DIST_IGNORE_NODE_CM = 5.0f;                          // 교차로 통과 직후 센서 감지를 무시할 거리
